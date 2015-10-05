@@ -1,0 +1,23 @@
+#ifndef _MySQL_H
+#define _MySQL_H
+
+template <typename F>
+struct FinalAction {
+	FinalAction(F f) : clean_{ f } {}
+	~FinalAction() { clean_(); }
+	F clean_;
+};
+template <typename F>
+FinalAction<F> finally(F f) {
+	return FinalAction<F>(f);
+}
+#ifdef WIN32
+#define WIN32_LEAN_AND_MEAN
+#define _WINSOCKAPI_
+#include <winsock2.h>
+#include <windows.h>
+#include <my_global.h>
+#endif
+#include <mysql.h>
+
+#endif
