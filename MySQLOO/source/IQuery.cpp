@@ -8,7 +8,7 @@
 //before the callback is called can result in race conditions.
 //Always check for QUERY_COMPLETE!!!
 
-IQuery::IQuery(Database* dbase, lua_State* state) : LuaObjectBase(state, TYPE_QUERY), m_database(dbase)
+IQuery::IQuery(Database* dbase, lua_State* state) : LuaObjectBase(state, false, TYPE_QUERY), m_database(dbase)
 {
 	LOG_CURRENT_FUNCTIONCALL
 	m_options = OPTION_NAMED_FIELDS | OPTION_INTERPRET_DATA | OPTION_CACHE;

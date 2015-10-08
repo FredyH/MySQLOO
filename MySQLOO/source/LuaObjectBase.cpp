@@ -211,7 +211,10 @@ void LuaObjectBase::runCallback(lua_State* state, const char* functionName, cons
 int LuaObjectBase::doThink(lua_State* state)
 {
 	LOG_CURRENT_FUNCTIONCALL
-	for (auto it = luaThinkObjects.begin(); it != luaThinkObjects.end(); ++it) {
+	//Think objects need to be copied because a think call could modify the original thinkObject queue
+	//which leads to it invalidating the iterator and thus undefined behaviour
+	std::deque<std::shared_ptr<LuaObjectBase>> thinkObjectsCopy = luaThinkObjects;
+	for (auto it = thinkObjectsCopy.begin(); it != thinkObjectsCopy.end(); ++it) {
 		(*it)->think(state);
 	}
 	if (luaRemovalObjects.size() > 0)
