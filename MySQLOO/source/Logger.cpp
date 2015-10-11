@@ -11,6 +11,7 @@ namespace Logger
 	static FILE* logFile;
 	static bool loggingFailed = false;
 
+	//Disables logging
 	static void disableLogging(const char* message)
 	{
 		if (logFile != NULL)
@@ -22,6 +23,8 @@ namespace Logger
 		printf("%s\n", message);
 	}
 
+	//Attempts to initialize the logfile stream
+	//If it fails it disables logging
 	static bool initFileStream()
 	{
 		logFile = fopen("mysqloo.log", "a");
@@ -33,13 +36,14 @@ namespace Logger
 		return true;
 	}
 
+	//Logs a message to mysqloo.log, if it fails logging will be disabled
 	void Log(const char* format, ...)
 	{
 #ifdef LOGGER_ENABLED
+		//Double check in case one thread doesn't know about the change to loggingFailed yet,
+		//but to increase performance in case it already does
 		if (loggingFailed) return;
 		std::lock_guard<std::mutex> lock(loggerMutex);
-		//Double in case one thread doesn't know about it yet but to
-		//increase performance in case it already does
 		if (loggingFailed) return;
 		if (logFile == NULL)
 		{

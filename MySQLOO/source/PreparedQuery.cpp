@@ -82,6 +82,8 @@ int PreparedQuery::setNull(lua_State* state)
 	return 0;
 }
 
+//Adds an additional set of parameters to the prepared query
+//This makes it relatively easy to insert multiple rows at once
 int PreparedQuery::putNewParameters(lua_State* state)
 {
 	LOG_CURRENT_FUNCTIONCALL
@@ -152,6 +154,8 @@ void PreparedQuery::mysqlStmtStoreResult(MYSQL_STMT* stmt)
 static my_bool nullBool = 1;
 static int trueValue = 1;
 static int falseValue = 0;
+
+//Generates binds for a prepared query. In this case the binds are used to send the parameters to the server
 void PreparedQuery::generateMysqlBinds(MYSQL_BIND* binds, std::unordered_map<unsigned int, std::unique_ptr<PreparedQueryField>> *map, unsigned int parameterCount)
 {
 	LOG_CURRENT_FUNCTIONCALL
@@ -207,7 +211,9 @@ void PreparedQuery::generateMysqlBinds(MYSQL_BIND* binds, std::unordered_map<uns
 	}
 }
 
-/* Note: If an error occurs at the nth query all the actions done before
+/* Executes the prepared query
+ * This function can only ever return one result set
+ * Note: If an error occurs at the nth query all the actions done before
  * that nth query won't be reverted even though this query results in an error
  */
 bool PreparedQuery::executeStatement(MYSQL* connection)

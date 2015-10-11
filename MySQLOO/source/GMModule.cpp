@@ -67,7 +67,7 @@ GMOD_MODULE_OPEN()
 	LUA->GetField(-1, "hook");
 	LUA->GetField(-1, "Add");
 	LUA->PushString("Think");
-	LUA->PushString("__MySQLThinkHook");
+	LUA->PushString("__MySQLOOThinkHook");
 	LUA->PushCFunction(LuaObjectBase::doThink);
 	LUA->Call(3, 0);
 	LUA->Pop();

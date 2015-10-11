@@ -19,6 +19,9 @@ ResultData::ResultData() : ResultData(0,0)
 {
 }
 
+//Stores all of the rows of a result set
+//This is used so the result set can be free'd and doesn't have to be used in
+//another thread (which is not safe)
 ResultData::ResultData(MYSQL_RES* result) : ResultData(mysql_num_fields(result), mysql_num_rows(result))
 {
 	if (columnCount == 0) return;
@@ -63,6 +66,8 @@ static void mysqlStmtBindResult(MYSQL_STMT* stmt, MYSQL_BIND* bind)
 	}
 }
 
+//Stores all of the rows of a prepared query
+//This needs to be done because the query shouldn't be accessed from a different thread
 ResultData::ResultData(MYSQL_STMT* result) : ResultData(mysql_stmt_field_count(result), mysql_stmt_num_rows(result))
 {
 	if (this->columnCount == 0) return;
@@ -104,6 +109,7 @@ ResultDataRow::ResultDataRow(unsigned int columnCount)
 	this->nullFields.resize(columnCount);
 }
 
+//Datastructure that stores a row of mysql data
 ResultDataRow::ResultDataRow(unsigned long *lengths, MYSQL_ROW row, unsigned int columnCount) : ResultDataRow(columnCount)
 {
 	for (unsigned int i = 0; i < columnCount; i++)
@@ -123,6 +129,7 @@ ResultDataRow::ResultDataRow(unsigned long *lengths, MYSQL_ROW row, unsigned int
 	}
 }
 
+//Datastructure that stores a row of mysql data of a prepared query
 ResultDataRow::ResultDataRow(MYSQL_STMT* statement, MYSQL_BIND* bind, unsigned int columnCount) : ResultDataRow(columnCount)
 {
 	for (unsigned int i = 0; i < columnCount; i++)

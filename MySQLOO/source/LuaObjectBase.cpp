@@ -267,6 +267,8 @@ int LuaObjectBase::gcDeleteWrapper(lua_State* state)
 			object->m_userdataReference = 0;
 		}
 		object->scheduledForRemoval = true;
+		//This can't go wrong, lua objects are only ever deleted in the main thread,
+		//which this function is being called by, so the object can't be deleted yet
 		luaRemovalObjects.push_back(object->getSharedPointerInstance());
 	}
 	return 0;

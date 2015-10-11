@@ -1,6 +1,9 @@
 #ifndef _MySQL_H
 #define _MySQL_H
 
+//Source: http://stackoverflow.com/a/25510879
+//Pretty much an action that is always gonna execute when the 
+//scope it was declared in is left (so exceptions/returns/break/etc.)
 template <typename F>
 struct FinalAction {
 	FinalAction(F f) : clean_{ f } {}
