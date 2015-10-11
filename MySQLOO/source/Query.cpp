@@ -35,7 +35,8 @@ bool Query::executeStatement(MYSQL* connection)
 				this->results.emplace_back(results);
 			else
 				this->results.emplace_back();
-			this->insertIds.push_back(mysql_insert_id(connection));
+			this->m_insertIds.push_back(mysql_insert_id(connection));
+			this->m_affectedRows.push_back(mysql_affected_rows(connection));
 		}while (this->mysqlNextResult(connection));
 		this->m_resultStatus = QUERY_SUCCESS;
 	}

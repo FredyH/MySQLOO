@@ -89,6 +89,7 @@ GMOD_MODULE_OPEN()
 			LUA->PushNumber(QUERY_WAITING); LUA->SetField(-2, "QUERY_WAITING");
 
 			LUA->PushNumber(OPTION_NUMERIC_FIELDS); LUA->SetField(-2, "OPTION_NUMERIC_FIELDS");
+			LUA->PushNumber(OPTION_INTERPRET_DATA); LUA->SetField(-2, "OPTION_INTERPRET_DATA"); //Not used anymore
 			LUA->PushNumber(OPTION_NAMED_FIELDS); LUA->SetField(-2, "OPTION_NAMED_FIELDS"); //Not used anymore
 			LUA->PushNumber(OPTION_CACHE); LUA->SetField(-2, "OPTION_CACHE"); //Not used anymore
 

@@ -17,7 +17,11 @@ LuaObjectBase(state, TYPE_DATABASE), database(database), host(host), username(us
 	registerFunction(state, "escape", Database::escape);
 	registerFunction(state, "query", Database::query);
 	registerFunction(state, "connect", Database::connect);
-	registerFunction(state, "abortAll", Database::abortAll);
+	registerFunction(state, "abortAllQueries", Database::abortAllQueries);
+	registerFunction(state, "wait", Database::wait);
+	registerFunction(state, "serverVersion", Database::serverVersion);
+	registerFunction(state, "serverInfo", Database::serverInfo);
+	registerFunction(state, "hostInfo", Database::hostInfo);
 	registerFunction(state, "status", Database::status);
 	registerFunction(state, "setAutoReconnect", Database::setAutoReconnect);
 	registerFunction(state, "setMultiStatements", Database::setMultiStatements);
@@ -81,20 +85,10 @@ void Database::enqueueQuery(IQuery* query)
 }
 
 
-/* Returns the status of the database, constants can be found in GMModule
- */
-int Database::status(lua_State* state)
-{
-	LOG_CURRENT_FUNCTIONCALL
-	Database* object = (Database*)unpackSelf(state, TYPE_DATABASE);
-	LUA->PushNumber(object->m_status);
-	return 1;
-}
-
-/* Aborts all queries that are in the queue of accepted queries.
+/* Aborts all queries that are in the queue of started queries and returns the number of successfully aborted queries.
  * Does not abort queries that are already taken from the queue and being processed.
  */
-int Database::abortAll(lua_State* state)
+int Database::abortAllQueries(lua_State* state)
 {
 	LOG_CURRENT_FUNCTIONCALL
 	Database* object = (Database*)unpackSelf(state, TYPE_DATABASE);
@@ -109,8 +103,26 @@ int Database::abortAll(lua_State* state)
 	return 1;
 }
 
+/* Waits for the connection of the database to finish by blocking the current thread until the connect thread finished.
+ * Callbacks are going to be called before this function returns
+ */
+int Database::wait(lua_State* state)
+{
+	LOG_CURRENT_FUNCTIONCALL
+	Database* object = (Database*)unpackSelf(state, TYPE_DATABASE);
+	if (!object->startedConnecting)
+	{
+		LUA->ThrowError("Tried to wait for database connection to finish without starting the connection!");
+	}
+	std::unique_lock<std::mutex> lck(object->m_connectMutex);
+	while (!object->m_connectionDone) object->m_connectWakeupVariable.wait(lck);
+	object->think(state);
+	return 0;
+}
+
 /* Escapes an unescaped string using the database taking into account the characterset of the database.
-*/
+ * This might break if the characterset of the database is changed after the connection was done
+ */
 int Database::escape(lua_State* state)
 {
 	LOG_CURRENT_FUNCTIONCALL
@@ -130,7 +142,7 @@ int Database::escape(lua_State* state)
 }
 
 /* Starts the thread that connects to the database and then handles queries.
-*/
+ */
 int Database::connect(lua_State* state)
 {
 	LOG_CURRENT_FUNCTIONCALL
@@ -143,6 +155,64 @@ int Database::connect(lua_State* state)
 	object->m_status = DATABASE_CONNECTING;
 	object->m_thread = std::thread(&Database::connectRun, object);
 	return 0;
+}
+
+/* Returns the status of the database, constants can be found in GMModule
+ */
+int Database::status(lua_State* state)
+{
+	LOG_CURRENT_FUNCTIONCALL
+	Database* object = (Database*)unpackSelf(state, TYPE_DATABASE);
+	LUA->PushNumber(object->m_status);
+	return 1;
+}
+
+//Any of the serverInfo/Version and hostInfo functions could return outdated information if a reconnect happens
+//(for example after a mysql server upgrade)
+
+/* Returns the server version as a formatted integer (XYYZZ, X= major-, Y=minor, Z=sub-version)
+ * Only works as soon as the connection has been established
+ */
+int Database::serverVersion(lua_State* state)
+{
+	LOG_CURRENT_FUNCTIONCALL
+	Database* object = (Database*)unpackSelf(state, TYPE_DATABASE);
+	if (!object->m_connectionDone)
+	{
+		LUA->ThrowError("Tried to get server version when client is not connected to server yet!");
+	}
+	LUA->PushNumber(object->m_serverVersion);
+	return 1;
+}
+
+/* Returns the server version as a string (for example 5.0.96)
+ * Only works as soon as the connection has been established
+ */
+int Database::serverInfo(lua_State* state)
+{
+	LOG_CURRENT_FUNCTIONCALL
+	Database* object = (Database*)unpackSelf(state, TYPE_DATABASE);
+	if (!object->m_connectionDone)
+	{
+		LUA->ThrowError("Tried to get server info when client is not connected to server yet!");
+	}
+	LUA->PushString(object->m_serverInfo.c_str());
+	return 1;
+}
+
+/* Returns a string of the hostname connected to as well as the connection type
+ * Only works as soon as the connection has been established
+ */
+int Database::hostInfo(lua_State* state)
+{
+	LOG_CURRENT_FUNCTIONCALL
+	Database* object = (Database*)unpackSelf(state, TYPE_DATABASE);
+	if (!object->m_connectionDone)
+	{
+		LUA->ThrowError("Tried to get server info when client is not connected to server yet!");
+	}
+	LUA->PushString(object->m_hostInfo.c_str());
+	return 1;
 }
 
 int Database::setAutoReconnect(lua_State* state)
@@ -180,6 +250,7 @@ void Database::connectRun()
 	mysql_thread_init();
 	auto threadEnd = finally([&] { mysql_thread_end(); });
 	{
+		auto connectionSignaliser = finally([&] { m_connectWakeupVariable.notify_one(); });
 		std::lock_guard<std::mutex>(this->m_connectMutex);
 		this->m_sql = mysql_init(NULL);
 		if (this->m_sql == NULL)
@@ -209,6 +280,9 @@ void Database::connectRun()
 		m_connection_err = "";
 		m_connectionDone = true;
 		m_status = DATABASE_CONNECTED;
+		m_serverVersion = mysql_get_server_version(this->m_sql);
+		m_serverInfo = mysql_get_server_info(this->m_sql);
+		m_hostInfo = mysql_get_host_info(this->m_sql);
 	}
 	auto closeConnection = finally([&] { mysql_close(this->m_sql); this->m_sql = NULL;  });
 	if (m_success)

@@ -46,8 +46,12 @@ private:
 	static int prepare(lua_State* state);
 	static int escape(lua_State* state);
 	static int connect(lua_State* state);
-	static int abortAll(lua_State* state);
+	static int wait(lua_State* state);
+	static int abortAllQueries(lua_State* state);
 	static int status(lua_State* state);
+	static int serverVersion(lua_State* state);
+	static int serverInfo(lua_State* state);
+	static int hostInfo(lua_State* state);
 	static int setAutoReconnect(lua_State* state);
 	static int setMultiStatements(lua_State* state);
 	std::deque<std::shared_ptr<IQuery>> finishedQueries;
@@ -57,6 +61,10 @@ private:
 	std::mutex m_queryQueueMutex;
 	std::mutex m_finishedQueueMutex;
 	std::mutex m_connectMutex;
+	std::condition_variable m_connectWakeupVariable;
+	unsigned int m_serverVersion = 0;
+	std::string m_serverInfo = "";
+	std::string m_hostInfo = "";
 	bool shouldAutoReconnect = true;
 	bool useMultiStatements = true;
 	bool dbCallbackRan = false;

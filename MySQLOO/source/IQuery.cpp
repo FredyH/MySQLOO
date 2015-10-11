@@ -14,6 +14,7 @@ IQuery::IQuery(Database* dbase, lua_State* state) : LuaObjectBase(state, false, 
 	m_options = OPTION_NAMED_FIELDS | OPTION_INTERPRET_DATA | OPTION_CACHE;
 	m_status = QUERY_NOT_RUNNING;
 	registerFunction(state, "start", IQuery::start);
+	registerFunction(state, "affectedRows", IQuery::affectedRows);
 	registerFunction(state, "lastInsert", IQuery::lastInsert);
 	registerFunction(state, "getData", IQuery::getData_Wrapper);
 	registerFunction(state, "error", IQuery::error);
@@ -95,9 +96,13 @@ int IQuery::getNextResults(lua_State* state)
 		LUA->ReferenceFree(object->dataReference);
 		object->dataReference = 0;
 	}
-	if (object->insertIds.size() > 0)
+	if (object->m_insertIds.size() > 0)
 	{
-		object->insertIds.pop_front();
+		object->m_insertIds.pop_front();
+	}
+	if (object->m_affectedRows.size() > 0)
+	{
+		object->m_affectedRows.pop_front();
 	}
 	LUA->ReferencePush(object->getData(state));
 	return 1;
@@ -214,24 +219,47 @@ int IQuery::lastInsert(lua_State* state)
 	LOG_CURRENT_FUNCTIONCALL
 	IQuery* object = (IQuery*)unpackSelf(state, TYPE_QUERY);
 	//Calling lastInsert() after query was executed but before the callback is run can cause race conditions
-	if (object->m_status != QUERY_COMPLETE || object->insertIds.size() == 0)
+	if (object->m_status != QUERY_COMPLETE || object->m_insertIds.size() == 0)
 		LUA->PushNumber(0);
 	else
-		LUA->PushNumber(object->insertIds.front());
+		LUA->PushNumber(object->m_insertIds.front());
+	return 1;
+}
+
+//Returns the last affected rows produced by INSERT/DELETE/UPDATE (0 for none, -1 for errors)
+//For a SELECT statement this returns the amount of rows returned
+int IQuery::affectedRows(lua_State* state)
+{
+	LOG_CURRENT_FUNCTIONCALL
+		IQuery* object = (IQuery*)unpackSelf(state, TYPE_QUERY);
+	//Calling affectedRows() after query was executed but before the callback is run can cause race conditions
+	if (object->m_status != QUERY_COMPLETE || object->m_affectedRows.size() == 0)
+		LUA->PushNumber(0);
+	else
+		LUA->PushNumber(object->m_affectedRows.front());
 	return 1;
 }
 
 //Blocks the current Thread until the query has finished processing
 //Possibly dangerous (dead lock when database goes down while waiting)
+//If the second argument is set to true, the query is going to be swapped to the front of the query queue
 int IQuery::wait(lua_State* state)
 {
 	LOG_CURRENT_FUNCTIONCALL
 	IQuery* object = (IQuery*)unpackSelf(state, TYPE_QUERY);
+	bool shouldSwap = false;
+	if (LUA->IsType(5, GarrysMod::Lua::Type::BOOL))
+	{
+		shouldSwap = LUA->GetBool(2);
+	}
 	if (object->m_status == QUERY_NOT_RUNNING)
 	{
 		LUA->ThrowError("Query not started.");
 	}
+	//Changing the order of the query might have unwanted side effects, so this is disabled by default
+	if(shouldSwap)
 	{
+		//This makes sure 
 		std::lock_guard<std::mutex> lck(object->m_database->m_queryQueueMutex);
 		auto pos = std::find_if(object->m_database->queryQueue.begin(), object->m_database->queryQueue.end(), [&](std::shared_ptr<IQuery> const& p) {
 			return p.get() == object;
@@ -278,6 +306,7 @@ int IQuery::abort(lua_State* state)
 		object->m_status = QUERY_ABORTED;
 		object->unreference(state);
 		LUA->PushBool(true);
+		object->runCallback(state, "onAborted");
 	}
 	else
 	{

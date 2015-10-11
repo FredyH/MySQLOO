@@ -239,7 +239,8 @@ bool PreparedQuery::executeStatement(MYSQL* connection)
 			mysqlStmtStoreResult(stmt);
 			auto resultFree = finally([&] { mysql_stmt_free_result(stmt); });
 			this->results.emplace_back(stmt);
-			this->insertIds.push_back(mysql_stmt_insert_id(stmt));
+			this->m_affectedRows.push_back(mysql_stmt_affected_rows(stmt));
+			this->m_insertIds.push_back(mysql_stmt_insert_id(stmt));
 			this->m_resultStatus = QUERY_SUCCESS;
 			//This is used to clear the connection in case there are
 			//more ResultSets from a Procedure

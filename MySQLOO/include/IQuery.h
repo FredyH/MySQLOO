@@ -70,6 +70,7 @@ protected:
 	static int start(lua_State* state);
 	static int isRunning(lua_State* state);
 	static int lastInsert(lua_State* state);
+	static int affectedRows(lua_State* state);
 	static int getData_Wrapper(lua_State* state);
 	static int hasMoreResults(lua_State* state);
 	static int getNextResults(lua_State* state);
@@ -88,7 +89,8 @@ protected:
 	std::atomic<QueryStatus> m_status{ QUERY_NOT_RUNNING };
 	std::string m_errorText = "";
 	std::string m_query;
-	std::deque<my_ulonglong> insertIds;
+	std::deque<my_ulonglong> m_affectedRows;
+	std::deque<my_ulonglong> m_insertIds;
 	std::deque<ResultData> results;
 	std::condition_variable m_waitWakeupVariable;
 	QueryResultStatus m_resultStatus = QUERY_NONE;
