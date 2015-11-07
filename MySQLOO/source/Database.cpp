@@ -23,6 +23,7 @@ LuaObjectBase(state, TYPE_DATABASE), database(database), host(host), username(us
 	registerFunction(state, "serverInfo", Database::serverInfo);
 	registerFunction(state, "hostInfo", Database::hostInfo);
 	registerFunction(state, "status", Database::status);
+	registerFunction(state, "queueSize", Database::queueSize);
 	registerFunction(state, "setAutoReconnect", Database::setAutoReconnect);
 	registerFunction(state, "setMultiStatements", Database::setMultiStatements);
 }
@@ -82,6 +83,20 @@ void Database::enqueueQuery(IQuery* query)
 	queryQueue.push_back(std::dynamic_pointer_cast<IQuery>(query->getSharedPointerInstance()));
 	query->m_status = QUERY_WAITING;
 	this->m_queryWakupVariable.notify_one();
+}
+
+
+/* Returns the amount of queued querys in the database instance
+ * If a query is currently being processed, it does not count towards the queue size
+ */
+int Database::queueSize(lua_State* state)
+{
+	LOG_CURRENT_FUNCTIONCALL
+	Database* object = (Database*)unpackSelf(state, TYPE_DATABASE);
+	std::unique_lock<std::mutex> qlck(object->m_queryQueueMutex);
+	LUA->PushNumber(object->queryQueue.size());
+	return 1;
+	
 }
 
 

@@ -52,6 +52,7 @@ private:
 	static int serverVersion(lua_State* state);
 	static int serverInfo(lua_State* state);
 	static int hostInfo(lua_State* state);
+	static int queueSize(lua_State* state);
 	static int setAutoReconnect(lua_State* state);
 	static int setMultiStatements(lua_State* state);
 	std::deque<std::shared_ptr<IQuery>> finishedQueries;

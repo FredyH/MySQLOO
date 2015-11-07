@@ -28,7 +28,7 @@ GMOD_MODULE_CLOSE()
 /* Connects to the database and returns a Database instance that can be used
  * as an interface to the mysql server.
  */
-int connect(lua_State* state)
+static int connect(lua_State* state)
 {
 	LOG_CURRENT_FUNCTIONCALL
 	LUA->CheckType(1, GarrysMod::Lua::Type::STRING);
@@ -51,6 +51,16 @@ int connect(lua_State* state)
 	}
 	Database* object = new Database(state, host, username, pw, database, port, unixSocket);
 	((LuaObjectBase*) object)->pushTableReference(state);
+	return 1;
+}
+
+/* Returns the amount of LuaObjectBase objects that are currently in use
+ * This includes Database and Query instances
+ */
+static int objectCount(lua_State* state)
+{
+	LOG_CURRENT_FUNCTIONCALL
+	LUA->PushNumber(LuaObjectBase::luaObjects.size());
 	return 1;
 }
 
@@ -94,6 +104,7 @@ GMOD_MODULE_OPEN()
 			LUA->PushNumber(OPTION_CACHE); LUA->SetField(-2, "OPTION_CACHE"); //Not used anymore
 
 			LUA->PushCFunction(connect); LUA->SetField(-2, "connect");
+			LUA->PushCFunction(objectCount); LUA->SetField(-2, "objectCount");
 
 		LUA->SetField(-2, "mysqloo");
 	LUA->Pop();
