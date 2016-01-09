@@ -30,6 +30,14 @@ IQuery::~IQuery()
 {
 }
 
+void IQuery::setResultStatus(QueryResultStatus status) {
+	this->m_resultStatus = status;
+}
+
+QueryResultStatus IQuery::getResultStatus() {
+	return this->m_resultStatus;
+}
+
 //When the query is destroyed by lua
 void IQuery::onDestroyed(lua_State* state)
 {
@@ -41,13 +49,6 @@ void IQuery::onDestroyed(lua_State* state)
 		this->dataReference = 0;
 	}
 }
-
-//Sets the mysql query string
-void IQuery::setQuery(std::string query)
-{
-	m_query = query;
-}
-
 //This function just returns the data associated with the query
 //Data is only created once (and then the reference to that data is returned)
 int IQuery::getData_Wrapper(lua_State* state)
@@ -106,6 +107,21 @@ int IQuery::getNextResults(lua_State* state)
 	}
 	LUA->ReferencePush(object->getData(state));
 	return 1;
+}
+
+//Wrapper for c api calls
+//Just throws an exception if anything goes wrong for ease of use
+
+void IQuery::mysqlAutocommit(MYSQL* sql, bool auto_mode)
+{
+	LOG_CURRENT_FUNCTIONCALL
+		int result = mysql_autocommit(sql, auto_mode);
+	if (result != 0)
+	{
+		const char* errorMessage = mysql_error(sql);
+		int errorCode = mysql_errno(sql);
+		throw MySQLException(errorCode, errorMessage);
+	}
 }
 
 //Stores the data associated with the current result set of the query
@@ -222,7 +238,7 @@ int IQuery::lastInsert(lua_State* state)
 	if (object->m_status != QUERY_COMPLETE || object->m_insertIds.size() == 0)
 		LUA->PushNumber(0);
 	else
-		LUA->PushNumber(object->m_insertIds.front());
+		LUA->PushNumber((double) object->m_insertIds.front());
 	return 1;
 }
 
@@ -236,7 +252,7 @@ int IQuery::affectedRows(lua_State* state)
 	if (object->m_status != QUERY_COMPLETE || object->m_affectedRows.size() == 0)
 		LUA->PushNumber(0);
 	else
-		LUA->PushNumber(object->m_affectedRows.front());
+		LUA->PushNumber((double) object->m_affectedRows.front());
 	return 1;
 }
 
@@ -322,7 +338,7 @@ int IQuery::setOption(lua_State* state)
 	IQuery* object = (IQuery*)unpackSelf(state, TYPE_QUERY);
 	LUA->CheckType(2, GarrysMod::Lua::Type::NUMBER);
 	bool set = true;
-	int option = LUA->GetNumber(2);
+	int option = (int) LUA->GetNumber(2);
 	if (option != OPTION_NUMERIC_FIELDS &&
 		option != OPTION_NAMED_FIELDS &&
 		option != OPTION_INTERPRET_DATA &&
@@ -347,40 +363,6 @@ int IQuery::setOption(lua_State* state)
 		object->m_options &= ~option;
 	}
 	return 0;
-}
-
-//Calls the lua callbacks associated with this query
-void IQuery::doCallback(lua_State* state)
-{
-	LOG_CURRENT_FUNCTIONCALL
-	this->m_status = QUERY_COMPLETE;
-
-	switch (this->m_resultStatus)
-	{
-	case QUERY_NONE:
-		break;
-	case QUERY_ERROR:
-		this->runCallback(state, "onError", "ss", this->m_errorText.c_str(), this->m_query.c_str());
-		break;
-	case QUERY_SUCCESS:
-		int dataref = this->getData(state);
-		if (this->hasCallback(state, "onData"))
-		{
-			LUA->ReferencePush(dataref);
-			LUA->PushNil();
-			while (LUA->Next(-2))
-			{
-				//Top is now the row, top-1 row index
-				int rowReference = LUA->ReferenceCreate();
-				this->runCallback(state, "onData", "r", rowReference);
-				LUA->ReferenceFree(rowReference);
-				//Don't have to pop since reference create consumed the value
-			}
-			LUA->Pop();
-		}
-		this->runCallback(state, "onSuccess", "r", dataref);
-		break;
-	}
 }
 
 //Wrapper for c api calls

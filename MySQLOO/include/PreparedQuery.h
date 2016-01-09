@@ -1,7 +1,7 @@
 #ifndef PREPAREDQUERY_
 #define PREPAREDQUERY_
 #include <unordered_map>
-#include "IQuery.h"
+#include "Query.h"
 #include "MySQLHeader.h"
 #include <sstream>
 #include <string.h>
@@ -32,13 +32,15 @@ private:
 };
 
 
-class PreparedQuery : IQuery
+class PreparedQuery : Query
 {
 	friend class Database;
 public:
 	PreparedQuery(Database* dbase, lua_State* state);
 	virtual ~PreparedQuery(void);
 	bool executeStatement(MYSQL* connection);
+protected:
+	void executeQuery(MYSQL* m_sql);
 private:
 	std::deque<std::unordered_map<unsigned int, std::unique_ptr<PreparedQueryField>>> parameters;
 	static int setNumber(lua_State* state);

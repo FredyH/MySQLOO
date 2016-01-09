@@ -10,8 +10,6 @@
 #define LOG_CURRENT_FUNCTIONCALL ;
 #endif
 
-#include <string>
-
 namespace Logger
 {
 	void Log(const char* format, ...);

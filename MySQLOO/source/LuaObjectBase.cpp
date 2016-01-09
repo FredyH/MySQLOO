@@ -54,9 +54,14 @@ std::shared_ptr<LuaObjectBase> LuaObjectBase::getSharedPointerInstance()
 //Gets the C++ object associated with a lua table that represents it in LUA
 LuaObjectBase* LuaObjectBase::unpackSelf(lua_State* state, int type, bool shouldReference)
 {
+	return unpackLuaObject(state, 1, type, shouldReference);
+}
+//Gets the C++ object associated with a lua table that represents it in LUA
+LuaObjectBase* LuaObjectBase::unpackLuaObject(lua_State* state, int index, int type, bool shouldReference)
+{
 	LOG_CURRENT_FUNCTIONCALL
-	LUA->CheckType(1, GarrysMod::Lua::Type::TABLE);
-	LUA->GetField(1, "___lua_userdata_object");
+	LUA->CheckType(index, GarrysMod::Lua::Type::TABLE);
+	LUA->GetField(index, "___lua_userdata_object");
 	GarrysMod::Lua::UserData* ud = (GarrysMod::Lua::UserData*) LUA->GetUserdata(-1);
 	if (ud->type != type && type != -1)
 	{
@@ -65,11 +70,16 @@ LuaObjectBase* LuaObjectBase::unpackSelf(lua_State* state, int type, bool should
 		LUA->ThrowError(oss.str().c_str());
 	}
 	LuaObjectBase* object = (LuaObjectBase*)ud->data;
-	if (shouldReference && object->m_userdataReference == 0 && object->m_tableReference == 0)
+	if (shouldReference)
 	{
-		object->m_userdataReference = LUA->ReferenceCreate();
-		LUA->Push(1); //Pushes table that needs to be referenced
-		object->m_tableReference = LUA->ReferenceCreate();
+		if (object->m_userdataReference == 0 && object->m_tableReference == 0) {
+			object->m_userdataReference = LUA->ReferenceCreate();
+			LUA->Push(index); //Pushes table that needs to be referenced
+			object->m_tableReference = LUA->ReferenceCreate();
+		}
+		else {
+			LUA->ThrowError("Tried to reference lua object twice (Query started twice?)");
+		}
 	}
 	else
 	{

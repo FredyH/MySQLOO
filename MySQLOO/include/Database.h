@@ -44,6 +44,7 @@ private:
 	void connectRun();
 	static int query(lua_State* state);
 	static int prepare(lua_State* state);
+	static int createTransaction(lua_State* state);
 	static int escape(lua_State* state);
 	static int connect(lua_State* state);
 	static int wait(lua_State* state);

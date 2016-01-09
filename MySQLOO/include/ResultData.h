@@ -37,7 +37,7 @@ public:
 	std::vector<int> & getColumnTypes(){ return columnTypes; }
 private:
 	ResultData(unsigned int columns, unsigned int rows);
-	unsigned long long columnCount = 0;
+	unsigned int columnCount = 0;
 	std::vector<std::string> columns;
 	std::vector<int> columnTypes;
 	std::vector<ResultDataRow> rows;

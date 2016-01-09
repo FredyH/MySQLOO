@@ -48,7 +48,7 @@ public:
 	{
 		this->m_errorCode = errorCode;
 	}
-	int getErrorCode() { return m_errorCode; }
+	int getErrorCode() const { return m_errorCode; }
 private:
 	int m_errorCode = 0;
 };
@@ -59,13 +59,15 @@ friend class Database;
 public:
 	IQuery(Database* dbase, lua_State* state);
 	virtual ~IQuery();
-	virtual bool executeStatement(MYSQL* m_sql) = 0;
-	void doCallback(lua_State* state);
+	virtual void doCallback(lua_State* state) = 0;
 	void onDestroyed(lua_State* state);
+	void setResultStatus(QueryResultStatus);
 protected:
 	//methods
+	QueryResultStatus m_resultStatus = QUERY_NONE;
+	QueryResultStatus getResultStatus();
+	virtual bool executeStatement(MYSQL* m_sql) = 0;
 	void dataToLua(lua_State* state, int rowReference, unsigned int column, std::string &columnValue, const char* columnName, int columnType, bool isNull);
-	void setQuery(std::string query);
 	virtual void think(lua_State* state) {};
 	static int start(lua_State* state);
 	static int isRunning(lua_State* state);
@@ -81,6 +83,7 @@ protected:
 	int getData(lua_State* state);
 	//Wrapper functions for c api that throw exceptions
 	void mysqlQuery(MYSQL* sql, std::string &query);
+	void mysqlAutocommit(MYSQL* sql, bool auto_mode);
 	MYSQL_RES* mysqlStoreResults(MYSQL* sql);
 	bool mysqlNextResult(MYSQL* sql);
 	//fields
@@ -88,15 +91,11 @@ protected:
 	std::atomic<bool> finished{ false };
 	std::atomic<QueryStatus> m_status{ QUERY_NOT_RUNNING };
 	std::string m_errorText = "";
-	std::string m_query;
 	std::deque<my_ulonglong> m_affectedRows;
 	std::deque<my_ulonglong> m_insertIds;
 	std::deque<ResultData> results;
 	std::condition_variable m_waitWakeupVariable;
-	QueryResultStatus m_resultStatus = QUERY_NONE;
 	int m_options = 0;
 	int dataReference = 0;
-private:
-	QueryResultData resultData();
 };
 #endif

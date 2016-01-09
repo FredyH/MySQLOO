@@ -43,7 +43,7 @@ static int connect(lua_State* state)
 	std::string unixSocket = "";
 	if (LUA->IsType(5, GarrysMod::Lua::Type::NUMBER))
 	{
-		port = LUA->GetNumber(5);
+		port = (int) LUA->GetNumber(5);
 	}
 	if (LUA->IsType(6, GarrysMod::Lua::Type::STRING))
 	{

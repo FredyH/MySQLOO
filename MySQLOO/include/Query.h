@@ -12,6 +12,11 @@ class Query : public IQuery
 public:
 	Query(Database* dbase, lua_State* state);
 	virtual ~Query(void);
-	bool executeStatement(MYSQL* connection);
+	void setQuery(std::string query);
+	virtual bool executeStatement(MYSQL* m_sql);
+	virtual void executeQuery(MYSQL* m_sql);
+	void doCallback(lua_State* state);
+protected:
+	std::string m_query;
 };
 #endif

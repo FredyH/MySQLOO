@@ -3,6 +3,7 @@
 #include "IQuery.h"
 #include "PreparedQuery.h"
 #include "Logger.h"
+#include "Transaction.h"
 #include <string>
 #include <cstring>
 #include <iostream>
@@ -16,6 +17,7 @@ LuaObjectBase(state, TYPE_DATABASE), database(database), host(host), username(us
 	registerFunction(state, "prepare", Database::prepare);
 	registerFunction(state, "escape", Database::escape);
 	registerFunction(state, "query", Database::query);
+	registerFunction(state, "createTransaction", Database::createTransaction);
 	registerFunction(state, "connect", Database::connect);
 	registerFunction(state, "abortAllQueries", Database::abortAllQueries);
 	registerFunction(state, "wait", Database::wait);
@@ -69,6 +71,17 @@ int Database::prepare(lua_State* state)
 	PreparedQuery* queryObject = new PreparedQuery(object, state);
 	queryObject->setQuery(std::string(query, outLen));
 	queryObject->pushTableReference(state);
+	return 1;
+}
+
+/* Creates and returns a PreparedQuery instance and enqueues it into the queue of accepted queries.
+*/
+int Database::createTransaction(lua_State* state)
+{
+	LOG_CURRENT_FUNCTIONCALL
+	Database* object = (Database*)unpackSelf(state, TYPE_DATABASE);
+	Transaction* transactionObject = new Transaction(object, state);
+	transactionObject->pushTableReference(state);
 	return 1;
 }
 

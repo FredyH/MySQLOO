@@ -22,7 +22,7 @@ ResultData::ResultData() : ResultData(0,0)
 //Stores all of the rows of a result set
 //This is used so the result set can be free'd and doesn't have to be used in
 //another thread (which is not safe)
-ResultData::ResultData(MYSQL_RES* result) : ResultData(mysql_num_fields(result), mysql_num_rows(result))
+ResultData::ResultData(MYSQL_RES* result) : ResultData((unsigned int) mysql_num_fields(result), (unsigned int) mysql_num_rows(result))
 {
 	if (columnCount == 0) return;
 	for (unsigned int i = 0; i < columnCount; i++)
@@ -68,7 +68,7 @@ static void mysqlStmtBindResult(MYSQL_STMT* stmt, MYSQL_BIND* bind)
 
 //Stores all of the rows of a prepared query
 //This needs to be done because the query shouldn't be accessed from a different thread
-ResultData::ResultData(MYSQL_STMT* result) : ResultData(mysql_stmt_field_count(result), mysql_stmt_num_rows(result))
+ResultData::ResultData(MYSQL_STMT* result) : ResultData((unsigned int) mysql_stmt_field_count(result), (unsigned int) mysql_stmt_num_rows(result))
 {
 	if (this->columnCount == 0) return;
 	MYSQL_RES * metaData = mysql_stmt_result_metadata(result);

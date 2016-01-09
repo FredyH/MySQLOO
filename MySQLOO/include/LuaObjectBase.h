@@ -29,6 +29,7 @@ public:
 	static int createMetatables(lua_State* state);
 	static int doThink(lua_State* state);
 	static LuaObjectBase* unpackSelf(lua_State* state, int type = -1, bool shouldReference = false);
+	static LuaObjectBase* unpackLuaObject(lua_State* state, int index, int type, bool shouldReference);
 	int pushTableReference(lua_State* state);
 	bool hasCallback(lua_State* state, const char* functionName);
 	void runCallback(lua_State* state, const char* functionName, const char* sig = 0, ...);
@@ -37,8 +38,8 @@ public:
 	static std::deque<std::shared_ptr<LuaObjectBase>> luaRemovalObjects;
 	virtual void onDestroyed(lua_State* state) {};
 	std::shared_ptr<LuaObjectBase> getSharedPointerInstance();
-protected:
 	void unreference(lua_State* state);
+protected:
 	bool scheduledForRemoval = false;
 	bool shouldthink = false;
 	int m_tableReference = 0;
