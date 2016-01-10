@@ -11,7 +11,7 @@ class Transaction : public IQuery
 {
 	friend class Database;
 public:
-	Transaction::Transaction(Database* dbase, lua_State* state);
+	Transaction(Database* dbase, lua_State* state);
 	void doCallback(lua_State* state);
 protected:
 	static int addQuery(lua_State* state);
