@@ -62,6 +62,7 @@ public:
 	virtual void doCallback(lua_State* state) = 0;
 	void onDestroyed(lua_State* state);
 	void setResultStatus(QueryResultStatus);
+	void setStatus(QueryStatus);
 protected:
 	//methods
 	QueryResultStatus m_resultStatus = QUERY_NONE;

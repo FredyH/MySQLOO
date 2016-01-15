@@ -8,6 +8,14 @@ Transaction::Transaction(Database* dbase, lua_State* state) : IQuery(dbase, stat
 	registerFunction(state, "getQueries", Transaction::getQueries);
 }
 
+void Transaction::onDestroyed(lua_State* state) {
+	//This unreferences all queries once the transaction has been gc'ed
+	for (auto it = this->queries.begin(); it != this->queries.end(); it++) {
+		(*it)->unreference(state);
+	}
+	this->queries.clear();
+}
+
 //TODO Fix memory leak if transaction is never started
 int Transaction::addQuery(lua_State* state) {
 	Transaction* transaction = dynamic_cast<Transaction*>(unpackSelf(state, TYPE_QUERY));
@@ -44,14 +52,6 @@ int Transaction::getQueries(lua_State* state) {
 //Calls the lua callbacks associated with this query
 void Transaction::doCallback(lua_State* state)
 {
-	auto queryUnreference = finally([&]
-	{
-		//This is here again in case a call to executeQuery failed
-		for (auto it = this->queries.begin(); it != this->queries.end(); it++) {
-			(*it)->unreference(state);
-		}
-		this->queries.clear();
-	});
 	LOG_CURRENT_FUNCTIONCALL
 	this->m_status = QUERY_COMPLETE;
 	switch (this->m_resultStatus)
@@ -107,7 +107,7 @@ bool Transaction::executeStatement(MYSQL* connection)
 					return executeStatement(connection);
 				}
 			}
-			//If this call fails it means that the connection was (probably lost)
+			//If this call fails it means that the connection was (probably) lost
 			//In that case the mysql server rolls back any transaction anyways so it doesn't
 			//matter if it fails
 			mysql_rollback(connection);
@@ -122,6 +122,7 @@ bool Transaction::executeStatement(MYSQL* connection)
 	for (auto it = this->queries.begin(); it != this->queries.end(); it++) {
 		IQuery* query = (*it);
 		query->setResultStatus(this->m_resultStatus);
+		query->setStatus(QUERY_COMPLETE);
 	}
 	this->m_status = QUERY_COMPLETE;
 	return true;

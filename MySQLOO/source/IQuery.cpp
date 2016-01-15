@@ -34,6 +34,11 @@ void IQuery::setResultStatus(QueryResultStatus status) {
 	this->m_resultStatus = status;
 }
 
+void IQuery::setStatus(QueryStatus status) {
+	this->m_status = status;
+}
+
+
 QueryResultStatus IQuery::getResultStatus() {
 	return this->m_resultStatus;
 }

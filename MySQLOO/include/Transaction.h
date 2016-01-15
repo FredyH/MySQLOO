@@ -17,6 +17,7 @@ protected:
 	static int addQuery(lua_State* state);
 	static int getQueries(lua_State* state);
 	bool executeStatement(MYSQL * connection);
+	void onDestroyed(lua_State* state);
 private:
 	std::deque<Query*> queries;
 	bool retried = false;
