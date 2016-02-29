@@ -108,10 +108,10 @@ int LuaObjectBase::pushTableReference(lua_State* state)
 	LUA->CreateTable();
 	LUA->ReferencePush(userdatareference);
 	LUA->SetField(-2, "___lua_userdata_object");
-	for (auto it = m_callbackFunctions.begin(); it != m_callbackFunctions.end(); it++)
+	for (auto& callback : this->m_callbackFunctions)
 	{
-		LUA->PushCFunction(it->second);
-		LUA->SetField(-2, it->first.c_str());
+		LUA->PushCFunction(callback.second);
+		LUA->SetField(-2, callback.first.c_str());
 	}
 	LUA->ReferencePush(tableMetaTable);
 	LUA->SetMetaTable(-2);
@@ -224,8 +224,8 @@ int LuaObjectBase::doThink(lua_State* state)
 	//Think objects need to be copied because a think call could modify the original thinkObject queue
 	//which leads to it invalidating the iterator and thus undefined behaviour
 	std::deque<std::shared_ptr<LuaObjectBase>> thinkObjectsCopy = luaThinkObjects;
-	for (auto it = thinkObjectsCopy.begin(); it != thinkObjectsCopy.end(); ++it) {
-		(*it)->think(state);
+	for (auto& query : luaThinkObjects) {
+		query->think(state);
 	}
 	if (luaRemovalObjects.size() > 0)
 	{

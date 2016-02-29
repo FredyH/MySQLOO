@@ -98,7 +98,7 @@ int PreparedQuery::putNewParameters(lua_State* state)
 MYSQL_STMT* PreparedQuery::mysqlStmtInit(MYSQL* sql)
 {
 	MYSQL_STMT* stmt = mysql_stmt_init(sql);
-	if (stmt == NULL)
+	if (stmt == nullptr)
 	{
 		const char* errorMessage = mysql_error(sql);
 		int errorCode = mysql_errno(sql);
@@ -225,19 +225,18 @@ void PreparedQuery::executeQuery(MYSQL* connection)
 	mysql_stmt_attr_set(stmt, STMT_ATTR_UPDATE_MAX_LENGTH, &attrMaxLength);
 	mysqlStmtPrepare(stmt, this->m_query.c_str());
 	auto queryFree = finally([&] {
-		if (stmt != NULL) {
+		if (stmt != nullptr) {
 			mysql_stmt_close(stmt);
-			stmt = NULL;
+			stmt = nullptr;
 		}
 		this->parameters.clear();
 	});
 	unsigned int parameterCount = mysql_stmt_param_count(stmt);
 	std::vector<MYSQL_BIND> mysqlParameters(parameterCount);
 
-	for (auto paramIt = this->parameters.begin(); paramIt != this->parameters.end(); paramIt++)
+	for (auto& currentMap : parameters)
 	{
-		auto currentMap = &(*paramIt);
-		generateMysqlBinds(mysqlParameters.data(), currentMap, parameterCount);
+		generateMysqlBinds(mysqlParameters.data(), &currentMap, parameterCount);
 		mysqlStmtBindParameter(stmt, mysqlParameters.data());
 		mysqlStmtExecute(stmt);
 		mysqlStmtStoreResult(stmt);

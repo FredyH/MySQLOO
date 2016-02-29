@@ -33,7 +33,7 @@ ResultData::ResultData(MYSQL_RES* result) : ResultData((unsigned int) mysql_num_
 	}
 	MYSQL_ROW currentRow;
 	//This shouldn't error since mysql_store_results stores ALL rows already
-	while ((currentRow = mysql_fetch_row(result)) != NULL)
+	while ((currentRow = mysql_fetch_row(result)) != nullptr)
 	{
 		unsigned long *lengths = mysql_fetch_lengths(result);
 		this->rows.emplace_back(lengths, currentRow, columnCount);
@@ -72,7 +72,7 @@ ResultData::ResultData(MYSQL_STMT* result) : ResultData((unsigned int) mysql_stm
 {
 	if (this->columnCount == 0) return;
 	MYSQL_RES * metaData = mysql_stmt_result_metadata(result);
-	if (metaData == NULL){ throw std::runtime_error("mysql_stmt_result_metadata: Unknown Error"); }
+	if (metaData == nullptr){ throw std::runtime_error("mysql_stmt_result_metadata: Unknown Error"); }
 	MYSQL_FIELD *fields = mysql_fetch_fields(metaData);
 	std::vector<MYSQL_BIND> binds(columnCount);
 	std::vector<my_bool> isFieldNull(columnCount);

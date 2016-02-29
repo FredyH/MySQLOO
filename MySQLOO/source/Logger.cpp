@@ -14,10 +14,10 @@ namespace Logger
 	//Disables logging
 	static void disableLogging(const char* message)
 	{
-		if (logFile != NULL)
+		if (logFile != nullptr)
 		{
 			fclose(logFile);
-			logFile = NULL;
+			logFile = nullptr;
 		}
 		loggingFailed = true;
 		printf("%s\n", message);
@@ -28,7 +28,7 @@ namespace Logger
 	static bool initFileStream()
 	{
 		logFile = fopen("mysqloo.log", "a");
-		if (logFile == NULL)
+		if (logFile == nullptr)
 		{
 			disableLogging("Logger failed to open log file, logging disabled");
 			return false;
@@ -45,7 +45,7 @@ namespace Logger
 		if (loggingFailed) return;
 		std::lock_guard<std::mutex> lock(loggerMutex);
 		if (loggingFailed) return;
-		if (logFile == NULL)
+		if (logFile == nullptr)
 		{
 			if (!initFileStream())
 			{

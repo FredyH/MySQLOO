@@ -10,8 +10,8 @@ Transaction::Transaction(Database* dbase, lua_State* state) : IQuery(dbase, stat
 
 void Transaction::onDestroyed(lua_State* state) {
 	//This unreferences all queries once the transaction has been gc'ed
-	for (auto it = this->queries.begin(); it != this->queries.end(); it++) {
-		(*it)->unreference(state);
+	for (auto& query : queries) {
+		query->unreference(state);
 	}
 	this->queries.clear();
 }
@@ -19,12 +19,12 @@ void Transaction::onDestroyed(lua_State* state) {
 //TODO Fix memory leak if transaction is never started
 int Transaction::addQuery(lua_State* state) {
 	Transaction* transaction = dynamic_cast<Transaction*>(unpackSelf(state, TYPE_QUERY));
-	if (transaction == NULL) {
+	if (transaction == nullptr) {
 		LUA->ThrowError("Tried to pass wrong self");
 	}
 	IQuery* iQuery = (IQuery*)unpackLuaObject(state, 2, TYPE_QUERY, true);
 	Query* query = dynamic_cast<Query*>(iQuery);
-	if (query == NULL) {
+	if (query == nullptr) {
 		LUA->ThrowError("Tried to pass non query to addQuery()");
 	}
 	std::lock_guard<std::mutex> lock(transaction->m_queryMutex);
@@ -35,11 +35,11 @@ int Transaction::addQuery(lua_State* state) {
 
 int Transaction::getQueries(lua_State* state) {
 	Transaction* transaction = dynamic_cast<Transaction*>(unpackSelf(state, TYPE_QUERY));
-	if (transaction == NULL) {
+	if (transaction == nullptr) {
 		LUA->ThrowError("Tried to pass wrong self");
 	}
 	LUA->CreateTable();
-	for (unsigned int i = 0; i < transaction->queries.size(); i++)
+	for (size_t i = 0; i < transaction->queries.size(); i++)
 	{
 		Query* q = transaction->queries[i];
 		LUA->PushNumber(i + 1);
@@ -84,8 +84,8 @@ bool Transaction::executeStatement(MYSQL* connection)
 		this->mysqlAutocommit(connection, false); 
 		{
 			std::lock_guard<std::mutex> lock(this->m_queryMutex);
-			for (auto it = this->queries.begin(); it != this->queries.end(); it++) {
-				(*it)->executeQuery(connection);
+			for (auto& query : queries) {
+				query->executeQuery(connection);
 			}
 		}
 		mysql_commit(connection);
@@ -97,7 +97,9 @@ bool Transaction::executeStatement(MYSQL* connection)
 		//This check makes sure that setting mysqlAutocommit back to true doesn't cause the transaction to fail
 		//Even though the transaction was executed successfully
 		if (this->m_resultStatus != QUERY_SUCCESS) {
-			if (oldReconnectStatus && !this->retried && (error.getErrorCode() == CR_SERVER_LOST || error.getErrorCode() == CR_SERVER_GONE_ERROR)) {
+			int errorCode = error.getErrorCode();
+			if (oldReconnectStatus && !this->retried &&
+				(errorCode == CR_SERVER_LOST || errorCode == CR_SERVER_GONE_ERROR)) {
 				//Because autoreconnect is disabled we want to try and explicitly execute the transaction once more
 				//if we can get the client to reconnect (reconnect is caused by mysql_ping)
 				//If this fails we just go ahead and error
@@ -119,8 +121,7 @@ bool Transaction::executeStatement(MYSQL* connection)
 		mysql_autocommit(connection, true);
 		this->m_errorText = error.what();
 	}
-	for (auto it = this->queries.begin(); it != this->queries.end(); it++) {
-		IQuery* query = (*it);
+	for (auto& query : queries) {
 		query->setResultStatus(this->m_resultStatus);
 		query->setStatus(QUERY_COMPLETE);
 	}

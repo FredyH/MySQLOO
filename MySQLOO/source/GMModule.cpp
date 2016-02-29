@@ -15,8 +15,8 @@ GMOD_MODULE_CLOSE()
 	Logger::Log("-----------------------------\n");
 	/* Deletes all the remaining luaobjects when the server changes map
 	 */
-	for (auto it = LuaObjectBase::luaRemovalObjects.begin(); it != LuaObjectBase::luaRemovalObjects.end(); ++it) {
-		(*it)->onDestroyed(NULL);
+	for (auto query : LuaObjectBase::luaRemovalObjects) {
+		query->onDestroyed(nullptr);
 	}
 	LuaObjectBase::luaRemovalObjects.clear();
 	LuaObjectBase::luaObjects.clear();
@@ -69,7 +69,7 @@ GMOD_MODULE_OPEN()
 	Logger::Log("-----------------------------\n");
 	Logger::Log("MySQLOO starting\n");
 	Logger::Log("-----------------------------\n");
-	if (mysql_library_init(0, NULL, NULL)) {
+	if (mysql_library_init(0, nullptr, nullptr)) {
 		LUA->ThrowError("Could not initialize mysql library.");
 	}
 	LuaObjectBase::createMetatables(state);

@@ -47,7 +47,7 @@ QueryResultStatus IQuery::getResultStatus() {
 void IQuery::onDestroyed(lua_State* state)
 {
 	LOG_CURRENT_FUNCTIONCALL
-	if (this->dataReference != 0 && state != NULL)
+	if (this->dataReference != 0 && state != nullptr)
 	{
 		//Make sure data associated with this query can be freed as well
 		LUA->ReferenceFree(this->dataReference);
@@ -147,7 +147,8 @@ int IQuery::getData(lua_State* state)
 			int rowObject = LUA->ReferenceCreate();
 			for (unsigned int j = 0; j < row.getValues().size(); j++)
 			{
-				dataToLua(state, rowObject, j + 1, row.getValues()[j], currentData.getColumns()[j].c_str(), currentData.getColumnTypes()[j], row.isFieldNull(j));
+				dataToLua(	state, rowObject, j + 1, row.getValues()[j], currentData.getColumns()[j].c_str(), 
+							currentData.getColumnTypes()[j], row.isFieldNull(j));
 			}
 			LUA->PushNumber(i+1);
 			LUA->ReferencePush(rowObject);
@@ -280,7 +281,6 @@ int IQuery::wait(lua_State* state)
 	//Changing the order of the query might have unwanted side effects, so this is disabled by default
 	if(shouldSwap)
 	{
-		//This makes sure 
 		std::lock_guard<std::mutex> lck(object->m_database->m_queryQueueMutex);
 		auto pos = std::find_if(object->m_database->queryQueue.begin(), object->m_database->queryQueue.end(), [&](std::shared_ptr<IQuery> const& p) {
 			return p.get() == object;
@@ -388,7 +388,7 @@ void IQuery::mysqlQuery(MYSQL* sql, std::string &query)
 MYSQL_RES* IQuery::mysqlStoreResults(MYSQL* sql)
 {
 	MYSQL_RES* result = mysql_store_result(sql);
-	if (result == NULL)
+	if (result == nullptr)
 	{
 		int errorCode = mysql_errno(sql);
 		if (errorCode != 0)

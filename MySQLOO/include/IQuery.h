@@ -88,7 +88,7 @@ protected:
 	MYSQL_RES* mysqlStoreResults(MYSQL* sql);
 	bool mysqlNextResult(MYSQL* sql);
 	//fields
-	Database* m_database = NULL;
+	Database* m_database = nullptr;
 	std::atomic<bool> finished{ false };
 	std::atomic<QueryStatus> m_status{ QUERY_NOT_RUNNING };
 	std::string m_errorText = "";

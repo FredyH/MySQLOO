@@ -60,7 +60,7 @@ void Query::executeQuery(MYSQL* connection)
 	{
 		MYSQL_RES * results = this->mysqlStoreResults(connection);
 		auto resultFree = finally([&] { mysql_free_result(results); });
-		if (results != NULL)
+		if (results != nullptr)
 			this->results.emplace_back(results);
 		else
 			this->results.emplace_back();
