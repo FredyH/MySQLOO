@@ -56,6 +56,7 @@ private:
 	static int queueSize(lua_State* state);
 	static int setAutoReconnect(lua_State* state);
 	static int setMultiStatements(lua_State* state);
+	static int ping(lua_State* state);
 	std::deque<std::shared_ptr<IQuery>> finishedQueries;
 	std::deque<std::shared_ptr<IQuery>> queryQueue;
 	MYSQL* m_sql;

@@ -2,6 +2,7 @@
 #include "Query.h"
 #include "IQuery.h"
 #include "PreparedQuery.h"
+#include "PingQuery.h"
 #include "Logger.h"
 #include "Transaction.h"
 #include <string>
@@ -28,6 +29,7 @@ LuaObjectBase(state, TYPE_DATABASE), database(database), host(host), username(us
 	registerFunction(state, "queueSize", Database::queueSize);
 	registerFunction(state, "setAutoReconnect", Database::setAutoReconnect);
 	registerFunction(state, "setMultiStatements", Database::setMultiStatements);
+	registerFunction(state, "ping", Database::ping);
 }
 
 Database::~Database()
@@ -246,7 +248,7 @@ int Database::hostInfo(lua_State* state)
 int Database::setAutoReconnect(lua_State* state)
 {
 	LOG_CURRENT_FUNCTIONCALL
-	Database* object = (Database*)unpackSelf(state, TYPE_DATABASE, true);
+	Database* object = (Database*)unpackSelf(state, TYPE_DATABASE);
 	if (object->m_status != DATABASE_NOT_CONNECTED || object->startedConnecting)
 	{
 		LUA->ThrowError("Database already connected.");
@@ -259,7 +261,7 @@ int Database::setAutoReconnect(lua_State* state)
 int Database::setMultiStatements(lua_State* state)
 {
 	LOG_CURRENT_FUNCTIONCALL
-	Database* object = (Database*)unpackSelf(state, TYPE_DATABASE, true);
+	Database* object = (Database*)unpackSelf(state, TYPE_DATABASE);
 	if (object->m_status != DATABASE_NOT_CONNECTED || object->startedConnecting)
 	{
 		LUA->ThrowError("Database already connected.");
@@ -267,6 +269,31 @@ int Database::setMultiStatements(lua_State* state)
 	LUA->CheckType(2, GarrysMod::Lua::Type::BOOL);
 	object->useMultiStatements = LUA->GetBool(2);
 	return 0;
+}
+
+int Database::ping(lua_State* state)
+{
+	LOG_CURRENT_FUNCTIONCALL
+	Database* database = (Database*)unpackSelf(state, TYPE_DATABASE);
+	if (database->m_status != DATABASE_CONNECTED)
+	{
+		LUA->PushBool(false);
+		return 1;
+	}
+	//This pretty much uses most of the lua api
+	//We can't use the sql object directly since only the sql
+	//thread should use it to prevent threading issues
+	PingQuery* query = new PingQuery(database, state);
+	LUA->PushCFunction(IQuery::start);
+	query->pushTableReference(state);
+	LUA->Call(1, 0);
+	//swaps the query to the front of the queryqueue to reduce wait time
+	LUA->PushCFunction(IQuery::wait);
+	query->pushTableReference(state);
+	LUA->PushBool(true);
+	LUA->Call(2, 0);
+	LUA->PushBool(query->pingSuccess);
+	return 1;
 }
 
 
@@ -363,6 +390,7 @@ void Database::run()
 	while (true)
 	{
 		std::unique_lock<std::mutex> lock(m_queryQueueMutex);
+
 		//Passively waiting for new queries to arrive
 		while (this->queryQueue.empty() && !this->destroyed) this->m_queryWakupVariable.wait(lock);
 		//While there are new queries, execute them

@@ -1,0 +1,21 @@
+#pragma once
+#ifndef PINGQUERY_
+#define PINGQUERY_
+#include <unordered_map>
+#include "Query.h"
+#include "MySQLHeader.h"
+#include <sstream>
+#include <string.h>
+
+
+class PingQuery : Query
+{
+	friend class Database;
+public:
+	PingQuery(Database* dbase, lua_State* state);
+	virtual ~PingQuery(void);
+protected:
+	void executeQuery(MYSQL* m_sql);
+	bool pingSuccess = false;
+};
+#endif

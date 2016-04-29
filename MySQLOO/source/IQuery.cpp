@@ -270,7 +270,7 @@ int IQuery::wait(lua_State* state)
 	LOG_CURRENT_FUNCTIONCALL
 	IQuery* object = (IQuery*)unpackSelf(state, TYPE_QUERY);
 	bool shouldSwap = false;
-	if (LUA->IsType(5, GarrysMod::Lua::Type::BOOL))
+	if (LUA->IsType(2, GarrysMod::Lua::Type::BOOL))
 	{
 		shouldSwap = LUA->GetBool(2);
 	}
