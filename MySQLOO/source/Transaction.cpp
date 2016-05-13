@@ -10,8 +10,10 @@ Transaction::Transaction(Database* dbase, lua_State* state) : IQuery(dbase, stat
 
 void Transaction::onDestroyed(lua_State* state) {
 	//This unreferences all queries once the transaction has been gc'ed
-	for (auto& query : queries) {
-		query->unreference(state);
+	if (state != nullptr) {
+		for (auto& query : queries) {
+			query->unreference(state);
+		}
 	}
 	this->queries.clear();
 }
