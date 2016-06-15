@@ -22,10 +22,10 @@ struct QueryResultData
 enum QueryStatus
 {
 	QUERY_NOT_RUNNING = 0,
-	QUERY_WAITING = 1,
-	QUERY_RUNNING = 2,
-	QUERY_ABORTED = 3,
-	QUERY_COMPLETE = 4 //Query is complete right before callback is run
+	QUERY_RUNNING = 1,
+	QUERY_COMPLETE = 3, //Query is complete right before callback is run
+	QUERY_ABORTED = 4,
+	QUERY_WAITING = 5,
 };
 enum QueryResultStatus
 {
