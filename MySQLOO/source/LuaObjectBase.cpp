@@ -213,7 +213,15 @@ void LuaObjectBase::runCallback(lua_State* state, const char* functionName, cons
 		}
 		va_end(arguments);
 	}
-	LUA->PCall(numArguments, 0, -2 - numArguments);
+	if (LUA->PCall(numArguments, 0, 0)) {
+		const char* err = LUA->GetString(-1);
+		LUA->PushSpecial(GarrysMod::Lua::SPECIAL_GLOB);
+		LUA->GetField(-1, "ErrorNoHalt");
+		LUA->PushString(err);
+		LUA->Call(1, 0);
+		LUA->Pop(1);
+	}
+
 	LUA->Pop(1);
 }
 
