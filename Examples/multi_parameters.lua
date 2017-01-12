@@ -14,13 +14,12 @@ preparedQuery:setString(2, "''``--lel") -- you don't need to escape the string i
 preparedQuery:setNull(3)
 preparedQuery:setNumber(4, 100)
 preparedQuery:setBoolean(5, true)
+preparedQuery:start()
 
-preparedQuery:putNewParameters()
-
+-- you can now reuse prepared queries
 preparedQuery:setString(1, "STEAM_0:0:654321")
 preparedQuery:setString(2, "HufflePuffle")
 preparedQuery:setString(3, "owner")
 preparedQuery:setNumber(4, 100000)
 preparedQuery:setBoolean(5, false)
-
-preparedQuery:start() -- this will insert 2 rows into the table users
+preparedQuery:start()

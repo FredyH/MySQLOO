@@ -1,105 +1,98 @@
 #include "PreparedQuery.h"
-#include "Logger.h"
+#include "Database.h"
+#include "errmsg.h"
 #ifdef LINUX
 #include <stdlib.h>
 #endif
+//This is dirty but hopefully will be consistent between mysql connector versions
+#define ER_MAX_PREPARED_STMT_COUNT_REACHED 1461
 
-PreparedQuery::PreparedQuery(Database* dbase, lua_State* state) : Query(dbase, state)
-{
+PreparedQuery::PreparedQuery(Database* dbase, lua_State* state) : Query(dbase, state) {
 	classname = "PreparedQuery";
 	registerFunction(state, "setNumber", PreparedQuery::setNumber);
 	registerFunction(state, "setString", PreparedQuery::setString);
 	registerFunction(state, "setBoolean", PreparedQuery::setBoolean);
 	registerFunction(state, "setNull", PreparedQuery::setNull);
 	registerFunction(state, "putNewParameters", PreparedQuery::putNewParameters);
-	this->parameters.push_back(std::unordered_map<unsigned int, std::unique_ptr<PreparedQueryField>>());
+	this->m_parameters.push_back(std::unordered_map<unsigned int, std::shared_ptr<PreparedQueryField>>());
 }
 
-PreparedQuery::~PreparedQuery(void)
-{
+PreparedQuery::~PreparedQuery(void) {}
+
+//When the query is destroyed by lua
+void PreparedQuery::onDestroyed(lua_State* state) {
+	{
+		//There can't be any race conditions here
+		//This always runs after PreparedQuery::executeQuery() is done
+		//I am using atomic to prevent visibility issues though
+		MYSQL_STMT* stmt = this->cachedStatement;
+		if (stmt != nullptr) {
+			m_database->freeStatement(cachedStatement);
+			cachedStatement = nullptr;
+		}
+	}
+	IQuery::onDestroyed(state);
 }
 
-int PreparedQuery::setNumber(lua_State* state)
-{
-	LOG_CURRENT_FUNCTIONCALL
+int PreparedQuery::setNumber(lua_State* state) {
 	PreparedQuery* object = (PreparedQuery*)unpackSelf(state, TYPE_QUERY);
-	if (object->m_status != QUERY_NONE)
-		LUA->ThrowError("Query already started");
 	LUA->CheckType(2, GarrysMod::Lua::Type::NUMBER);
 	LUA->CheckType(3, GarrysMod::Lua::Type::NUMBER);
 	double index = LUA->GetNumber(2);
 	if (index < 1) LUA->ThrowError("Index must be greater than 0");
-	unsigned int uIndex = (unsigned int) index;
+	unsigned int uIndex = (unsigned int)index;
 	double value = LUA->GetNumber(3);
-	object->parameters.back().insert(std::make_pair(uIndex, std::unique_ptr<PreparedQueryField>(new TypedQueryField<double>(uIndex, MYSQL_TYPE_DOUBLE, value))));
+	object->m_parameters.back()[uIndex] = std::shared_ptr<PreparedQueryField>(new TypedQueryField<double>(uIndex, MYSQL_TYPE_DOUBLE, value));
 	return 0;
 }
 
-int PreparedQuery::setString(lua_State* state)
-{
-	LOG_CURRENT_FUNCTIONCALL
+int PreparedQuery::setString(lua_State* state) {
 	PreparedQuery* object = (PreparedQuery*)unpackSelf(state, TYPE_QUERY);
-	if (object->m_status != QUERY_NONE)
-		LUA->ThrowError("Query already started");
 	LUA->CheckType(2, GarrysMod::Lua::Type::NUMBER);
 	LUA->CheckType(3, GarrysMod::Lua::Type::STRING);
 	double index = LUA->GetNumber(2);
 	if (index < 1) LUA->ThrowError("Index must be greater than 0");
-	unsigned int uIndex = (unsigned int) index;
+	unsigned int uIndex = (unsigned int)index;
 	unsigned int length = 0;
 	const char* string = LUA->GetString(3, &length);
-	object->parameters.back().insert(std::make_pair(uIndex, std::unique_ptr<PreparedQueryField>(new TypedQueryField<std::string>(uIndex, MYSQL_TYPE_STRING, std::string(string, length)))));
+	object->m_parameters.back()[uIndex] = std::shared_ptr<PreparedQueryField>(new TypedQueryField<std::string>(uIndex, MYSQL_TYPE_STRING, std::string(string, length)));
 	return 0;
 }
 
-int PreparedQuery::setBoolean(lua_State* state)
-{
-	LOG_CURRENT_FUNCTIONCALL
+int PreparedQuery::setBoolean(lua_State* state) {
 	PreparedQuery* object = (PreparedQuery*)unpackSelf(state, TYPE_QUERY);
-	if (object->m_status != QUERY_NONE)
-		LUA->ThrowError("Query already started");
 	LUA->CheckType(2, GarrysMod::Lua::Type::NUMBER);
 	LUA->CheckType(3, GarrysMod::Lua::Type::BOOL);
 	double index = LUA->GetNumber(2);
 	if (index < 1) LUA->ThrowError("Index must be greater than 0");
-	unsigned int uIndex = (unsigned int) index;
+	unsigned int uIndex = (unsigned int)index;
 	bool value = LUA->GetBool(3);
-	object->parameters.back().insert(std::make_pair(uIndex, std::unique_ptr<PreparedQueryField>(new TypedQueryField<bool>(uIndex, MYSQL_TYPE_BIT, value))));
+	object->m_parameters.back()[uIndex] = std::shared_ptr<PreparedQueryField>(new TypedQueryField<bool>(uIndex, MYSQL_TYPE_BIT, value));
 	return 0;
 }
 
-int PreparedQuery::setNull(lua_State* state)
-{
-	LOG_CURRENT_FUNCTIONCALL
+int PreparedQuery::setNull(lua_State* state) {
 	PreparedQuery* object = (PreparedQuery*)unpackSelf(state, TYPE_QUERY);
-	if (object->m_status != QUERY_NONE)
-		LUA->ThrowError("Query already started");
 	LUA->CheckType(2, GarrysMod::Lua::Type::NUMBER);
 	double index = LUA->GetNumber(2);
 	if (index < 1) LUA->ThrowError("Index must be greater than 0");
-	unsigned int uIndex = (unsigned int) index;
-	object->parameters.back().insert(std::make_pair(uIndex, std::unique_ptr<PreparedQueryField>(new PreparedQueryField(uIndex, MYSQL_TYPE_NULL))));
+	unsigned int uIndex = (unsigned int)index;
+	object->m_parameters.back()[uIndex] = std::shared_ptr<PreparedQueryField>(new PreparedQueryField(uIndex, MYSQL_TYPE_NULL));
 	return 0;
 }
 
 //Adds an additional set of parameters to the prepared query
 //This makes it relatively easy to insert multiple rows at once
-int PreparedQuery::putNewParameters(lua_State* state)
-{
-	LOG_CURRENT_FUNCTIONCALL
+int PreparedQuery::putNewParameters(lua_State* state) {
 	PreparedQuery* object = (PreparedQuery*)unpackSelf(state, TYPE_QUERY);
-	if (object->m_status != QUERY_NONE)
-		LUA->ThrowError("Query already started");
-	object->parameters.push_back(std::unordered_map<unsigned int, std::unique_ptr<PreparedQueryField>>());
+	object->m_parameters.emplace_back();
 	return 0;
 }
 
 //Wrapper functions that might throw errors
-MYSQL_STMT* PreparedQuery::mysqlStmtInit(MYSQL* sql)
-{
+MYSQL_STMT* PreparedQuery::mysqlStmtInit(MYSQL* sql) {
 	MYSQL_STMT* stmt = mysql_stmt_init(sql);
-	if (stmt == nullptr)
-	{
+	if (stmt == nullptr) {
 		const char* errorMessage = mysql_error(sql);
 		int errorCode = mysql_errno(sql);
 		throw MySQLException(errorCode, errorMessage);
@@ -107,106 +100,103 @@ MYSQL_STMT* PreparedQuery::mysqlStmtInit(MYSQL* sql)
 	return stmt;
 }
 
-void PreparedQuery::mysqlStmtBindParameter(MYSQL_STMT* stmt, MYSQL_BIND* bind)
-{
+void PreparedQuery::mysqlStmtBindParameter(MYSQL_STMT* stmt, MYSQL_BIND* bind) {
 	int result = mysql_stmt_bind_param(stmt, bind);
-	if (result != 0)
-	{
+	if (result != 0) {
 		const char* errorMessage = mysql_stmt_error(stmt);
 		int errorCode = mysql_stmt_errno(stmt);
 		throw MySQLException(errorCode, errorMessage);
 	}
 }
 
-void PreparedQuery::mysqlStmtPrepare(MYSQL_STMT* stmt, const char* str)
-{
+void PreparedQuery::mysqlStmtPrepare(MYSQL_STMT* stmt, const char* str) {
 	unsigned int length = strlen(str);
 	int result = mysql_stmt_prepare(stmt, str, length);
-	if (result != 0)
-	{
+	if (result != 0) {
 		const char* errorMessage = mysql_stmt_error(stmt);
 		int errorCode = mysql_stmt_errno(stmt);
 		throw MySQLException(errorCode, errorMessage);
 	}
 }
 
-void PreparedQuery::mysqlStmtExecute(MYSQL_STMT* stmt)
-{
+void PreparedQuery::mysqlStmtExecute(MYSQL_STMT* stmt) {
 	int result = mysql_stmt_execute(stmt);
-	if (result != 0)
-	{
+	if (result != 0) {
 		const char* errorMessage = mysql_stmt_error(stmt);
 		int errorCode = mysql_stmt_errno(stmt);
 		throw MySQLException(errorCode, errorMessage);
 	}
 }
 
-void PreparedQuery::mysqlStmtStoreResult(MYSQL_STMT* stmt)
-{
+void PreparedQuery::mysqlStmtStoreResult(MYSQL_STMT* stmt) {
 	int result = mysql_stmt_store_result(stmt);
-	if (result != 0)
-	{
+	if (result != 0) {
 		const char* errorMessage = mysql_stmt_error(stmt);
 		int errorCode = mysql_stmt_errno(stmt);
 		throw MySQLException(errorCode, errorMessage);
 	}
 }
+
+bool PreparedQuery::mysqlStmtNextResult(MYSQL_STMT* stmt) {
+	int result = mysql_stmt_next_result(stmt);
+	if (result > 0) {
+		const char* errorMessage = mysql_stmt_error(stmt);
+		int errorCode = mysql_stmt_errno(stmt);
+		throw MySQLException(errorCode, errorMessage);
+	}
+	return result == 0;
+}
+
 static my_bool nullBool = 1;
 static int trueValue = 1;
 static int falseValue = 0;
 
 //Generates binds for a prepared query. In this case the binds are used to send the parameters to the server
-void PreparedQuery::generateMysqlBinds(MYSQL_BIND* binds, std::unordered_map<unsigned int, std::unique_ptr<PreparedQueryField>> *map, unsigned int parameterCount)
-{
-	LOG_CURRENT_FUNCTIONCALL
-	for (unsigned int i = 1; i <= parameterCount; i++)
-	{
-		auto it = map->find(i);
-		if (it == map->end())
-		{
-			MYSQL_BIND* bind = &binds[i-1];
+void PreparedQuery::generateMysqlBinds(MYSQL_BIND* binds, std::unordered_map<unsigned int, std::shared_ptr<PreparedQueryField>> &map, unsigned int parameterCount) {
+	for (unsigned int i = 1; i <= parameterCount; i++) {
+		auto it = map.find(i);
+		if (it == map.end()) {
+			MYSQL_BIND* bind = &binds[i - 1];
 			bind->buffer_type = MYSQL_TYPE_NULL;
 			bind->is_null = &nullBool;
 			continue;
 		}
 		unsigned int index = it->second->m_index - 1;
-		if (index >= parameterCount)
-		{
+		if (index >= parameterCount) {
 			std::stringstream  errStream;
 			errStream << "Invalid parameter index " << index + 1;
 			throw MySQLException(0, errStream.str().c_str());
 		}
 		MYSQL_BIND* bind = &binds[index];
-		switch (it->second->m_type)
+		switch (it->second->m_type) {
+		case MYSQL_TYPE_DOUBLE:
 		{
-			case MYSQL_TYPE_DOUBLE:
-			{
-				TypedQueryField<double>* doubleField = static_cast<TypedQueryField<double>*>(it->second.get());
-				bind->buffer_type = MYSQL_TYPE_DOUBLE;
-				bind->buffer = (char*)&doubleField->m_data;
-				break;
-			}
-			case MYSQL_TYPE_BIT:
-			{
-				TypedQueryField<bool>* boolField = static_cast<TypedQueryField<bool>*>(it->second.get());
-				bind->buffer_type = MYSQL_TYPE_LONG;
-				bind->buffer = (char*)& ((boolField->m_data) ? trueValue : falseValue);
-				break;
-			}
-			case MYSQL_TYPE_STRING:
-			{
-				TypedQueryField<std::string>* textField = static_cast<TypedQueryField<std::string>*>(it->second.get());
-				bind->buffer_type = MYSQL_TYPE_STRING;
-				bind->buffer = (char*)textField->m_data.c_str();
-				bind->buffer_length = textField->m_data.length();
-				break;
-			}
-			case MYSQL_TYPE_NULL:
-			{
-				bind->buffer_type = MYSQL_TYPE_NULL;
-				bind->is_null = &nullBool;
-				break;
-			}
+			TypedQueryField<double>* doubleField = static_cast<TypedQueryField<double>*>(it->second.get());
+			bind->buffer_type = MYSQL_TYPE_DOUBLE;
+			bind->buffer = (char*)&doubleField->m_data;
+			break;
+		}
+		case MYSQL_TYPE_BIT:
+		{
+			TypedQueryField<bool>* boolField = static_cast<TypedQueryField<bool>*>(it->second.get());
+			bind->buffer_type = MYSQL_TYPE_LONG;
+			bind->buffer = (char*)& ((boolField->m_data) ? trueValue : falseValue);
+			break;
+		}
+		case MYSQL_TYPE_STRING:
+		{
+			TypedQueryField<std::string>* textField = static_cast<TypedQueryField<std::string>*>(it->second.get());
+			bind->buffer_type = MYSQL_TYPE_STRING;
+			bind->buffer = (char*)textField->m_data.c_str();
+			bind->buffer_length = textField->m_data.length();
+			break;
+		}
+		case MYSQL_TYPE_NULL:
+		{
+			bind->buffer_type = MYSQL_TYPE_NULL;
+			bind->is_null = &nullBool;
+			break;
+		}
 		}
 	}
 }
@@ -218,56 +208,100 @@ void PreparedQuery::generateMysqlBinds(MYSQL_BIND* binds, std::unordered_map<uns
 * Note: If an error occurs at the nth query all the actions done before
 * that nth query won't be reverted even though this query results in an error
 */
-void PreparedQuery::executeQuery(MYSQL* connection)
-{
-	MYSQL_STMT* stmt = mysqlStmtInit(connection);
-	my_bool attrMaxLength = 1;
-	mysql_stmt_attr_set(stmt, STMT_ATTR_UPDATE_MAX_LENGTH, &attrMaxLength);
-	mysqlStmtPrepare(stmt, this->m_query.c_str());
-	auto queryFree = finally([&] {
-		if (stmt != nullptr) {
-			mysql_stmt_close(stmt);
-			stmt = nullptr;
+void PreparedQuery::executeQuery(MYSQL* connection, std::shared_ptr<IQueryData> ptr) {
+	PreparedQueryData* data = (PreparedQueryData*)ptr.get();
+	my_bool oldReconnectStatus = m_database->getAutoReconnect();
+	//Autoreconnect has to be disabled for prepared statement since prepared statements
+	//get reset on the server if the connection fails and auto reconnects
+	m_database->setAutoReconnect((my_bool) 0);
+	auto resetReconnectStatus = finally([&] { m_database->setAutoReconnect(oldReconnectStatus); });
+	try {
+		MYSQL_STMT* stmt = nullptr;
+		auto stmtClose = finally([&] {
+			if (!m_database->shouldCachePreparedStatements() && stmt != nullptr) {
+				mysql_stmt_close(stmt);
+			}
+		});
+		if (this->cachedStatement.load() != nullptr) {
+			stmt = this->cachedStatement;
+		} else {
+			stmt = mysqlStmtInit(connection);
+			my_bool attrMaxLength = 1;
+			mysql_stmt_attr_set(stmt, STMT_ATTR_UPDATE_MAX_LENGTH, &attrMaxLength);
+			mysqlStmtPrepare(stmt, this->m_query.c_str());
+			if (m_database->shouldCachePreparedStatements()) {
+				this->cachedStatement = stmt;
+				m_database->cacheStatement(stmt);
+			}
 		}
-		this->parameters.clear();
-	});
-	unsigned int parameterCount = mysql_stmt_param_count(stmt);
-	std::vector<MYSQL_BIND> mysqlParameters(parameterCount);
+		unsigned int parameterCount = mysql_stmt_param_count(stmt);
+		std::vector<MYSQL_BIND> mysqlParameters(parameterCount);
 
-	for (auto& currentMap : parameters)
-	{
-		generateMysqlBinds(mysqlParameters.data(), &currentMap, parameterCount);
-		mysqlStmtBindParameter(stmt, mysqlParameters.data());
-		mysqlStmtExecute(stmt);
-		mysqlStmtStoreResult(stmt);
-		auto resultFree = finally([&] { mysql_stmt_free_result(stmt); });
-		this->results.emplace_back(stmt);
-		this->m_affectedRows.push_back(mysql_stmt_affected_rows(stmt));
-		this->m_insertIds.push_back(mysql_stmt_insert_id(stmt));
-		this->m_resultStatus = QUERY_SUCCESS;
-		//This is used to clear the connection in case there are
-		//more ResultSets from a Procedure
-		while (this->mysqlNextResult(connection))
-		{
-			MYSQL_RES * result = this->mysqlStoreResults(connection);
-			mysql_free_result(result);
+		for (auto& currentMap : data->m_parameters) {
+			generateMysqlBinds(mysqlParameters.data(), currentMap, parameterCount);
+			mysqlStmtBindParameter(stmt, mysqlParameters.data());
+			mysqlStmtExecute(stmt);
+			do {
+				//There is a potential race condition here. What happens
+				//when the query executes fine but something goes wrong while storing the result?
+				mysqlStmtStoreResult(stmt);
+				auto resultFree = finally([&] { mysql_stmt_free_result(stmt); });
+				data->m_results.emplace_back(stmt);
+				data->m_affectedRows.push_back(mysql_stmt_affected_rows(stmt));
+				data->m_insertIds.push_back(mysql_stmt_insert_id(stmt));
+				data->m_resultStatus = QUERY_SUCCESS;
+			} while (mysqlStmtNextResult(stmt));
+			/*
+			//This is used to clear the connection in case there are
+			//more ResultSets from a procedure
+			while (this->mysqlNextResult(connection)) {
+				MYSQL_RES * result = this->mysqlStoreResults(connection);
+				mysql_free_result(result);
+			}*/
 		}
+	} catch (const MySQLException& error) {
+		int errorCode = error.getErrorCode();
+		if ((errorCode == CR_SERVER_LOST || errorCode == CR_SERVER_GONE_ERROR || errorCode == ER_MAX_PREPARED_STMT_COUNT_REACHED)) {
+			m_database->freeStatement(this->cachedStatement);
+			this->cachedStatement = nullptr;
+			//Because autoreconnect is disabled we want to try and explicitly execute the prepared query once more
+			//if we can get the client to reconnect (reconnect is caused by mysql_ping)
+			//If this fails we just go ahead and error
+			if (oldReconnectStatus && data->firstAttempt) {
+				m_database->setAutoReconnect((my_bool)1);
+				if (mysql_ping(connection) == 0) {
+					data->firstAttempt = false;
+					executeQuery(connection, ptr);
+					return;
+				}
+			}
+		}
+		//Rethrow error to be handled by executeStatement()
+		throw error;
 	}
 }
 
-bool PreparedQuery::executeStatement(MYSQL* connection)
-{
-	LOG_CURRENT_FUNCTIONCALL
-	this->m_status = QUERY_RUNNING;
-	try
-	{
-		this->executeQuery(connection);
-		this->m_resultStatus = QUERY_SUCCESS;
-	}
-	catch (const MySQLException& error)
-	{
-		this->m_resultStatus = QUERY_ERROR;
-		this->m_errorText = error.what();
+bool PreparedQuery::executeStatement(MYSQL* connection, std::shared_ptr<IQueryData> ptr) {
+	PreparedQueryData* data = (PreparedQueryData*)ptr.get();
+	data->setStatus(QUERY_RUNNING);
+	try {
+		this->executeQuery(connection, ptr);
+		data->setResultStatus(QUERY_SUCCESS);
+	} catch (const MySQLException& error) {
+		data->setResultStatus(QUERY_ERROR);
+		data->setError(error.what());
 	}
 	return true;
+}
+
+
+std::shared_ptr<IQueryData> PreparedQuery::buildQueryData(lua_State* state) {
+	std::shared_ptr<IQueryData> ptr(new PreparedQueryData());
+	PreparedQueryData* data = (PreparedQueryData*)ptr.get();
+	data->m_parameters = this->m_parameters;
+	while (m_parameters.size() > 1) {
+		//Front so the last used parameters are the ones that are gonna stay
+		m_parameters.pop_front();
+	}
+	return ptr;
 }

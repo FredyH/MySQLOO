@@ -1,22 +1,15 @@
 #include "Transaction.h"
 #include "ResultData.h"
-#include "Logger.h"
 #include "errmsg.h"
+#include "Database.h"
 
 Transaction::Transaction(Database* dbase, lua_State* state) : IQuery(dbase, state) {
 	registerFunction(state, "addQuery", Transaction::addQuery);
 	registerFunction(state, "getQueries", Transaction::getQueries);
+	registerFunction(state, "clearQueries", Transaction::clearQueries);
 }
 
-void Transaction::onDestroyed(lua_State* state) {
-	//This unreferences all queries once the transaction has been gc'ed
-	if (state != nullptr) {
-		for (auto& query : queries) {
-			query->unreference(state);
-		}
-	}
-	this->queries.clear();
-}
+void Transaction::onDestroyed(lua_State* state) {}
 
 //TODO Fix memory leak if transaction is never started
 int Transaction::addQuery(lua_State* state) {
@@ -24,15 +17,29 @@ int Transaction::addQuery(lua_State* state) {
 	if (transaction == nullptr) {
 		LUA->ThrowError("Tried to pass wrong self");
 	}
-	IQuery* iQuery = (IQuery*)unpackLuaObject(state, 2, TYPE_QUERY, true);
+	IQuery* iQuery = (IQuery*)unpackLuaObject(state, 2, TYPE_QUERY, false);
 	Query* query = dynamic_cast<Query*>(iQuery);
 	if (query == nullptr) {
 		LUA->ThrowError("Tried to pass non query to addQuery()");
 	}
-	std::lock_guard<std::mutex> lock(transaction->m_queryMutex);
-	transaction->queries.push_back(query);
+	//This is all very ugly
+	LUA->Push(1);
+	LUA->GetField(-1, "__queries");
+	if (LUA->IsType(-1, GarrysMod::Lua::Type::NIL)) {
+		LUA->Pop();
+		LUA->CreateTable();
+		LUA->SetField(-2, "__queries");
+		LUA->GetField(-1, "__queries");
+	}
+	int tblIndex = LUA->Top();
+	LUA->PushSpecial(GarrysMod::Lua::SPECIAL_GLOB);
+	LUA->GetField(-1, "table");
+	LUA->GetField(-1, "insert");
+	LUA->Push(tblIndex);
 	LUA->Push(2);
-	return 1;
+	LUA->Call(2, 0);
+	LUA->Push(4);
+	return 0;
 }
 
 int Transaction::getQueries(lua_State* state) {
@@ -40,93 +47,143 @@ int Transaction::getQueries(lua_State* state) {
 	if (transaction == nullptr) {
 		LUA->ThrowError("Tried to pass wrong self");
 	}
-	LUA->CreateTable();
-	for (size_t i = 0; i < transaction->queries.size(); i++)
-	{
-		Query* q = transaction->queries[i];
-		LUA->PushNumber(i + 1);
-		q->pushTableReference(state);
-		LUA->SetTable(-3);
-	}
+	LUA->Push(1);
+	LUA->GetField(-1, "__queries");
 	return 1;
 }
 
+int Transaction::clearQueries(lua_State* state) {
+	Transaction* transaction = dynamic_cast<Transaction*>(unpackSelf(state, TYPE_QUERY));
+	if (transaction == nullptr) {
+		LUA->ThrowError("Tried to pass wrong self");
+	}
+	LUA->Push(1);
+	LUA->PushNil();
+	LUA->SetField(-2, "__queries");
+	LUA->Pop();
+	return 0;
+}
+
 //Calls the lua callbacks associated with this query
-void Transaction::doCallback(lua_State* state)
-{
-	LOG_CURRENT_FUNCTIONCALL
-	this->m_status = QUERY_COMPLETE;
-	switch (this->m_resultStatus)
-	{
+void Transaction::doCallback(lua_State* state, std::shared_ptr<IQueryData> ptr) {
+	TransactionData* data = (TransactionData*)ptr.get();
+	data->setStatus(QUERY_COMPLETE);
+	for (auto& pair : data->m_queries) {
+		auto query = pair.first;
+		auto queryData = pair.second;
+		query->setCallbackData(queryData);
+	}
+	switch (data->getResultStatus()) {
 	case QUERY_NONE:
 		break;
 	case QUERY_ERROR:
-		this->runCallback(state, "onError", "s", this->m_errorText.c_str());
+		if (data->getErrorReference() != 0) {
+			this->runFunction(state, data->getErrorReference(), "s", data->getError().c_str());
+		} else if (data->isFirstData()) {
+			this->runCallback(state, "onError", "s", data->getError().c_str());
+		}
 		break;
 	case QUERY_SUCCESS:
-		this->runCallback(state, "onSuccess");
+		if (data->getSuccessReference() != 0) {
+			this->runFunction(state, data->getSuccessReference());
+		} else if (data->isFirstData()) {
+			this->runCallback(state, "onSuccess");
+		}
 		break;
+	}
+	for (auto& pair : data->m_queries) {
+		auto query = pair.first;
+		auto queryData = pair.second;
+		query->onQueryDataFinished(state, queryData);
 	}
 }
 
-bool Transaction::executeStatement(MYSQL* connection)
-{
-	LOG_CURRENT_FUNCTIONCALL
-	this->m_status = QUERY_RUNNING;
+bool Transaction::executeStatement(MYSQL* connection, std::shared_ptr<IQueryData> ptr) {
+	TransactionData* data = (TransactionData*)ptr.get();
+	data->setStatus(QUERY_RUNNING);
 	//This temporarily disables reconnect, since a reconnect
 	//would rollback (and cancel) a transaction
 	//Which could lead to parts of the transaction being executed outside of a transaction
 	//If they are being executed after the reconnect
-	my_bool oldReconnectStatus = connection->reconnect;
-	connection->reconnect = false;
-	auto resetReconnectStatus = finally([&] { connection->reconnect = oldReconnectStatus; });
-	try
-	{
-		//TODO autoreconnect fucks things up
-		this->mysqlAutocommit(connection, false); 
+	my_bool oldReconnectStatus = m_database->getAutoReconnect();
+	m_database->setAutoReconnect((my_bool)0);
+	auto resetReconnectStatus = finally([&] { m_database->setAutoReconnect(oldReconnectStatus); });
+	try {
+		this->mysqlAutocommit(connection, false);
 		{
-			std::lock_guard<std::mutex> lock(this->m_queryMutex);
-			for (auto& query : queries) {
-				query->executeQuery(connection);
+			for (auto& query : data->m_queries) {
+				query.first->executeQuery(connection, query.second);
 			}
 		}
 		mysql_commit(connection);
-		this->m_resultStatus = QUERY_SUCCESS;
+		data->setResultStatus(QUERY_SUCCESS);
 		this->mysqlAutocommit(connection, true);
-	}
-	catch (const MySQLException& error)
-	{
+	} catch (const MySQLException& error) {
 		//This check makes sure that setting mysqlAutocommit back to true doesn't cause the transaction to fail
 		//Even though the transaction was executed successfully
-		if (this->m_resultStatus != QUERY_SUCCESS) {
+		if (data->getResultStatus() != QUERY_SUCCESS) {
 			int errorCode = error.getErrorCode();
-			if (oldReconnectStatus && !this->retried &&
+			if (oldReconnectStatus && !data->retried &&
 				(errorCode == CR_SERVER_LOST || errorCode == CR_SERVER_GONE_ERROR)) {
 				//Because autoreconnect is disabled we want to try and explicitly execute the transaction once more
 				//if we can get the client to reconnect (reconnect is caused by mysql_ping)
 				//If this fails we just go ahead and error
-				connection->reconnect = true;
+				m_database->setAutoReconnect((my_bool)1);
 				if (mysql_ping(connection) == 0) {
-					this->retried = true;
-					return executeStatement(connection);
+					data->retried = true;
+					return executeStatement(connection, ptr);
 				}
 			}
 			//If this call fails it means that the connection was (probably) lost
 			//In that case the mysql server rolls back any transaction anyways so it doesn't
 			//matter if it fails
 			mysql_rollback(connection);
-			this->m_resultStatus = QUERY_ERROR;
+			data->setResultStatus(QUERY_ERROR);
 		}
 		//If this fails it probably means that the connection was lost
 		//In that case autocommit is turned back on anyways (once the connection is reestablished)
 		//See: https://dev.mysql.com/doc/refman/5.7/en/auto-reconnect.html
 		mysql_autocommit(connection, true);
-		this->m_errorText = error.what();
+		data->setError(error.what());
 	}
-	for (auto& query : queries) {
-		query->setResultStatus(this->m_resultStatus);
-		query->setStatus(QUERY_COMPLETE);
+	for (auto& pair : data->m_queries) {
+		pair.second->setResultStatus(data->getResultStatus());
+		pair.second->setStatus(QUERY_COMPLETE);
 	}
-	this->m_status = QUERY_COMPLETE;
+	data->setStatus(QUERY_COMPLETE);
 	return true;
+}
+
+
+std::shared_ptr<IQueryData> Transaction::buildQueryData(lua_State* state) {
+	//At this point the transaction is guaranteed to have a referenced table
+	//since this is always called shortly after transaction:start()
+	std::shared_ptr<IQueryData> ptr(new TransactionData());
+	TransactionData* data = (TransactionData*)ptr.get();
+	this->pushTableReference(state);
+	LUA->GetField(-1, "__queries");
+	if (!LUA->IsType(-1, GarrysMod::Lua::Type::TABLE)) {
+		LUA->Pop(2);
+		return ptr;
+	}
+	int index = 1;
+	//Stuff could go horribly wrong here if a lua error occurs
+	//but it really shouldn't
+	while (true) {
+		LUA->PushNumber(index++);
+		LUA->GetTable(-2);
+		if (!LUA->IsType(-1, GarrysMod::Lua::Type::TABLE)) {
+			LUA->Pop();
+			break;
+		}
+		//This would error if it's not a query
+		Query* iQuery = (Query*)unpackLuaObject(state, -1, TYPE_QUERY, false);
+		auto queryPtr = std::dynamic_pointer_cast<Query>(iQuery->getSharedPointerInstance());
+		auto queryData = iQuery->buildQueryData(state);
+		iQuery->addQueryData(state, queryData, false);
+		data->m_queries.push_back(std::make_pair(queryPtr, queryData));
+		LUA->Pop();
+	}
+	LUA->Pop(2);
+	return ptr;
 }

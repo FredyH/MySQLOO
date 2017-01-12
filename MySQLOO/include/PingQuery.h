@@ -8,14 +8,13 @@
 #include <string.h>
 
 
-class PingQuery : Query
-{
+class PingQuery : Query {
 	friend class Database;
 public:
 	PingQuery(Database* dbase, lua_State* state);
 	virtual ~PingQuery(void);
 protected:
-	void executeQuery(MYSQL* m_sql);
+	void executeQuery(MYSQL* m_sql, std::shared_ptr<IQueryData>);
 	bool pingSuccess = false;
 };
 #endif

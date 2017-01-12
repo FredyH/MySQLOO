@@ -7,8 +7,7 @@
 #include <string.h>
 
 
-class PreparedQueryField
-{
+class PreparedQueryField {
 	friend class PreparedQuery;
 public:
 	PreparedQueryField(unsigned int index, int type) : m_index(index), m_type(type) {}
@@ -20,39 +19,49 @@ private:
 };
 
 template< typename T >
-class TypedQueryField : public PreparedQueryField
-{
+class TypedQueryField : public PreparedQueryField {
 	friend class PreparedQuery;
 public:
 	TypedQueryField(unsigned int index, int type, const T& data)
-		: PreparedQueryField(index, type), m_data(data){};
+		: PreparedQueryField(index, type), m_data(data) {};
 	virtual ~TypedQueryField() {}
 private:
 	T m_data;
 };
 
 
-class PreparedQuery : Query
-{
+class PreparedQuery : public Query {
 	friend class Database;
 public:
 	PreparedQuery(Database* dbase, lua_State* state);
 	virtual ~PreparedQuery(void);
-	bool executeStatement(MYSQL* connection);
+	bool executeStatement(MYSQL* connection, std::shared_ptr<IQueryData> data);
+	virtual void onDestroyed(lua_State* state);
 protected:
-	void executeQuery(MYSQL* m_sql);
+	virtual std::shared_ptr<IQueryData> buildQueryData(lua_State* state);
+	void executeQuery(MYSQL* m_sql, std::shared_ptr<IQueryData> data);
 private:
-	std::deque<std::unordered_map<unsigned int, std::unique_ptr<PreparedQueryField>>> parameters;
+	std::deque<std::unordered_map<unsigned int, std::shared_ptr<PreparedQueryField>>> m_parameters;
 	static int setNumber(lua_State* state);
 	static int setString(lua_State* state);
 	static int setBoolean(lua_State* state);
 	static int setNull(lua_State* state);
 	static int putNewParameters(lua_State* state);
 	MYSQL_STMT *mysqlStmtInit(MYSQL* sql);
-	void generateMysqlBinds(MYSQL_BIND* binds, std::unordered_map<unsigned int, std::unique_ptr<PreparedQueryField>> *map, unsigned int parameterCount);
+	void generateMysqlBinds(MYSQL_BIND* binds, std::unordered_map<unsigned int, std::shared_ptr<PreparedQueryField>> &map, unsigned int parameterCount);
 	void mysqlStmtBindParameter(MYSQL_STMT* sql, MYSQL_BIND* bind);
 	void mysqlStmtPrepare(MYSQL_STMT* sql, const char* str);
 	void mysqlStmtExecute(MYSQL_STMT* sql);
 	void mysqlStmtStoreResult(MYSQL_STMT* sql);
+	bool mysqlStmtNextResult(MYSQL_STMT* sql);
+	//This is atomic to prevent visibility issues
+	std::atomic<MYSQL_STMT*> cachedStatement{ nullptr };
+};
+
+class PreparedQueryData : public QueryData {
+	friend class PreparedQuery;
+protected:
+	std::deque<std::unordered_map<unsigned int, std::shared_ptr<PreparedQueryField>>> m_parameters;
+	bool firstAttempt = true;
 };
 #endif

@@ -5,17 +5,14 @@
 #include <memory>
 #include "MySQLHeader.h"
 
-class ResultDataRow
-{
+class ResultDataRow {
 public:
 	ResultDataRow(unsigned long *lengths, MYSQL_ROW row, unsigned int columnCount);
 	ResultDataRow(MYSQL_STMT* statement, MYSQL_BIND* bind, unsigned int columnCount);
-	std::vector<std::string> & getValues()
-	{
+	std::vector<std::string> & getValues() {
 		return values;
 	}
-	bool isFieldNull(int index)
-	{
+	bool isFieldNull(int index) {
 		return nullFields[index];
 	}
 private:
@@ -25,16 +22,15 @@ private:
 	std::vector<std::string> values;
 };
 
-class ResultData
-{
+class ResultData {
 public:
 	ResultData(MYSQL_RES* result);
 	ResultData(MYSQL_STMT* result);
 	ResultData();
 	~ResultData();
-	std::vector<std::string> & getColumns(){ return columns; }
-	std::vector<ResultDataRow> & getRows(){ return rows; }
-	std::vector<int> & getColumnTypes(){ return columnTypes; }
+	std::vector<std::string> & getColumns() { return columns; }
+	std::vector<ResultDataRow> & getRows() { return rows; }
+	std::vector<int> & getColumnTypes() { return columnTypes; }
 private:
 	ResultData(unsigned int columns, unsigned int rows);
 	unsigned int columnCount = 0;
