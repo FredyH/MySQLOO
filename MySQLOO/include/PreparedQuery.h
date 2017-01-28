@@ -56,6 +56,9 @@ private:
 	bool mysqlStmtNextResult(MYSQL_STMT* sql);
 	//This is atomic to prevent visibility issues
 	std::atomic<MYSQL_STMT*> cachedStatement{ nullptr };
+	//This pointer is used to prevent the database being accessed after it was deleted
+	//when this preparedq query still owns a MYSQL_STMT*
+	std::weak_ptr<Database> weak_database;
 };
 
 class PreparedQueryData : public QueryData {

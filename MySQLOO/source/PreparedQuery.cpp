@@ -15,6 +15,9 @@ PreparedQuery::PreparedQuery(Database* dbase, lua_State* state) : Query(dbase, s
 	registerFunction(state, "setNull", PreparedQuery::setNull);
 	registerFunction(state, "putNewParameters", PreparedQuery::putNewParameters);
 	this->m_parameters.push_back(std::unordered_map<unsigned int, std::shared_ptr<PreparedQueryField>>());
+	//This pointer is used to prevent the database being accessed after it was deleted
+	//when this preparedq query still owns a MYSQL_STMT*
+	this->weak_database = std::dynamic_pointer_cast<Database>(((LuaObjectBase*)m_database)->getSharedPointerInstance());
 }
 
 PreparedQuery::~PreparedQuery(void) {}
@@ -24,10 +27,13 @@ void PreparedQuery::onDestroyed(lua_State* state) {
 	//There can't be any race conditions here
 	//This always runs after PreparedQuery::executeQuery() is done
 	//I am using atomic to prevent visibility issues though
-	MYSQL_STMT* stmt = this->cachedStatement;
-	if (stmt != nullptr) {
-		m_database->freeStatement(cachedStatement);
-		cachedStatement = nullptr;
+	auto ptr = this->weak_database.lock();
+	if (ptr.get() != nullptr) {
+		MYSQL_STMT* stmt = this->cachedStatement;
+		if (stmt != nullptr) {
+			ptr->freeStatement(cachedStatement);
+			cachedStatement = nullptr;
+		}
 	}
 	IQuery::onDestroyed(state);
 }
