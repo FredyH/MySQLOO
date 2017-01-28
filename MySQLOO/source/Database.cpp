@@ -97,7 +97,6 @@ int Database::createTransaction(lua_State* state) {
 void Database::enqueueQuery(IQuery* query, std::shared_ptr<IQueryData> queryData) {
 	std::unique_lock<std::mutex> qlck(m_queryQueueMutex);
 	query->canbedestroyed = false;
-	//std::shared_ptr<IQuery> sharedPtr = query->getSharedPointerInstance();
 	queryQueue.push_back(std::make_pair(std::dynamic_pointer_cast<IQuery>(query->getSharedPointerInstance()), queryData));
 	queryData->setStatus(QUERY_WAITING);
 	this->m_queryWakupVariable.notify_one();

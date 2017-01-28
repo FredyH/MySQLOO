@@ -17,7 +17,7 @@ PreparedQuery::PreparedQuery(Database* dbase, lua_State* state) : Query(dbase, s
 	this->m_parameters.push_back(std::unordered_map<unsigned int, std::shared_ptr<PreparedQueryField>>());
 	//This pointer is used to prevent the database being accessed after it was deleted
 	//when this preparedq query still owns a MYSQL_STMT*
-	this->weak_database = std::dynamic_pointer_cast<Database>(((LuaObjectBase*)m_database)->getSharedPointerInstance());
+	this->weak_database = std::dynamic_pointer_cast<Database>(m_database->getSharedPointerInstance());
 }
 
 PreparedQuery::~PreparedQuery(void) {}

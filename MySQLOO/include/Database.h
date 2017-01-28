@@ -23,7 +23,7 @@ enum DatabaseStatus {
 	DATABASE_CONNECTION_FAILED = 3
 };
 
-class Database : LuaObjectBase {
+class Database : public LuaObjectBase {
 	friend class IQuery;
 public:
 	enum {
