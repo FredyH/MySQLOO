@@ -18,6 +18,7 @@ GMOD_MODULE_CLOSE() {
 	LuaObjectBase::luaObjects.clear();
 	LuaObjectBase::luaThinkObjects.clear();
 	mysql_thread_end();
+	mysql_library_end();
 	return 0;
 }
 

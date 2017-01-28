@@ -40,7 +40,7 @@ public:
 	std::shared_ptr<LuaObjectBase> getSharedPointerInstance();
 	void unreference(lua_State* state);
 protected:
-	void runFunctionVaList(lua_State* state, int funcRef, const char* sig, va_list list);
+	void runFunctionVarList(lua_State* state, int funcRef, const char* sig, va_list list);
 	bool scheduledForRemoval = false;
 	bool shouldthink = false;
 	int m_tableReference = 0;

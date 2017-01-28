@@ -224,4 +224,8 @@ void IQuery::onQueryDataFinished(lua_State* state, std::shared_ptr<IQueryData> d
 	if (data->m_successReference) {
 		LUA->ReferenceFree(data->m_successReference);
 	}
+	data->m_onDataReference = 0;
+	data->m_errorReference = 0;
+	data->m_abortReference = 0;
+	data->m_successReference = 0;
 }

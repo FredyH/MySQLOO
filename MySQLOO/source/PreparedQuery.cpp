@@ -21,15 +21,13 @@ PreparedQuery::~PreparedQuery(void) {}
 
 //When the query is destroyed by lua
 void PreparedQuery::onDestroyed(lua_State* state) {
-	{
-		//There can't be any race conditions here
-		//This always runs after PreparedQuery::executeQuery() is done
-		//I am using atomic to prevent visibility issues though
-		MYSQL_STMT* stmt = this->cachedStatement;
-		if (stmt != nullptr) {
-			m_database->freeStatement(cachedStatement);
-			cachedStatement = nullptr;
-		}
+	//There can't be any race conditions here
+	//This always runs after PreparedQuery::executeQuery() is done
+	//I am using atomic to prevent visibility issues though
+	MYSQL_STMT* stmt = this->cachedStatement;
+	if (stmt != nullptr) {
+		m_database->freeStatement(cachedStatement);
+		cachedStatement = nullptr;
 	}
 	IQuery::onDestroyed(state);
 }
@@ -246,18 +244,11 @@ void PreparedQuery::executeQuery(MYSQL* connection, std::shared_ptr<IQueryData> 
 				//when the query executes fine but something goes wrong while storing the result?
 				mysqlStmtStoreResult(stmt);
 				auto resultFree = finally([&] { mysql_stmt_free_result(stmt); });
-				data->m_results.emplace_back(stmt);
 				data->m_affectedRows.push_back(mysql_stmt_affected_rows(stmt));
 				data->m_insertIds.push_back(mysql_stmt_insert_id(stmt));
+				data->m_results.emplace_back(stmt);
 				data->m_resultStatus = QUERY_SUCCESS;
 			} while (mysqlStmtNextResult(stmt));
-			/*
-			//This is used to clear the connection in case there are
-			//more ResultSets from a procedure
-			while (this->mysqlNextResult(connection)) {
-				MYSQL_RES * result = this->mysqlStoreResults(connection);
-				mysql_free_result(result);
-			}*/
 		}
 	} catch (const MySQLException& error) {
 		int errorCode = error.getErrorCode();

@@ -141,11 +141,11 @@ void LuaObjectBase::runFunction(lua_State* state, int funcRef, const char* sig, 
 	if (funcRef == 0) return;
 	va_list arguments;
 	va_start(arguments, sig);
-	runFunctionVaList(state, funcRef, sig, arguments);
+	runFunctionVarList(state, funcRef, sig, arguments);
 	va_end(arguments);
 }
 
-void LuaObjectBase::runFunctionVaList(lua_State* state, int funcRef, const char* sig, va_list arguments) {
+void LuaObjectBase::runFunctionVarList(lua_State* state, int funcRef, const char* sig, va_list arguments) {
 	if (funcRef == 0) return;
 	if (this->m_tableReference == 0) return;
 	LUA->ReferencePush(funcRef);
@@ -195,8 +195,9 @@ void LuaObjectBase::runFunctionVaList(lua_State* state, int funcRef, const char*
 			return;
 		}
 		LUA->PushString(err);
-		LUA->Call(1, 0);
-		LUA->Pop(1);
+		LUA->PushString("\n");
+		LUA->Call(2, 0);
+		LUA->Pop(2);
 	}
 }
 
@@ -210,7 +211,7 @@ void LuaObjectBase::runCallback(lua_State* state, const char* functionName, cons
 	}
 	va_list arguments;
 	va_start(arguments, sig);
-	runFunctionVaList(state, funcRef, sig, arguments);
+	runFunctionVarList(state, funcRef, sig, arguments);
 	va_end(arguments);
 	LUA->ReferenceFree(funcRef);
 }
