@@ -93,7 +93,7 @@ int IQuery::wait(lua_State* state) {
 //Returns the error message produced by the mysql query or 0 if there is none
 int IQuery::error(lua_State* state) {
 	IQuery* object = (IQuery*)unpackSelf(state, TYPE_QUERY);
-	if (object->hasCallbackData()) {
+	if (!object->hasCallbackData()) {
 		return 0;
 	}
 	//Calling affectedRows() after query was executed but before the callback is run can cause race conditions
