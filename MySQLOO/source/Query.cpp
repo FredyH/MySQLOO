@@ -92,8 +92,8 @@ bool Query::executeStatement(MYSQL* connection, std::shared_ptr<IQueryData> data
 		this->executeQuery(connection, data);
 		queryData->m_resultStatus = QUERY_SUCCESS;
 	} catch (const MySQLException& error) {
-		queryData->m_resultStatus = QUERY_ERROR;
-		queryData->m_errorText = error.what();
+		queryData->setError(error.what());
+		queryData->setResultStatus(QUERY_ERROR);
 	}
 	return true;
 }

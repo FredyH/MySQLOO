@@ -112,7 +112,16 @@ bool Transaction::executeStatement(MYSQL* connection, std::shared_ptr<IQueryData
 		this->mysqlAutocommit(connection, false);
 		{
 			for (auto& query : data->m_queries) {
-				query.first->executeQuery(connection, query.second);
+				try {
+					//Errors are cleared in case this is retrying after losing connection
+					query.second->setResultStatus(QUERY_NONE);
+					query.second->setError("");
+					query.first->executeQuery(connection, query.second);
+				} catch (const MySQLException& error) {
+					query.second->setError(error.what());
+					query.second->setResultStatus(QUERY_ERROR);
+					throw error;
+				}
 			}
 		}
 		mysql_commit(connection);
