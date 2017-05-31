@@ -83,12 +83,17 @@ function database:Query(str, callback, ...)
 	end
 	qu:start()
 end
+	
+function database:SetCharacterSet(name)
+	return self:setCharacterSet(name)
+end
 
 function database:Disconnect()
 	if (self.Disconnected) then error("database already disconnected") end
 	self:abortAllQueries()
 	table.RemoveByValue(tmysql.Connections, self)
 	self.Disconnected = true
+	self:disconnect()
 end
 
 function database:Option(option, value)
