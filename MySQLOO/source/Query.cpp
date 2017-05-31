@@ -147,7 +147,8 @@ int Query::getData(lua_State* state) {
 
 
 //Function that converts the data stored in a mysql field into a lua type
-void Query::dataToLua(lua_State* state, int rowReference, unsigned int column, std::string &columnValue, const char* columnName, int columnType, bool isNull) {
+void Query::dataToLua(lua_State* state, int rowReference, unsigned int column,
+					  std::string &columnValue, const char* columnName, int columnType, bool isNull) {
 	LUA->ReferencePush(rowReference);
 	if (this->m_options & OPTION_NUMERIC_FIELDS) {
 		LUA->PushNumber(column);

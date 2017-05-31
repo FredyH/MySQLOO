@@ -26,16 +26,14 @@ Database::Database(lua_State* state, std::string host, std::string username, std
 	registerFunction(state, "queueSize", Database::queueSize);
 	registerFunction(state, "setAutoReconnect", Database::setAutoReconnect);
 	registerFunction(state, "setCachePreparedStatements", Database::setCachePreparedStatements);
+	registerFunction(state, "setCharacterSet", Database::setCharacterSet);
 	registerFunction(state, "setMultiStatements", Database::setMultiStatements);
 	registerFunction(state, "ping", Database::ping);
+	registerFunction(state, "disconnect", Database::disconnect);
 }
 
 Database::~Database() {
-	this->destroyed = true;
-	{
-		std::unique_lock<std::mutex> lck(m_queryQueueMutex);
-		this->m_queryWakupVariable.notify_all();
-	}
+	this->shutdown();
 	if (this->m_thread.joinable()) {
 		this->m_thread.join();
 	}
@@ -45,16 +43,14 @@ Database::~Database() {
 //This makes sure that all stmts always get freed
 void Database::cacheStatement(MYSQL_STMT* stmt) {
 	if (stmt == nullptr) return;
-	std::unique_lock<std::mutex> lck(m_stmtMutex);
-	cachedStatements.push_back(stmt);
+	cachedStatements.put(stmt);
 }
 
 //This notifies the database thread to free this statement some time in the future
 void Database::freeStatement(MYSQL_STMT* stmt) {
 	if (stmt == nullptr) return;
-	std::unique_lock<std::mutex> lck(m_stmtMutex);
-	cachedStatements.erase(std::remove(cachedStatements.begin(), cachedStatements.end(), stmt));
-	freedStatements.push_back(stmt);
+	cachedStatements.remove(stmt);
+	freedStatements.put(stmt);
 }
 
 /* Creates and returns a query instance and enqueues it into the queue of accepted queries.
@@ -95,9 +91,8 @@ int Database::createTransaction(lua_State* state) {
 /* Enqueues a query into the queue of accepted queries.
  */
 void Database::enqueueQuery(IQuery* query, std::shared_ptr<IQueryData> queryData) {
-	std::unique_lock<std::mutex> qlck(m_queryQueueMutex);
 	query->canbedestroyed = false;
-	queryQueue.push_back(std::make_pair(std::dynamic_pointer_cast<IQuery>(query->getSharedPointerInstance()), queryData));
+	queryQueue.put(std::make_pair(std::dynamic_pointer_cast<IQuery>(query->getSharedPointerInstance()), queryData));
 	queryData->setStatus(QUERY_WAITING);
 	this->m_queryWakupVariable.notify_one();
 }
@@ -108,7 +103,6 @@ void Database::enqueueQuery(IQuery* query, std::shared_ptr<IQueryData> queryData
  */
 int Database::queueSize(lua_State* state) {
 	Database* object = (Database*)unpackSelf(state, TYPE_DATABASE);
-	std::unique_lock<std::mutex> qlck(object->m_queryQueueMutex);
 	LUA->PushNumber(object->queryQueue.size());
 	return 1;
 
@@ -120,12 +114,12 @@ int Database::queueSize(lua_State* state) {
  */
 int Database::abortAllQueries(lua_State* state) {
 	Database* object = (Database*)unpackSelf(state, TYPE_DATABASE);
-	std::lock_guard<std::mutex> lock(object->m_queryQueueMutex);
-	for (auto& pair : object->queryQueue) {
+	auto canceledQueries = object->queryQueue.clear();
+	for (auto& pair : canceledQueries) {
 		auto query = pair.first;
 		auto data = pair.second;
 		data->setStatus(QUERY_ABORTED);
-		query->unreference(state);
+		query->onQueryDataFinished(state, data);
 	}
 	LUA->PushNumber((double)object->queryQueue.size());
 	object->queryQueue.clear();
@@ -151,10 +145,10 @@ int Database::wait(lua_State* state) {
  */
 int Database::escape(lua_State* state) {
 	Database* object = (Database*)unpackSelf(state, TYPE_DATABASE);
+	LUA->CheckType(2, GarrysMod::Lua::Type::STRING);
 	std::lock_guard<std::mutex>(object->m_connectMutex);
 	//No query mutex needed since this doesn't use the connection at all
 	if (!object->m_connectionDone || object->m_sql == nullptr) return 0;
-	LUA->CheckType(2, GarrysMod::Lua::Type::STRING);
 	const char* sQuery = LUA->GetString(2);
 	size_t nQueryLength = strlen(sQuery);
 	//escaped string can be twice as big as original string
@@ -163,6 +157,30 @@ int Database::escape(lua_State* state) {
 	mysql_real_escape_string(object->m_sql, escapedQuery.data(), sQuery, nQueryLength);
 	LUA->PushString(escapedQuery.data());
 	return 1;
+}
+
+/* Changes the character set of the connection
+ * This will run the query in the server thread, which means the server will be paused
+ * until the query is done.
+ * This is so db:escape always has the latest value of mysql->charset
+ */
+int Database::setCharacterSet(lua_State* state) {
+	Database* object = (Database*)unpackSelf(state, TYPE_DATABASE);
+	LUA->CheckType(2, GarrysMod::Lua::Type::STRING);
+	if (object->m_status != DATABASE_CONNECTED) {
+		LUA->ThrowError("Database needs to be connected to change charset.");
+	}
+	const char* charset = LUA->GetString(2);
+	//This mutex makes sure we can safely use the connection to run the query
+	std::unique_lock<std::mutex> lk2(object->m_queryMutex);
+	if (mysql_set_character_set(object->m_sql, charset)) {
+		LUA->PushBool(false);
+		LUA->PushString(mysql_error(object->m_sql));
+		return 1;
+	} else {
+		LUA->PushBool(true);
+		return 1;
+	}
 }
 
 /* Starts the thread that connects to the database and then handles queries.
@@ -175,6 +193,35 @@ int Database::connect(lua_State* state) {
 	object->startedConnecting = true;
 	object->m_status = DATABASE_CONNECTING;
 	object->m_thread = std::thread(&Database::connectRun, object);
+	return 0;
+}
+
+void Database::shutdown() {
+	//This acts as a poison pill
+	this->queryQueue.put(std::make_pair(std::shared_ptr<IQuery>(), std::shared_ptr<IQueryData>()));
+	//The fact that C++ can't automatically infer the types of the shared_ptr here and that
+	//I have to specify what type it should be, just proves once again that C++ is a failed language
+	//that should be replaced as soon as possible
+}
+
+/* Disconnects from the mysql database after finishing all queued queries
+ * If wait is true, this will wait for the all queries to finish execution and the
+ * database thread to end.
+ */
+int Database::disconnect(lua_State* state) {
+	Database* object = (Database*)unpackSelf(state, TYPE_DATABASE);
+	bool wait = false;
+	if (LUA->IsType(2, GarrysMod::Lua::Type::BOOL)) {
+		wait = LUA->GetBool(2);
+	}
+	if (object->m_status != DATABASE_CONNECTED) {
+		LUA->ThrowError("Database not connected.");
+	}
+	object->shutdown();
+	if (wait && object->m_thread.joinable()) {
+		object->m_thread.join();
+	}
+	object->disconnected = true;
 	return 0;
 }
 
@@ -296,7 +343,12 @@ my_bool Database::getAutoReconnect() {
  */
 void Database::connectRun() {
 	mysql_thread_init();
-	auto threadEnd = finally([&] { mysql_thread_end(); });
+	auto threadEnd = finally([&] { 
+		mysql_thread_end();
+		if (m_status == DATABASE_CONNECTED) {
+			m_status = DATABASE_NOT_CONNECTED;
+		}
+	});
 	{
 		auto connectionSignaliser = finally([&] { m_connectWakeupVariable.notify_one(); });
 		std::lock_guard<std::mutex>(this->m_connectMutex);
@@ -330,7 +382,10 @@ void Database::connectRun() {
 		m_serverInfo = mysql_get_server_info(this->m_sql);
 		m_hostInfo = mysql_get_host_info(this->m_sql);
 	}
-	auto closeConnection = finally([&] { mysql_close(this->m_sql); this->m_sql = nullptr;  });
+	auto closeConnection = finally([&] {
+		std::unique_lock<std::mutex> queryMutex(m_queryMutex);
+		mysql_close(this->m_sql); this->m_sql = nullptr;  
+	});
 	if (m_success) {
 		run();
 	}
@@ -342,84 +397,71 @@ void Database::connectRun() {
  */
 void Database::think(lua_State* state) {
 	if (m_connectionDone && !dbCallbackRan) {
+		dbCallbackRan = true;
 		if (m_success) {
 			runCallback(state, "onConnected");
 		} else {
 			runCallback(state, "onConnectionFailed", "s", m_connection_err.c_str());
 		}
 		this->unreference(state);
-		dbCallbackRan = true;
 	}
 	//Needs to lock for condition check to prevent race conditions
-	std::unique_lock<std::mutex> lock(m_finishedQueueMutex);
-	while (!finishedQueries.empty()) {
-		auto pair = finishedQueries.front();
+	auto currentlyFinished = finishedQueries.clear();
+	while (!currentlyFinished.empty()) {
+		auto pair = currentlyFinished.front();
 		auto query = pair.first;
 		auto data = pair.second;
-		finishedQueries.pop_front();
+		currentlyFinished.pop_front();
 		//Unlocking here because the lock isn't needed for the callbacks
 		//Allows the database thread to add more finished queries
-		lock.unlock();
 		query->setCallbackData(data);
 		data->setStatus(QUERY_COMPLETE);
 		query->doCallback(state, data);
 		query->onQueryDataFinished(state, data);
-		lock.lock();
+	}
+}
+
+void Database::freeCachedStatements() {
+	auto statments = cachedStatements.clear();
+	for (auto& stmt : statments) {
+		mysql_stmt_close(stmt);
 	}
 }
 
 void Database::freeUnusedStatements() {
-	std::lock_guard<std::mutex> stmtLock(m_stmtMutex);
-	for (auto& stmt : freedStatements) {
+	auto statments = freedStatements.clear();
+	for (auto& stmt : statments) {
 		mysql_stmt_close(stmt);
 	}
-	freedStatements.clear();
 }
 
 /* The run method of the thread of the database instance.
  */
 void Database::run() {
+	auto a = finally([&] {
+		this->freeUnusedStatements();
+		this->freeCachedStatements();
+	});
 	while (true) {
-		std::unique_lock<std::mutex> lock(m_queryQueueMutex);
-		//Passively waiting for new queries to arrive
-		while (this->queryQueue.empty() && !this->destroyed) this->m_queryWakupVariable.wait(lock);
-		uint64_t counter = 0;
-		//While there are new queries, execute them
-		while (!this->queryQueue.empty()) {
-			auto pair = this->queryQueue.front();
-			auto curquery = pair.first;
-			auto data = pair.second;
-			this->queryQueue.pop_front();
-			//The lock isn't needed for this section anymore, since it is not operating on the query queue
-			lock.unlock();
-			curquery->executeStatement(this->m_sql, data);
-			{
-				//New scope so no nested locking occurs
-				std::lock_guard<std::mutex> lock(m_finishedQueueMutex);
-				finishedQueries.push_back(pair);
-				data->setFinished(true);
-				curquery->m_waitWakeupVariable.notify_one();
-			}
-			//So that statements get freed sometimes even if the queue is constantly full
-			if (counter++ % 200 == 0) {
-				freeUnusedStatements();
-			}
-			lock.lock();
-		}
-		lock.unlock();
-		freeUnusedStatements();
-		lock.lock();
-		if (this->destroyed && this->queryQueue.empty()) {
-			std::lock_guard<std::mutex> lock(m_stmtMutex);
-			for (auto& stmt : cachedStatements) {
-				mysql_stmt_close(stmt);
-			}
-			cachedStatements.clear();
-			for (auto& stmt : freedStatements) {
-				mysql_stmt_close(stmt);
-			}
-			freedStatements.clear();
+		auto pair = this->queryQueue.take();
+		//This detects the poison pill that is supposed to shutdown the database
+		if (pair.first.get() == nullptr) {
 			return;
 		}
+		auto curquery = pair.first;
+		auto data = pair.second;
+		{
+			//New scope so mutex will be released as soon as possible
+			std::unique_lock<std::mutex> queryMutex(m_queryMutex);
+			curquery->executeStatement(this->m_sql, data);
+		}
+		data->setFinished(true);
+		finishedQueries.put(pair);
+		{
+			std::unique_lock<std::mutex> queryMutex(curquery->m_waitMutex);
+			curquery->m_waitWakeupVariable.notify_one();
+		}
+		//So that statements get freed sometimes even if the queue is constantly full
+		freeUnusedStatements();
 	}
 }

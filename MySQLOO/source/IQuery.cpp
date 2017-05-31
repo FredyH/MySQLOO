@@ -41,6 +41,9 @@ void IQuery::mysqlAutocommit(MYSQL* sql, bool auto_mode) {
 //Queues the query into the queue of the database instance associated with it
 int IQuery::start(lua_State* state) {
 	IQuery* object = (IQuery*)unpackSelf(state, TYPE_QUERY);
+	if (object->m_database->disconnected) {
+		LUA->ThrowError("Database already disconnected.");
+	}
 	if (object->runningQueryData.size() == 0) {
 		referenceTable(state, object, 1);
 	}
@@ -73,17 +76,12 @@ int IQuery::wait(lua_State* state) {
 	std::shared_ptr<IQueryData> lastInsertedQuery = object->runningQueryData.back();
 	//Changing the order of the query might have unwanted side effects, so this is disabled by default
 	if (shouldSwap) {
-		std::lock_guard<std::mutex> lck(object->m_database->m_queryQueueMutex);
-		auto pos = std::find_if(object->m_database->queryQueue.begin(), object->m_database->queryQueue.end(), 
-			[&](std::pair<std::shared_ptr<IQuery>, std::shared_ptr<IQueryData>> const& p) {
+		object->m_database->queryQueue.swapToFrontIf([&](std::pair<std::shared_ptr<IQuery>, std::shared_ptr<IQueryData>> const& p) {
 			return p.second.get() == lastInsertedQuery.get();
 		});
-		if (pos != object->m_database->queryQueue.begin() && pos != object->m_database->queryQueue.end()) {
-			std::iter_swap(pos, object->m_database->queryQueue.begin());
-		}
 	}
 	{
-		std::unique_lock<std::mutex> lck(object->m_database->m_finishedQueueMutex);
+		std::unique_lock<std::mutex> lck(object->m_waitMutex);
 		while (!lastInsertedQuery->isFinished()) object->m_waitWakeupVariable.wait(lck);
 	}
 	object->m_database->think(state);
@@ -104,19 +102,16 @@ int IQuery::error(lua_State* state) {
 //Attempts to abort the query, returns true if it was able to stop at least one query in time, false otherwise
 int IQuery::abort(lua_State* state) {
 	IQuery* object = (IQuery*)unpackSelf(state, TYPE_QUERY);
-	std::lock_guard<std::mutex> lock(object->m_database->m_queryQueueMutex);
 	bool wasAborted = false;
-	//This is copied so that I can remove entries from that vector
+	//This is copied so that I can remove entries from that vector in onQueryDataFinished
 	auto vec = object->runningQueryData;
 	for (auto& data : vec) {
 		//It doesn't really matter if any of them are in a transaction since in that case they
 		//aren't in the query queue
-		auto it = std::find_if(object->m_database->queryQueue.begin(), object->m_database->queryQueue.end(),
-			[&](std::pair<std::shared_ptr<IQuery>, std::shared_ptr<IQueryData>> const& p) {
+		bool wasRemoved = object->m_database->queryQueue.removeIf([&](std::pair<std::shared_ptr<IQuery>, std::shared_ptr<IQueryData>> const& p) {
 			return p.second.get() == data.get();
 		});
-		if (it != object->m_database->queryQueue.end()) {
-			object->m_database->queryQueue.erase(it);
+		if (wasRemoved) {
 			data->setStatus(QUERY_ABORTED);
 			wasAborted = true;
 			if (data->getAbortReference() != 0) {

@@ -76,6 +76,7 @@ protected:
 	//fields
 	Database* m_database = nullptr;
 	std::condition_variable m_waitWakeupVariable;
+	std::mutex m_waitMutex;
 	int m_options = 0;
 	std::vector<std::shared_ptr<IQueryData>> runningQueryData;
 	std::shared_ptr<IQueryData> callbackQueryData;
