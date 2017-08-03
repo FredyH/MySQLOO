@@ -105,6 +105,8 @@ int LuaObjectBase::pushTableReference(GarrysMod::Lua::ILuaBase* LUA) {
 	LUA->PushMetaTable(tableMetaTable);
 	LUA->SetMetaTable(-2);
 
+	LUA->Remove(-2);
+
 	return 1;
 }
 
