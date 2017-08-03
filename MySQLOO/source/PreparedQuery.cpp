@@ -7,13 +7,13 @@
 //This is dirty but hopefully will be consistent between mysql connector versions
 #define ER_MAX_PREPARED_STMT_COUNT_REACHED 1461
 
-PreparedQuery::PreparedQuery(Database* dbase, lua_State* state) : Query(dbase, state) {
+PreparedQuery::PreparedQuery(Database* dbase, GarrysMod::Lua::ILuaBase* LUA) : Query(dbase, LUA) {
 	classname = "PreparedQuery";
-	registerFunction(state, "setNumber", PreparedQuery::setNumber);
-	registerFunction(state, "setString", PreparedQuery::setString);
-	registerFunction(state, "setBoolean", PreparedQuery::setBoolean);
-	registerFunction(state, "setNull", PreparedQuery::setNull);
-	registerFunction(state, "putNewParameters", PreparedQuery::putNewParameters);
+	registerFunction(LUA, "setNumber", PreparedQuery::setNumber);
+	registerFunction(LUA, "setString", PreparedQuery::setString);
+	registerFunction(LUA, "setBoolean", PreparedQuery::setBoolean);
+	registerFunction(LUA, "setNull", PreparedQuery::setNull);
+	registerFunction(LUA, "putNewParameters", PreparedQuery::putNewParameters);
 	this->m_parameters.push_back(std::unordered_map<unsigned int, std::shared_ptr<PreparedQueryField>>());
 	//This pointer is used to prevent the database being accessed after it was deleted
 	//when this preparedq query still owns a MYSQL_STMT*
@@ -23,7 +23,7 @@ PreparedQuery::PreparedQuery(Database* dbase, lua_State* state) : Query(dbase, s
 PreparedQuery::~PreparedQuery(void) {}
 
 //When the query is destroyed by lua
-void PreparedQuery::onDestroyed(lua_State* state) {
+void PreparedQuery::onDestroyed(GarrysMod::Lua::ILuaBase* LUA) {
 	//There can't be any race conditions here
 	//This always runs after PreparedQuery::executeQuery() is done
 	//I am using atomic to prevent visibility issues though
@@ -35,11 +35,13 @@ void PreparedQuery::onDestroyed(lua_State* state) {
 			cachedStatement = nullptr;
 		}
 	}
-	IQuery::onDestroyed(state);
+	IQuery::onDestroyed(LUA);
 }
 
 int PreparedQuery::setNumber(lua_State* state) {
-	PreparedQuery* object = (PreparedQuery*)unpackSelf(state, TYPE_QUERY);
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	PreparedQuery* object = (PreparedQuery*)unpackSelf(LUA, TYPE_QUERY);
 	LUA->CheckType(2, GarrysMod::Lua::Type::NUMBER);
 	LUA->CheckType(3, GarrysMod::Lua::Type::NUMBER);
 	double index = LUA->GetNumber(2);
@@ -51,7 +53,9 @@ int PreparedQuery::setNumber(lua_State* state) {
 }
 
 int PreparedQuery::setString(lua_State* state) {
-	PreparedQuery* object = (PreparedQuery*)unpackSelf(state, TYPE_QUERY);
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	PreparedQuery* object = (PreparedQuery*)unpackSelf(LUA, TYPE_QUERY);
 	LUA->CheckType(2, GarrysMod::Lua::Type::NUMBER);
 	LUA->CheckType(3, GarrysMod::Lua::Type::STRING);
 	double index = LUA->GetNumber(2);
@@ -64,7 +68,9 @@ int PreparedQuery::setString(lua_State* state) {
 }
 
 int PreparedQuery::setBoolean(lua_State* state) {
-	PreparedQuery* object = (PreparedQuery*)unpackSelf(state, TYPE_QUERY);
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	PreparedQuery* object = (PreparedQuery*)unpackSelf(LUA, TYPE_QUERY);
 	LUA->CheckType(2, GarrysMod::Lua::Type::NUMBER);
 	LUA->CheckType(3, GarrysMod::Lua::Type::BOOL);
 	double index = LUA->GetNumber(2);
@@ -76,7 +82,9 @@ int PreparedQuery::setBoolean(lua_State* state) {
 }
 
 int PreparedQuery::setNull(lua_State* state) {
-	PreparedQuery* object = (PreparedQuery*)unpackSelf(state, TYPE_QUERY);
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	PreparedQuery* object = (PreparedQuery*)unpackSelf(LUA, TYPE_QUERY);
 	LUA->CheckType(2, GarrysMod::Lua::Type::NUMBER);
 	double index = LUA->GetNumber(2);
 	if (index < 1) LUA->ThrowError("Index must be greater than 0");
@@ -88,7 +96,9 @@ int PreparedQuery::setNull(lua_State* state) {
 //Adds an additional set of parameters to the prepared query
 //This makes it relatively easy to insert multiple rows at once
 int PreparedQuery::putNewParameters(lua_State* state) {
-	PreparedQuery* object = (PreparedQuery*)unpackSelf(state, TYPE_QUERY);
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	PreparedQuery* object = (PreparedQuery*)unpackSelf(LUA, TYPE_QUERY);
 	object->m_parameters.emplace_back();
 	return 0;
 }
@@ -292,7 +302,7 @@ bool PreparedQuery::executeStatement(MYSQL* connection, std::shared_ptr<IQueryDa
 }
 
 
-std::shared_ptr<IQueryData> PreparedQuery::buildQueryData(lua_State* state) {
+std::shared_ptr<IQueryData> PreparedQuery::buildQueryData(GarrysMod::Lua::ILuaBase* LUA) {
 	std::shared_ptr<IQueryData> ptr(new PreparedQueryData());
 	PreparedQueryData* data = (PreparedQueryData*)ptr.get();
 	data->m_parameters = this->m_parameters;

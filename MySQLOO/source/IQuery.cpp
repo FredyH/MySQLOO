@@ -7,14 +7,14 @@
 //before the callback is called can result in race conditions.
 //Always check for QUERY_COMPLETE!!!
 
-IQuery::IQuery(Database* dbase, lua_State* state) : LuaObjectBase(state, false, TYPE_QUERY), m_database(dbase) {
+IQuery::IQuery(Database* dbase, GarrysMod::Lua::ILuaBase* LUA) : LuaObjectBase(LUA, false, TYPE_QUERY), m_database(dbase) {
 	m_options = OPTION_NAMED_FIELDS | OPTION_INTERPRET_DATA | OPTION_CACHE;
-	registerFunction(state, "start", IQuery::start);
-	registerFunction(state, "error", IQuery::error);
-	registerFunction(state, "wait", IQuery::wait);
-	registerFunction(state, "setOption", IQuery::setOption);
-	registerFunction(state, "isRunning", IQuery::isRunning);
-	registerFunction(state, "abort", IQuery::abort);
+	registerFunction(LUA, "start", IQuery::start);
+	registerFunction(LUA, "error", IQuery::error);
+	registerFunction(LUA, "wait", IQuery::wait);
+	registerFunction(LUA, "setOption", IQuery::setOption);
+	registerFunction(LUA, "isRunning", IQuery::isRunning);
+	registerFunction(LUA, "abort", IQuery::abort);
 }
 
 IQuery::~IQuery() {}
@@ -40,15 +40,17 @@ void IQuery::mysqlAutocommit(MYSQL* sql, bool auto_mode) {
 
 //Queues the query into the queue of the database instance associated with it
 int IQuery::start(lua_State* state) {
-	IQuery* object = (IQuery*)unpackSelf(state, TYPE_QUERY);
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	IQuery* object = (IQuery*)unpackSelf(LUA, TYPE_QUERY);
 	if (object->m_database->disconnected) {
 		LUA->ThrowError("Database already disconnected.");
 	}
 	if (object->runningQueryData.size() == 0) {
-		referenceTable(state, object, 1);
+		referenceTable(LUA, object, 1);
 	}
-	std::shared_ptr<IQueryData> ptr = object->buildQueryData(state);
-	object->addQueryData(state, ptr);
+	std::shared_ptr<IQueryData> ptr = object->buildQueryData(LUA);
+	object->addQueryData(LUA, ptr);
 	object->m_database->enqueueQuery(object, ptr);
 	object->hasBeenStarted = true;
 	return 0;
@@ -56,7 +58,9 @@ int IQuery::start(lua_State* state) {
 
 //Returns if the query has been queued with the database instance
 int IQuery::isRunning(lua_State* state) {
-	IQuery* object = (IQuery*)unpackSelf(state, TYPE_QUERY);
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	IQuery* object = (IQuery*)unpackSelf(LUA, TYPE_QUERY);
 	LUA->PushBool(object->runningQueryData.size() > 0);
 	return 1;
 }
@@ -65,7 +69,9 @@ int IQuery::isRunning(lua_State* state) {
 //Possibly dangerous (dead lock when database goes down while waiting)
 //If the second argument is set to true, the query is going to be swapped to the front of the query queue
 int IQuery::wait(lua_State* state) {
-	IQuery* object = (IQuery*)unpackSelf(state, TYPE_QUERY);
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	IQuery* object = (IQuery*)unpackSelf(LUA, TYPE_QUERY);
 	bool shouldSwap = false;
 	if (LUA->IsType(2, GarrysMod::Lua::Type::BOOL)) {
 		shouldSwap = LUA->GetBool(2);
@@ -84,13 +90,15 @@ int IQuery::wait(lua_State* state) {
 		std::unique_lock<std::mutex> lck(object->m_waitMutex);
 		while (!lastInsertedQuery->isFinished()) object->m_waitWakeupVariable.wait(lck);
 	}
-	object->m_database->think(state);
+	object->m_database->think(LUA);
 	return 0;
 }
 
 //Returns the error message produced by the mysql query or 0 if there is none
 int IQuery::error(lua_State* state) {
-	IQuery* object = (IQuery*)unpackSelf(state, TYPE_QUERY);
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	IQuery* object = (IQuery*)unpackSelf(LUA, TYPE_QUERY);
 	if (!object->hasCallbackData()) {
 		return 0;
 	}
@@ -101,7 +109,9 @@ int IQuery::error(lua_State* state) {
 
 //Attempts to abort the query, returns true if it was able to stop at least one query in time, false otherwise
 int IQuery::abort(lua_State* state) {
-	IQuery* object = (IQuery*)unpackSelf(state, TYPE_QUERY);
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	IQuery* object = (IQuery*)unpackSelf(LUA, TYPE_QUERY);
 	bool wasAborted = false;
 	//This is copied so that I can remove entries from that vector in onQueryDataFinished
 	auto vec = object->runningQueryData;
@@ -115,11 +125,11 @@ int IQuery::abort(lua_State* state) {
 			data->setStatus(QUERY_ABORTED);
 			wasAborted = true;
 			if (data->getAbortReference() != 0) {
-				object->runFunction(state, data->getAbortReference());
+				object->runFunction(LUA, data->getAbortReference());
 			} else if (data->isFirstData()) {
-				object->runCallback(state, "onAborted");
+				object->runCallback(LUA, "onAborted");
 			}
-			object->onQueryDataFinished(state, data);
+			object->onQueryDataFinished(LUA, data);
 		}
 	}
 	LUA->PushBool(wasAborted);
@@ -128,7 +138,9 @@ int IQuery::abort(lua_State* state) {
 
 //Sets several query options
 int IQuery::setOption(lua_State* state) {
-	IQuery* object = (IQuery*)unpackSelf(state, TYPE_QUERY);
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	IQuery* object = (IQuery*)unpackSelf(LUA, TYPE_QUERY);
 	LUA->CheckType(2, GarrysMod::Lua::Type::NUMBER);
 	bool set = true;
 	int option = (int)LUA->GetNumber(2);
@@ -189,23 +201,23 @@ bool IQuery::mysqlNextResult(MYSQL* sql) {
 	return false;
 }
 
-void IQuery::addQueryData(lua_State* state, std::shared_ptr<IQueryData> data, bool shouldRefCallbacks) {
+void IQuery::addQueryData(GarrysMod::Lua::ILuaBase* LUA, std::shared_ptr<IQueryData> data, bool shouldRefCallbacks) {
 	if (!hasBeenStarted) {
 		data->m_wasFirstData = true;
 	}
 	runningQueryData.push_back(data);
 	if (shouldRefCallbacks) {
-		data->m_onDataReference = this->getCallbackReference(state, "onData");
-		data->m_errorReference = this->getCallbackReference(state, "onError");
-		data->m_abortReference = this->getCallbackReference(state, "onAborted");
-		data->m_successReference = this->getCallbackReference(state, "onSuccess");
+		data->m_onDataReference = this->getCallbackReference(LUA, "onData");
+		data->m_errorReference = this->getCallbackReference(LUA, "onError");
+		data->m_abortReference = this->getCallbackReference(LUA, "onAborted");
+		data->m_successReference = this->getCallbackReference(LUA, "onSuccess");
 	}
 }
-void IQuery::onQueryDataFinished(lua_State* state, std::shared_ptr<IQueryData> data) {
+void IQuery::onQueryDataFinished(GarrysMod::Lua::ILuaBase* LUA, std::shared_ptr<IQueryData> data) {
 	runningQueryData.erase(std::remove(runningQueryData.begin(), runningQueryData.end(), data));
 	if (runningQueryData.size() == 0) {
 		canbedestroyed = true;
-		unreference(state);
+		unreference(LUA);
 	}
 	if (data->m_onDataReference) {
 		LUA->ReferenceFree(data->m_onDataReference);

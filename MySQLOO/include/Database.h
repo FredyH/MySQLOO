@@ -33,12 +33,12 @@ public:
 		FLOATING_POINT,
 		STRING,
 	};
-	Database(lua_State* state, std::string host, std::string username, std::string pw, std::string database, unsigned int port, std::string unixSocket);
+	Database(GarrysMod::Lua::ILuaBase* LUA, std::string host, std::string username, std::string pw, std::string database, unsigned int port, std::string unixSocket);
 	~Database(void);
 	void cacheStatement(MYSQL_STMT* stmt);
 	void freeStatement(MYSQL_STMT* stmt);
 	void enqueueQuery(IQuery* query, std::shared_ptr<IQueryData> data);
-	void think(lua_State*);
+	void think(GarrysMod::Lua::ILuaBase*);
 	void setAutoReconnect(my_bool autoReconnect);
 	my_bool getAutoReconnect();
 	bool shouldCachePreparedStatements() {

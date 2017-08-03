@@ -6,7 +6,7 @@
 
 
 //Dummy class just used with the Database::ping function
-PingQuery::PingQuery(Database* dbase, lua_State* state) : Query(dbase, state) {
+PingQuery::PingQuery(Database* dbase, GarrysMod::Lua::ILuaBase* LUA) : Query(dbase, LUA) {
 	classname = "PingQuery";
 }
 

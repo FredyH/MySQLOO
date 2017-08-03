@@ -44,13 +44,13 @@ private:
 class IQuery : public LuaObjectBase {
 	friend class Database;
 public:
-	IQuery(Database* dbase, lua_State* state);
+	IQuery(Database* dbase, GarrysMod::Lua::ILuaBase* LUA);
 	virtual ~IQuery();
-	virtual void doCallback(lua_State* state, std::shared_ptr<IQueryData> queryData) = 0;
-	virtual void onDestroyed(lua_State* state) {};
-	virtual std::shared_ptr<IQueryData> buildQueryData(lua_State* state) = 0;
-	void addQueryData(lua_State* state, std::shared_ptr<IQueryData> data, bool shouldRefCallbacks = true);
-	void onQueryDataFinished(lua_State* state, std::shared_ptr<IQueryData> data);
+	virtual void doCallback(GarrysMod::Lua::ILuaBase* LUA, std::shared_ptr<IQueryData> queryData) = 0;
+	virtual void onDestroyed(GarrysMod::Lua::ILuaBase* LUA) {};
+	virtual std::shared_ptr<IQueryData> buildQueryData(GarrysMod::Lua::ILuaBase* LUA) = 0;
+	void addQueryData(GarrysMod::Lua::ILuaBase* LUA, std::shared_ptr<IQueryData> data, bool shouldRefCallbacks = true);
+	void onQueryDataFinished(GarrysMod::Lua::ILuaBase* LUA, std::shared_ptr<IQueryData> data);
 	void setCallbackData(std::shared_ptr<IQueryData> data) {
 		callbackQueryData = data;
 	}
@@ -58,7 +58,7 @@ protected:
 	//methods
 	QueryResultStatus getResultStatus();
 	virtual bool executeStatement(MYSQL* m_sql, std::shared_ptr<IQueryData> data) = 0;
-	virtual void think(lua_State* state) {};
+	virtual void think(GarrysMod::Lua::ILuaBase* LUA) {};
 	static int start(lua_State* state);
 	static int isRunning(lua_State* state);
 	static int setOption(lua_State* state);

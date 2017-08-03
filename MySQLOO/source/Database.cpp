@@ -9,27 +9,27 @@
 #include <iostream>
 #include <chrono>
 
-Database::Database(lua_State* state, std::string host, std::string username, std::string pw, std::string database, unsigned int port, std::string unixSocket) :
-	LuaObjectBase(state, TYPE_DATABASE), database(database), host(host), username(username), pw(pw), socket(unixSocket), port(port) {
+Database::Database(GarrysMod::Lua::ILuaBase* LUA, std::string host, std::string username, std::string pw, std::string database, unsigned int port, std::string unixSocket) :
+	LuaObjectBase(LUA, TYPE_DATABASE), database(database), host(host), username(username), pw(pw), socket(unixSocket), port(port) {
 	classname = "Database";
-	registerFunction(state, "prepare", Database::prepare);
-	registerFunction(state, "escape", Database::escape);
-	registerFunction(state, "query", Database::query);
-	registerFunction(state, "createTransaction", Database::createTransaction);
-	registerFunction(state, "connect", Database::connect);
-	registerFunction(state, "abortAllQueries", Database::abortAllQueries);
-	registerFunction(state, "wait", Database::wait);
-	registerFunction(state, "serverVersion", Database::serverVersion);
-	registerFunction(state, "serverInfo", Database::serverInfo);
-	registerFunction(state, "hostInfo", Database::hostInfo);
-	registerFunction(state, "status", Database::status);
-	registerFunction(state, "queueSize", Database::queueSize);
-	registerFunction(state, "setAutoReconnect", Database::setAutoReconnect);
-	registerFunction(state, "setCachePreparedStatements", Database::setCachePreparedStatements);
-	registerFunction(state, "setCharacterSet", Database::setCharacterSet);
-	registerFunction(state, "setMultiStatements", Database::setMultiStatements);
-	registerFunction(state, "ping", Database::ping);
-	registerFunction(state, "disconnect", Database::disconnect);
+	registerFunction(LUA, "prepare", Database::prepare);
+	registerFunction(LUA, "escape", Database::escape);
+	registerFunction(LUA, "query", Database::query);
+	registerFunction(LUA, "createTransaction", Database::createTransaction);
+	registerFunction(LUA, "connect", Database::connect);
+	registerFunction(LUA, "abortAllQueries", Database::abortAllQueries);
+	registerFunction(LUA, "wait", Database::wait);
+	registerFunction(LUA, "serverVersion", Database::serverVersion);
+	registerFunction(LUA, "serverInfo", Database::serverInfo);
+	registerFunction(LUA, "hostInfo", Database::hostInfo);
+	registerFunction(LUA, "status", Database::status);
+	registerFunction(LUA, "queueSize", Database::queueSize);
+	registerFunction(LUA, "setAutoReconnect", Database::setAutoReconnect);
+	registerFunction(LUA, "setCachePreparedStatements", Database::setCachePreparedStatements);
+	registerFunction(LUA, "setCharacterSet", Database::setCharacterSet);
+	registerFunction(LUA, "setMultiStatements", Database::setMultiStatements);
+	registerFunction(LUA, "ping", Database::ping);
+	registerFunction(LUA, "disconnect", Database::disconnect);
 }
 
 Database::~Database() {
@@ -56,35 +56,41 @@ void Database::freeStatement(MYSQL_STMT* stmt) {
 /* Creates and returns a query instance and enqueues it into the queue of accepted queries.
 */
 int Database::query(lua_State* state) {
-	Database* object = (Database*)unpackSelf(state, TYPE_DATABASE);
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	Database* object = (Database*)unpackSelf(LUA, TYPE_DATABASE);
 	LUA->CheckType(2, GarrysMod::Lua::Type::STRING);
 	unsigned int outLen = 0;
 	const char* query = LUA->GetString(2, &outLen);
-	Query* queryObject = new Query(object, state);
+	Query* queryObject = new Query(object, LUA);
 	queryObject->setQuery(std::string(query, outLen));
-	queryObject->pushTableReference(state);
+	queryObject->pushTableReference(LUA);
 	return 1;
 }
 
 /* Creates and returns a PreparedQuery instance and enqueues it into the queue of accepted queries.
 */
 int Database::prepare(lua_State* state) {
-	Database* object = (Database*)unpackSelf(state, TYPE_DATABASE);
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	Database* object = (Database*)unpackSelf(LUA, TYPE_DATABASE);
 	LUA->CheckType(2, GarrysMod::Lua::Type::STRING);
 	unsigned int outLen = 0;
 	const char* query = LUA->GetString(2, &outLen);
-	PreparedQuery* queryObject = new PreparedQuery(object, state);
+	PreparedQuery* queryObject = new PreparedQuery(object, LUA);
 	queryObject->setQuery(std::string(query, outLen));
-	queryObject->pushTableReference(state);
+	queryObject->pushTableReference(LUA);
 	return 1;
 }
 
 /* Creates and returns a PreparedQuery instance and enqueues it into the queue of accepted queries.
 */
 int Database::createTransaction(lua_State* state) {
-	Database* object = (Database*)unpackSelf(state, TYPE_DATABASE);
-	Transaction* transactionObject = new Transaction(object, state);
-	transactionObject->pushTableReference(state);
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	Database* object = (Database*)unpackSelf(LUA, TYPE_DATABASE);
+	Transaction* transactionObject = new Transaction(object, LUA);
+	transactionObject->pushTableReference(LUA);
 	return 1;
 }
 
@@ -102,7 +108,9 @@ void Database::enqueueQuery(IQuery* query, std::shared_ptr<IQueryData> queryData
  * If a query is currently being processed, it does not count towards the queue size
  */
 int Database::queueSize(lua_State* state) {
-	Database* object = (Database*)unpackSelf(state, TYPE_DATABASE);
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	Database* object = (Database*)unpackSelf(LUA, TYPE_DATABASE);
 	LUA->PushNumber(object->queryQueue.size());
 	return 1;
 
@@ -113,13 +121,15 @@ int Database::queueSize(lua_State* state) {
  * Does not abort queries that are already taken from the queue and being processed.
  */
 int Database::abortAllQueries(lua_State* state) {
-	Database* object = (Database*)unpackSelf(state, TYPE_DATABASE);
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	Database* object = (Database*)unpackSelf(LUA, TYPE_DATABASE);
 	auto canceledQueries = object->queryQueue.clear();
 	for (auto& pair : canceledQueries) {
 		auto query = pair.first;
 		auto data = pair.second;
 		data->setStatus(QUERY_ABORTED);
-		query->onQueryDataFinished(state, data);
+		query->onQueryDataFinished(LUA, data);
 	}
 	LUA->PushNumber((double)object->queryQueue.size());
 	object->queryQueue.clear();
@@ -130,13 +140,15 @@ int Database::abortAllQueries(lua_State* state) {
  * Callbacks are going to be called before this function returns
  */
 int Database::wait(lua_State* state) {
-	Database* object = (Database*)unpackSelf(state, TYPE_DATABASE);
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	Database* object = (Database*)unpackSelf(LUA, TYPE_DATABASE);
 	if (!object->startedConnecting) {
 		LUA->ThrowError("Tried to wait for database connection to finish without starting the connection!");
 	}
 	std::unique_lock<std::mutex> lck(object->m_connectMutex);
 	while (!object->m_connectionDone) object->m_connectWakeupVariable.wait(lck);
-	object->think(state);
+	object->think(LUA);
 	return 0;
 }
 
@@ -144,7 +156,9 @@ int Database::wait(lua_State* state) {
  * This might break if the characterset of the database is changed after the connection was done
  */
 int Database::escape(lua_State* state) {
-	Database* object = (Database*)unpackSelf(state, TYPE_DATABASE);
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	Database* object = (Database*)unpackSelf(LUA, TYPE_DATABASE);
 	LUA->CheckType(2, GarrysMod::Lua::Type::STRING);
 	std::lock_guard<std::mutex>(object->m_connectMutex);
 	//No query mutex needed since this doesn't use the connection at all
@@ -165,7 +179,9 @@ int Database::escape(lua_State* state) {
  * This is so db:escape always has the latest value of mysql->charset
  */
 int Database::setCharacterSet(lua_State* state) {
-	Database* object = (Database*)unpackSelf(state, TYPE_DATABASE);
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	Database* object = (Database*)unpackSelf(LUA, TYPE_DATABASE);
 	LUA->CheckType(2, GarrysMod::Lua::Type::STRING);
 	if (object->m_status != DATABASE_CONNECTED) {
 		LUA->ThrowError("Database needs to be connected to change charset.");
@@ -186,7 +202,9 @@ int Database::setCharacterSet(lua_State* state) {
 /* Starts the thread that connects to the database and then handles queries.
  */
 int Database::connect(lua_State* state) {
-	Database* object = (Database*)unpackSelf(state, TYPE_DATABASE, true);
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	Database* object = (Database*)unpackSelf(LUA, TYPE_DATABASE, true);
 	if (object->m_status != DATABASE_NOT_CONNECTED || object->startedConnecting) {
 		LUA->ThrowError("Database already connected.");
 	}
@@ -209,7 +227,9 @@ void Database::shutdown() {
  * database thread to end.
  */
 int Database::disconnect(lua_State* state) {
-	Database* object = (Database*)unpackSelf(state, TYPE_DATABASE);
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	Database* object = (Database*)unpackSelf(LUA, TYPE_DATABASE);
 	bool wait = false;
 	if (LUA->IsType(2, GarrysMod::Lua::Type::BOOL)) {
 		wait = LUA->GetBool(2);
@@ -228,7 +248,9 @@ int Database::disconnect(lua_State* state) {
 /* Returns the status of the database, constants can be found in GMModule
  */
 int Database::status(lua_State* state) {
-	Database* object = (Database*)unpackSelf(state, TYPE_DATABASE);
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	Database* object = (Database*)unpackSelf(LUA, TYPE_DATABASE);
 	LUA->PushNumber(object->m_status);
 	return 1;
 }
@@ -240,7 +262,9 @@ int Database::status(lua_State* state) {
  * Only works as soon as the connection has been established
  */
 int Database::serverVersion(lua_State* state) {
-	Database* object = (Database*)unpackSelf(state, TYPE_DATABASE);
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	Database* object = (Database*)unpackSelf(LUA, TYPE_DATABASE);
 	if (!object->m_connectionDone) {
 		LUA->ThrowError("Tried to get server version when client is not connected to server yet!");
 	}
@@ -252,7 +276,9 @@ int Database::serverVersion(lua_State* state) {
  * Only works as soon as the connection has been established
  */
 int Database::serverInfo(lua_State* state) {
-	Database* object = (Database*)unpackSelf(state, TYPE_DATABASE);
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	Database* object = (Database*)unpackSelf(LUA, TYPE_DATABASE);
 	if (!object->m_connectionDone) {
 		LUA->ThrowError("Tried to get server info when client is not connected to server yet!");
 	}
@@ -264,7 +290,9 @@ int Database::serverInfo(lua_State* state) {
  * Only works as soon as the connection has been established
  */
 int Database::hostInfo(lua_State* state) {
-	Database* object = (Database*)unpackSelf(state, TYPE_DATABASE);
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	Database* object = (Database*)unpackSelf(LUA, TYPE_DATABASE);
 	if (!object->m_connectionDone) {
 		LUA->ThrowError("Tried to get server info when client is not connected to server yet!");
 	}
@@ -273,7 +301,9 @@ int Database::hostInfo(lua_State* state) {
 }
 
 int Database::setAutoReconnect(lua_State* state) {
-	Database* object = (Database*)unpackSelf(state, TYPE_DATABASE);
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	Database* object = (Database*)unpackSelf(LUA, TYPE_DATABASE);
 	if (object->m_status != DATABASE_NOT_CONNECTED || object->startedConnecting) {
 		LUA->ThrowError("Database already connected.");
 	}
@@ -283,7 +313,9 @@ int Database::setAutoReconnect(lua_State* state) {
 }
 
 int Database::setMultiStatements(lua_State* state) {
-	Database* object = (Database*)unpackSelf(state, TYPE_DATABASE);
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	Database* object = (Database*)unpackSelf(LUA, TYPE_DATABASE);
 	if (object->m_status != DATABASE_NOT_CONNECTED || object->startedConnecting) {
 		LUA->ThrowError("Database already connected.");
 	}
@@ -293,7 +325,9 @@ int Database::setMultiStatements(lua_State* state) {
 }
 
 int Database::ping(lua_State* state) {
-	Database* database = (Database*)unpackSelf(state, TYPE_DATABASE);
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	Database* database = (Database*)unpackSelf(LUA, TYPE_DATABASE);
 	if (database->m_status != DATABASE_CONNECTED) {
 		LUA->PushBool(false);
 		return 1;
@@ -301,13 +335,13 @@ int Database::ping(lua_State* state) {
 	//This pretty much uses most of the lua api
 	//We can't use the sql object directly since only the sql
 	//thread should use it to prevent threading issues
-	PingQuery* query = new PingQuery(database, state);
+	PingQuery* query = new PingQuery(database, LUA);
 	LUA->PushCFunction(IQuery::start);
-	query->pushTableReference(state);
+	query->pushTableReference(LUA);
 	LUA->Call(1, 0);
 	//swaps the query to the front of the queryqueue to reduce wait time
 	LUA->PushCFunction(IQuery::wait);
-	query->pushTableReference(state);
+	query->pushTableReference(LUA);
 	LUA->PushBool(true);
 	LUA->Call(2, 0);
 	LUA->PushBool(query->pingSuccess);
@@ -317,13 +351,16 @@ int Database::ping(lua_State* state) {
 //Set this to false if your database server imposes a low prepared statements limit
 //Or if you might create a very high amount of prepared queries in a short period of time
 int Database::setCachePreparedStatements(lua_State* state) {
-	Database* database = (Database*)unpackSelf(state, TYPE_DATABASE);
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	Database* database = (Database*)unpackSelf(LUA, TYPE_DATABASE);
 	if (database->m_status != DATABASE_NOT_CONNECTED) {
 		LUA->ThrowError("setCachePreparedStatements has to be called before db:start()");
 		return 0;
 	}
 	LUA->CheckType(2, GarrysMod::Lua::Type::BOOL);
 	database->cachePreparedStatements = LUA->GetBool();
+	return 0;
 }
 
 //Should only be called from the db thread
@@ -395,15 +432,15 @@ void Database::connectRun() {
  * In case the database connection was established or failed for the first time the connection callbacks are being run.
  * Takes all the queries from the finished queries queue and runs the callback for them.
  */
-void Database::think(lua_State* state) {
+void Database::think(GarrysMod::Lua::ILuaBase* LUA) {
 	if (m_connectionDone && !dbCallbackRan) {
 		dbCallbackRan = true;
 		if (m_success) {
-			runCallback(state, "onConnected");
+			runCallback(LUA, "onConnected");
 		} else {
-			runCallback(state, "onConnectionFailed", "s", m_connection_err.c_str());
+			runCallback(LUA, "onConnectionFailed", "s", m_connection_err.c_str());
 		}
-		this->unreference(state);
+		this->unreference(LUA);
 	}
 	//Needs to lock for condition check to prevent race conditions
 	auto currentlyFinished = finishedQueries.clear();
@@ -416,8 +453,8 @@ void Database::think(lua_State* state) {
 		//Allows the database thread to add more finished queries
 		query->setCallbackData(data);
 		data->setStatus(QUERY_COMPLETE);
-		query->doCallback(state, data);
-		query->onQueryDataFinished(state, data);
+		query->doCallback(LUA, data);
+		query->onQueryDataFinished(LUA, data);
 	}
 }
 
