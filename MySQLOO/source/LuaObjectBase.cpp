@@ -12,8 +12,6 @@ std::deque<std::shared_ptr<LuaObjectBase>> LuaObjectBase::luaObjects = std::dequ
 std::deque<std::shared_ptr<LuaObjectBase>> LuaObjectBase::luaThinkObjects = std::deque<std::shared_ptr<LuaObjectBase>>();
 std::deque<std::shared_ptr<LuaObjectBase>> LuaObjectBase::luaRemovalObjects = std::deque<std::shared_ptr<LuaObjectBase>>();
 int LuaObjectBase::tableMetaTable = 0;
-int LuaObjectBase::databaseMetaTable = 0;
-int LuaObjectBase::queryMetaTable = 0;
 
 
 LuaObjectBase::LuaObjectBase(GarrysMod::Lua::ILuaBase* LUA, bool shouldthink, unsigned char type) : type(type) {
@@ -53,10 +51,11 @@ LuaObjectBase* LuaObjectBase::unpackSelf(GarrysMod::Lua::ILuaBase* LUA, int type
 LuaObjectBase* LuaObjectBase::unpackLuaObject(GarrysMod::Lua::ILuaBase* LUA, int index, int type, bool shouldReference) {
 	LUA->CheckType(index, GarrysMod::Lua::Type::TABLE);
 	LUA->GetField(index, "___lua_userdata_object");
-	int itype = LUA->GetType(index);
+	int itype = LUA->GetType(-1);
 	LuaObjectBase* object = NULL;
-	if (itype == type || type == -1)
+	if (itype == type || type == -1) {
 		object = LUA->GetUserType<LuaObjectBase>(-1, itype);
+	}
 	if (object == NULL) {
 		std::ostringstream oss;
 		oss << "Wrong type, expected " << type << " got " << itype;
@@ -103,7 +102,7 @@ int LuaObjectBase::pushTableReference(GarrysMod::Lua::ILuaBase* LUA) {
 		LUA->SetField(-2, callback.first.c_str());
 	}
 
-	LUA->ReferencePush(tableMetaTable);
+	LUA->PushMetaTable(tableMetaTable);
 	LUA->SetMetaTable(-2);
 
 	return 1;
@@ -265,11 +264,9 @@ int LuaObjectBase::gcDeleteWrapper(lua_State* state) {
 	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
 	LUA->SetState(state);
 	int type = LUA->GetType(1);
-	if (type != TYPE_DATABASE && type != TYPE_QUERY)
-		return 0;
+	if (type != TYPE_DATABASE && type != TYPE_QUERY) return 0;
 	LuaObjectBase* object = LUA->GetUserType<LuaObjectBase>(1, type);
-	if (object == NULL)
-		return 0;
+	if (object == NULL) return 0;
 	if (!object->scheduledForRemoval) {
 		if (object->m_userdataReference != 0) {
 			LUA->ReferenceFree(object->m_userdataReference);
@@ -299,17 +296,14 @@ int LuaObjectBase::createMetatables(GarrysMod::Lua::ILuaBase* LUA) {
 	TYPE_DATABASE = LUA->CreateMetaTable("MySQLOO database");
 	LUA->PushCFunction(LuaObjectBase::gcDeleteWrapper);
 	LUA->SetField(-2, "__gc");
-	databaseMetaTable = LUA->ReferenceCreate();
 
 	TYPE_QUERY = LUA->CreateMetaTable("MySQLOO query");
 	LUA->PushCFunction(LuaObjectBase::gcDeleteWrapper);
 	LUA->SetField(-2, "__gc");
-	queryMetaTable = LUA->ReferenceCreate();
 
-	LUA->CreateMetaTable("MySQLOO table");
+	tableMetaTable = LUA->CreateMetaTable("MySQLOO table");
 	LUA->PushCFunction(LuaObjectBase::toStringWrapper);
 	LUA->SetField(-2, "__tostring");
-	tableMetaTable = LUA->ReferenceCreate();
 
 	return 0;
 }

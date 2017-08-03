@@ -51,7 +51,5 @@ protected:
 private:
 	std::map<std::string, GarrysMod::Lua::CFunc> m_callbackFunctions;
 	static int tableMetaTable;
-	static int databaseMetaTable;
-	static int queryMetaTable;
 };
 #endif
