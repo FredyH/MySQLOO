@@ -11,7 +11,7 @@
 class PingQuery : Query {
 	friend class Database;
 public:
-	PingQuery(Database* dbase, lua_State* state);
+	PingQuery(Database* dbase, GarrysMod::Lua::ILuaBase* LUA);
 	virtual ~PingQuery(void);
 protected:
 	void executeQuery(MYSQL* m_sql, std::shared_ptr<IQueryData>);

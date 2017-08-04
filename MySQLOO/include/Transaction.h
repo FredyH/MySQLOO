@@ -10,15 +10,15 @@
 class Transaction : public IQuery {
 	friend class Database;
 public:
-	Transaction(Database* dbase, lua_State* state);
-	void doCallback(lua_State* state, std::shared_ptr<IQueryData> data);
-	virtual std::shared_ptr<IQueryData> buildQueryData(lua_State* state);
+	Transaction(Database* dbase, GarrysMod::Lua::ILuaBase* LUA);
+	void doCallback(GarrysMod::Lua::ILuaBase* LUA, std::shared_ptr<IQueryData> data);
+	virtual std::shared_ptr<IQueryData> buildQueryData(GarrysMod::Lua::ILuaBase* LUA);
 protected:
 	static int clearQueries(lua_State* state);
 	static int addQuery(lua_State* state);
 	static int getQueries(lua_State* state);
 	bool executeStatement(MYSQL * connection, std::shared_ptr<IQueryData> data);
-	void onDestroyed(lua_State* state);
+	void onDestroyed(GarrysMod::Lua::ILuaBase* LUA);
 };
 
 class TransactionData : public IQueryData {

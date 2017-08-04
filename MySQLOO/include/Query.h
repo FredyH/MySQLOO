@@ -9,22 +9,22 @@ class QueryData;
 class Query : public IQuery {
 	friend class Database;
 public:
-	Query(Database* dbase, lua_State* state);
+	Query(Database* dbase, GarrysMod::Lua::ILuaBase* LUA);
 	virtual ~Query(void);
 	void setQuery(std::string query);
 	virtual bool executeStatement(MYSQL* m_sql, std::shared_ptr<IQueryData> data);
 	virtual void executeQuery(MYSQL* m_sql, std::shared_ptr<IQueryData> data);
-	virtual void onDestroyed(lua_State* state);
-	virtual void doCallback(lua_State* state, std::shared_ptr<IQueryData> queryData);
-	virtual std::shared_ptr<IQueryData> buildQueryData(lua_State* state);
+	virtual void onDestroyed(GarrysMod::Lua::ILuaBase* LUA);
+	virtual void doCallback(GarrysMod::Lua::ILuaBase* LUA, std::shared_ptr<IQueryData> queryData);
+	virtual std::shared_ptr<IQueryData> buildQueryData(GarrysMod::Lua::ILuaBase* LUA);
 protected:
-	void dataToLua(lua_State* state, int rowReference, unsigned int column, std::string &columnValue, const char* columnName, int columnType, bool isNull);
+	void dataToLua(GarrysMod::Lua::ILuaBase* LUA, int rowReference, unsigned int column, std::string &columnValue, const char* columnName, int columnType, bool isNull);
 	static int lastInsert(lua_State* state);
 	static int affectedRows(lua_State* state);
 	static int getData_Wrapper(lua_State* state);
 	static int hasMoreResults(lua_State* state);
 	static int getNextResults(lua_State* state);
-	int getData(lua_State* state);
+	int getData(GarrysMod::Lua::ILuaBase* LUA);
 	int dataReference = 0;
 	std::string m_query;
 };
