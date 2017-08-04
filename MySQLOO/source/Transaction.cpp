@@ -3,21 +3,23 @@
 #include "errmsg.h"
 #include "Database.h"
 
-Transaction::Transaction(Database* dbase, lua_State* state) : IQuery(dbase, state) {
-	registerFunction(state, "addQuery", Transaction::addQuery);
-	registerFunction(state, "getQueries", Transaction::getQueries);
-	registerFunction(state, "clearQueries", Transaction::clearQueries);
+Transaction::Transaction(Database* dbase, GarrysMod::Lua::ILuaBase* LUA) : IQuery(dbase, LUA) {
+	registerFunction(LUA, "addQuery", Transaction::addQuery);
+	registerFunction(LUA, "getQueries", Transaction::getQueries);
+	registerFunction(LUA, "clearQueries", Transaction::clearQueries);
 }
 
-void Transaction::onDestroyed(lua_State* state) {}
+void Transaction::onDestroyed(GarrysMod::Lua::ILuaBase* LUA) {}
 
 //TODO Fix memory leak if transaction is never started
 int Transaction::addQuery(lua_State* state) {
-	Transaction* transaction = dynamic_cast<Transaction*>(unpackSelf(state, TYPE_QUERY));
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	Transaction* transaction = dynamic_cast<Transaction*>(unpackSelf(LUA, TYPE_QUERY));
 	if (transaction == nullptr) {
 		LUA->ThrowError("Tried to pass wrong self");
 	}
-	IQuery* iQuery = (IQuery*)unpackLuaObject(state, 2, TYPE_QUERY, false);
+	IQuery* iQuery = (IQuery*)unpackLuaObject(LUA, 2, TYPE_QUERY, false);
 	Query* query = dynamic_cast<Query*>(iQuery);
 	if (query == nullptr) {
 		LUA->ThrowError("Tried to pass non query to addQuery()");
@@ -43,7 +45,9 @@ int Transaction::addQuery(lua_State* state) {
 }
 
 int Transaction::getQueries(lua_State* state) {
-	Transaction* transaction = dynamic_cast<Transaction*>(unpackSelf(state, TYPE_QUERY));
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	Transaction* transaction = dynamic_cast<Transaction*>(unpackSelf(LUA, TYPE_QUERY));
 	if (transaction == nullptr) {
 		LUA->ThrowError("Tried to pass wrong self");
 	}
@@ -53,7 +57,9 @@ int Transaction::getQueries(lua_State* state) {
 }
 
 int Transaction::clearQueries(lua_State* state) {
-	Transaction* transaction = dynamic_cast<Transaction*>(unpackSelf(state, TYPE_QUERY));
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	Transaction* transaction = dynamic_cast<Transaction*>(unpackSelf(LUA, TYPE_QUERY));
 	if (transaction == nullptr) {
 		LUA->ThrowError("Tried to pass wrong self");
 	}
@@ -65,7 +71,7 @@ int Transaction::clearQueries(lua_State* state) {
 }
 
 //Calls the lua callbacks associated with this query
-void Transaction::doCallback(lua_State* state, std::shared_ptr<IQueryData> ptr) {
+void Transaction::doCallback(GarrysMod::Lua::ILuaBase* LUA, std::shared_ptr<IQueryData> ptr) {
 	TransactionData* data = (TransactionData*)ptr.get();
 	data->setStatus(QUERY_COMPLETE);
 	for (auto& pair : data->m_queries) {
@@ -78,23 +84,23 @@ void Transaction::doCallback(lua_State* state, std::shared_ptr<IQueryData> ptr) 
 		break;
 	case QUERY_ERROR:
 		if (data->getErrorReference() != 0) {
-			this->runFunction(state, data->getErrorReference(), "s", data->getError().c_str());
+			this->runFunction(LUA, data->getErrorReference(), "s", data->getError().c_str());
 		} else if (data->isFirstData()) {
-			this->runCallback(state, "onError", "s", data->getError().c_str());
+			this->runCallback(LUA, "onError", "s", data->getError().c_str());
 		}
 		break;
 	case QUERY_SUCCESS:
 		if (data->getSuccessReference() != 0) {
-			this->runFunction(state, data->getSuccessReference());
+			this->runFunction(LUA, data->getSuccessReference());
 		} else if (data->isFirstData()) {
-			this->runCallback(state, "onSuccess");
+			this->runCallback(LUA, "onSuccess");
 		}
 		break;
 	}
 	for (auto& pair : data->m_queries) {
 		auto query = pair.first;
 		auto queryData = pair.second;
-		query->onQueryDataFinished(state, queryData);
+		query->onQueryDataFinished(LUA, queryData);
 	}
 }
 
@@ -164,12 +170,12 @@ bool Transaction::executeStatement(MYSQL* connection, std::shared_ptr<IQueryData
 }
 
 
-std::shared_ptr<IQueryData> Transaction::buildQueryData(lua_State* state) {
+std::shared_ptr<IQueryData> Transaction::buildQueryData(GarrysMod::Lua::ILuaBase* LUA) {
 	//At this point the transaction is guaranteed to have a referenced table
 	//since this is always called shortly after transaction:start()
 	std::shared_ptr<IQueryData> ptr(new TransactionData());
 	TransactionData* data = (TransactionData*)ptr.get();
-	this->pushTableReference(state);
+	this->pushTableReference(LUA);
 	LUA->GetField(-1, "__queries");
 	if (!LUA->IsType(-1, GarrysMod::Lua::Type::TABLE)) {
 		LUA->Pop(2);
@@ -186,10 +192,10 @@ std::shared_ptr<IQueryData> Transaction::buildQueryData(lua_State* state) {
 			break;
 		}
 		//This would error if it's not a query
-		Query* iQuery = (Query*)unpackLuaObject(state, -1, TYPE_QUERY, false);
+		Query* iQuery = (Query*)unpackLuaObject(LUA, -1, TYPE_QUERY, false);
 		auto queryPtr = std::dynamic_pointer_cast<Query>(iQuery->getSharedPointerInstance());
-		auto queryData = iQuery->buildQueryData(state);
-		iQuery->addQueryData(state, queryData, false);
+		auto queryData = iQuery->buildQueryData(LUA);
+		iQuery->addQueryData(LUA, queryData, false);
 		data->m_queries.push_back(std::make_pair(queryPtr, queryData));
 		LUA->Pop();
 	}

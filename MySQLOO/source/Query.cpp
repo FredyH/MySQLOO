@@ -7,19 +7,19 @@
 #include <stdlib.h>
 #endif
 
-Query::Query(Database* dbase, lua_State* state) : IQuery(dbase, state) {
+Query::Query(Database* dbase, GarrysMod::Lua::ILuaBase* LUA) : IQuery(dbase, LUA) {
 	classname = "Query";
-	registerFunction(state, "affectedRows", Query::affectedRows);
-	registerFunction(state, "lastInsert", Query::lastInsert);
-	registerFunction(state, "getData", Query::getData_Wrapper);
-	registerFunction(state, "hasMoreResults", Query::hasMoreResults);
-	registerFunction(state, "getNextResults", Query::getNextResults);
+	registerFunction(LUA, "affectedRows", Query::affectedRows);
+	registerFunction(LUA, "lastInsert", Query::lastInsert);
+	registerFunction(LUA, "getData", Query::getData_Wrapper);
+	registerFunction(LUA, "hasMoreResults", Query::hasMoreResults);
+	registerFunction(LUA, "getNextResults", Query::getNextResults);
 }
 
 Query::~Query(void) {}
 
 //Calls the lua callbacks associated with this query
-void Query::doCallback(lua_State* state, std::shared_ptr<IQueryData> data) {
+void Query::doCallback(GarrysMod::Lua::ILuaBase* LUA, std::shared_ptr<IQueryData> data) {
 	if (this->dataReference != 0) {
 		LUA->ReferenceFree(this->dataReference);
 		this->dataReference = 0;
@@ -29,7 +29,7 @@ void Query::doCallback(lua_State* state, std::shared_ptr<IQueryData> data) {
 		break;
 	case QUERY_ERROR:
 		if (data->getErrorReference() != 0) {
-			this->runFunction(state, data->getErrorReference(), "ss", data->getError().c_str(), this->m_query.c_str());
+			this->runFunction(LUA, data->getErrorReference(), "ss", data->getError().c_str(), this->m_query.c_str());
 		} else if (data->isFirstData()) {
 			//This is to preserve somewhat of a backwards compatibility
 			//In case people set their callbacks after they start their queries
@@ -37,21 +37,21 @@ void Query::doCallback(lua_State* state, std::shared_ptr<IQueryData> data) {
 			//it can also search on the object for the callback
 			//This might break some code under very specific circumstances
 			//but I doubt this will ever be an issue
-			this->runCallback(state, "onError", "ss", data->getError().c_str(), this->m_query.c_str());
+			this->runCallback(LUA, "onError", "ss", data->getError().c_str(), this->m_query.c_str());
 		}
 		break;
 	case QUERY_SUCCESS:
-		int dataref = this->getData(state);
-		if (data->getOnDataReference() != 0 || (this->hasCallback(state, "onData") && data->isFirstData())) {
+		int dataref = this->getData(LUA);
+		if (data->getOnDataReference() != 0 || (this->hasCallback(LUA, "onData") && data->isFirstData())) {
 			LUA->ReferencePush(dataref);
 			LUA->PushNil();
 			while (LUA->Next(-2)) {
 				//Top is now the row, top-1 row index
 				int rowReference = LUA->ReferenceCreate();
 				if (data->getOnDataReference() != 0) {
-					this->runFunction(state, data->getOnDataReference(), "r", rowReference);
+					this->runFunction(LUA, data->getOnDataReference(), "r", rowReference);
 				} else if (data->isFirstData()) {
-					this->runCallback(state, "onData", "r", rowReference);
+					this->runCallback(LUA, "onData", "r", rowReference);
 				}
 				LUA->ReferenceFree(rowReference);
 				//Don't have to pop since reference create consumed the value
@@ -59,9 +59,9 @@ void Query::doCallback(lua_State* state, std::shared_ptr<IQueryData> data) {
 			LUA->Pop();
 		}
 		if (data->getSuccessReference() != 0) {
-			this->runFunction(state, data->getSuccessReference(), "r", dataref);
+			this->runFunction(LUA, data->getSuccessReference(), "r", dataref);
 		} else if (data->isFirstData()) {
-			this->runCallback(state, "onSuccess", "r", dataref);
+			this->runCallback(LUA, "onSuccess", "r", dataref);
 		}
 		break;
 	}
@@ -107,18 +107,20 @@ void Query::setQuery(std::string query) {
 //This function just returns the data associated with the query
 //Data is only created once (and then the reference to that data is returned)
 int Query::getData_Wrapper(lua_State* state) {
-	Query* object = (Query*)unpackSelf(state, TYPE_QUERY);
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	Query* object = (Query*)unpackSelf(LUA, TYPE_QUERY);
 	if (!object->hasCallbackData() || object->callbackQueryData->getResultStatus() == QUERY_ERROR) {
 		LUA->PushNil();
 	} else {
-		LUA->ReferencePush(object->getData(state));
+		LUA->ReferencePush(object->getData(LUA));
 	}
 	return 1;
 }
 
 //Stores the data associated with the current result set of the query
 //Only called once per result set (and then cached)
-int Query::getData(lua_State* state) {
+int Query::getData(GarrysMod::Lua::ILuaBase* LUA) {
 	if (this->dataReference != 0)
 		return this->dataReference;
 	LUA->CreateTable();
@@ -131,7 +133,7 @@ int Query::getData(lua_State* state) {
 				LUA->CreateTable();
 				int rowObject = LUA->ReferenceCreate();
 				for (unsigned int j = 0; j < row.getValues().size(); j++) {
-					dataToLua(state, rowObject, j + 1, row.getValues()[j], currentData.getColumns()[j].c_str(),
+					dataToLua(LUA, rowObject, j + 1, row.getValues()[j], currentData.getColumns()[j].c_str(),
 						currentData.getColumnTypes()[j], row.isFieldNull(j));
 				}
 				LUA->PushNumber(i + 1);
@@ -147,7 +149,7 @@ int Query::getData(lua_State* state) {
 
 
 //Function that converts the data stored in a mysql field into a lua type
-void Query::dataToLua(lua_State* state, int rowReference, unsigned int column,
+void Query::dataToLua(GarrysMod::Lua::ILuaBase* LUA, int rowReference, unsigned int column,
 					  std::string &columnValue, const char* columnName, int columnType, bool isNull) {
 	LUA->ReferencePush(rowReference);
 	if (this->m_options & OPTION_NUMERIC_FIELDS) {
@@ -188,7 +190,9 @@ void Query::dataToLua(lua_State* state, int rowReference, unsigned int column,
 
 //Returns true if a query has at least one additional ResultSet left
 int Query::hasMoreResults(lua_State* state) {
-	Query* object = (Query*)unpackSelf(state, TYPE_QUERY);
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	Query* object = (Query*)unpackSelf(LUA, TYPE_QUERY);
 	if (!object->hasCallbackData()) {
 		LUA->ThrowError("Query not completed yet");
 	}
@@ -199,7 +203,9 @@ int Query::hasMoreResults(lua_State* state) {
 
 //Unreferences the current result set and uses the next result set
 int Query::getNextResults(lua_State* state) {
-	Query* object = (Query*)unpackSelf(state, TYPE_QUERY);
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	Query* object = (Query*)unpackSelf(LUA, TYPE_QUERY);
 	if (!object->hasCallbackData()) {
 		LUA->ThrowError("Query not completed yet");
 	}
@@ -211,48 +217,52 @@ int Query::getNextResults(lua_State* state) {
 		LUA->ReferenceFree(object->dataReference);
 		object->dataReference = 0;
 	}
-	LUA->ReferencePush(object->getData(state));
+	LUA->ReferencePush(object->getData(LUA));
 	return 1;
 }
 
 //Returns the last insert id produced by INSERT INTO statements (or 0 if there is none)
 int Query::lastInsert(lua_State* state) {
-	Query* object = (Query*)unpackSelf(state, TYPE_QUERY);
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	Query* object = (Query*)unpackSelf(LUA, TYPE_QUERY);
 	if (!object->hasCallbackData()) {
 		LUA->PushNumber(0);
 		return 1;
 	}
 	QueryData* data = (QueryData*)object->callbackQueryData.get();
 	//Calling lastInsert() after query was executed but before the callback is run can cause race conditions
-	LUA->PushNumber(data->getLastInsertID());
+	LUA->PushNumber((double)data->getLastInsertID());
 	return 1;
 }
 
 //Returns the last affected rows produced by INSERT/DELETE/UPDATE (0 for none, -1 for errors)
 //For a SELECT statement this returns the amount of rows returned
 int Query::affectedRows(lua_State* state) {
-	Query* object = (Query*)unpackSelf(state, TYPE_QUERY);
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	Query* object = (Query*)unpackSelf(LUA, TYPE_QUERY);
 	if (!object->hasCallbackData()) {
 		LUA->PushNumber(0);
 		return 1;
 	}
 	QueryData* data = (QueryData*)object->callbackQueryData.get();
 	//Calling affectedRows() after query was executed but before the callback is run can cause race conditions
-	LUA->PushNumber(data->getAffectedRows());
+	LUA->PushNumber((double)data->getAffectedRows());
 	return 1;
 }
 
 
 //When the query is destroyed by lua
-void Query::onDestroyed(lua_State* state) {
-	if (this->dataReference != 0 && state != nullptr) {
+void Query::onDestroyed(GarrysMod::Lua::ILuaBase* LUA) {
+	if (this->dataReference != 0 && LUA != nullptr) {
 		//Make sure data associated with this query can be freed as well
 		LUA->ReferenceFree(this->dataReference);
 		this->dataReference = 0;
 	}
 }
 
-std::shared_ptr<IQueryData> Query::buildQueryData(lua_State* state) {
+std::shared_ptr<IQueryData> Query::buildQueryData(GarrysMod::Lua::ILuaBase* LUA) {
 	std::shared_ptr<IQueryData> ptr(new QueryData());
 	return ptr;
 }

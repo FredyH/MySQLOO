@@ -6,7 +6,7 @@
 #include <iostream>
 #include <fstream>
 #define MYSQLOO_VERSION "9"
-#define MYSQLOO_MINOR_VERSION "4"
+#define MYSQLOO_MINOR_VERSION "5"
 
 GMOD_MODULE_CLOSE() {
 	/* Deletes all the remaining luaobjects when the server changes map
@@ -26,6 +26,8 @@ GMOD_MODULE_CLOSE() {
  * as an interface to the mysql server.
  */
 static int connect(lua_State* state) {
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
 	LUA->CheckType(1, GarrysMod::Lua::Type::STRING);
 	LUA->CheckType(2, GarrysMod::Lua::Type::STRING);
 	LUA->CheckType(3, GarrysMod::Lua::Type::STRING);
@@ -42,8 +44,8 @@ static int connect(lua_State* state) {
 	if (LUA->IsType(6, GarrysMod::Lua::Type::STRING)) {
 		unixSocket = LUA->GetString(6);
 	}
-	Database* object = new Database(state, host, username, pw, database, port, unixSocket);
-	((LuaObjectBase*)object)->pushTableReference(state);
+	Database* object = new Database(LUA, host, username, pw, database, port, unixSocket);
+	((LuaObjectBase*)object)->pushTableReference(LUA);
 	return 1;
 }
 
@@ -51,11 +53,13 @@ static int connect(lua_State* state) {
  * This includes Database and Query instances
  */
 static int objectCount(lua_State* state) {
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
 	LUA->PushNumber(LuaObjectBase::luaObjects.size());
 	return 1;
 }
 
-static void runInTimer(lua_State* state, double delay, GarrysMod::Lua::CFunc func) {
+static void runInTimer(GarrysMod::Lua::ILuaBase* LUA, double delay, GarrysMod::Lua::CFunc func) {
 	LUA->PushSpecial(GarrysMod::Lua::SPECIAL_GLOB);
 	LUA->GetField(-1, "timer");
 	//In case someone removes the timer library
@@ -70,7 +74,7 @@ static void runInTimer(lua_State* state, double delay, GarrysMod::Lua::CFunc fun
 	LUA->Pop(2);
 }
 
-static void printMessage(lua_State* state, const char* str, int r, int g, int b) {
+static void printMessage(GarrysMod::Lua::ILuaBase* LUA, const char* str, int r, int g, int b) {
 	LUA->PushSpecial(GarrysMod::Lua::SPECIAL_GLOB);
 	LUA->GetField(-1, "Color");
 	LUA->PushNumber(r);
@@ -87,30 +91,38 @@ static void printMessage(lua_State* state, const char* str, int r, int g, int b)
 }
 
 static int printOutdatatedVersion(lua_State* state) {
-	printMessage(state, "Your server is using an outdated mysqloo9 version\n", 255, 0, 0);
-	printMessage(state, "Download the latest version from here:\n", 255, 0, 0);
-	printMessage(state, "https://github.com/syl0r/MySQLOO/releases\n", 86, 156, 214);
-	runInTimer(state, 300, printOutdatatedVersion);
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	printMessage(LUA, "Your server is using an outdated mysqloo9 version\n", 255, 0, 0);
+	printMessage(LUA, "Download the latest version from here:\n", 255, 0, 0);
+	printMessage(LUA, "https://github.com/syl0r/MySQLOO/releases\n", 86, 156, 214);
+	runInTimer(LUA, 300, printOutdatatedVersion);
 	return 0;
 }
 
 static int fetchSuccessful(lua_State* state) {
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
 	std::string version = LUA->GetString(1);
 	//version.size() < 3 so that the 404 response gets ignored
 	if (version != MYSQLOO_MINOR_VERSION && version.size() <= 3) {
 		printOutdatatedVersion(state);
 	} else {
-		printMessage(state, "Your server is using the latest mysqloo9 version\n", 0, 255, 0);
+		printMessage(LUA, "Your server is using the latest mysqloo9 version\n", 0, 255, 0);
 	}
 	return 0;
 }
 
 static int fetchFailed(lua_State* state) {
-	printMessage(state, "Failed to retrieve latest version of mysqloo9\n", 255, 0, 0);
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	printMessage(LUA, "Failed to retrieve latest version of mysqloo9\n", 255, 0, 0);
 	return 0;
 }
 
 static int doVersionCheck(lua_State* state) {
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
 	LUA->PushSpecial(GarrysMod::Lua::SPECIAL_GLOB);
 	LUA->GetField(-1, "http");
 	LUA->GetField(-1, "Fetch");
@@ -126,7 +138,7 @@ GMOD_MODULE_OPEN() {
 	if (mysql_library_init(0, nullptr, nullptr)) {
 		LUA->ThrowError("Could not initialize mysql library.");
 	}
-	LuaObjectBase::createMetatables(state);
+	LuaObjectBase::createMetatables(LUA);
 	LUA->PushSpecial(GarrysMod::Lua::SPECIAL_GLOB);
 	LUA->GetField(-1, "hook");
 	LUA->GetField(-1, "Add");
@@ -163,6 +175,6 @@ GMOD_MODULE_OPEN() {
 
 	LUA->SetField(-2, "mysqloo");
 	LUA->Pop();
-	runInTimer(state, 5, doVersionCheck);
+	runInTimer(LUA, 5, doVersionCheck);
 	return 1;
 }

@@ -5,14 +5,16 @@
 #include <cstring>
 #include <algorithm>
 
+int TYPE_DATABASE = -1;
+int TYPE_QUERY = -1;
+
 std::deque<std::shared_ptr<LuaObjectBase>> LuaObjectBase::luaObjects = std::deque<std::shared_ptr<LuaObjectBase>>();
 std::deque<std::shared_ptr<LuaObjectBase>> LuaObjectBase::luaThinkObjects = std::deque<std::shared_ptr<LuaObjectBase>>();
 std::deque<std::shared_ptr<LuaObjectBase>> LuaObjectBase::luaRemovalObjects = std::deque<std::shared_ptr<LuaObjectBase>>();
 int LuaObjectBase::tableMetaTable = 0;
-int LuaObjectBase::userdataMetaTable = 0;
 
 
-LuaObjectBase::LuaObjectBase(lua_State* state, bool shouldthink, unsigned char type) : type(type) {
+LuaObjectBase::LuaObjectBase(GarrysMod::Lua::ILuaBase* LUA, bool shouldthink, unsigned char type) : type(type) {
 	classname = "LuaObject";
 	this->shouldthink = shouldthink;
 	std::shared_ptr<LuaObjectBase> ptr(this);
@@ -22,7 +24,7 @@ LuaObjectBase::LuaObjectBase(lua_State* state, bool shouldthink, unsigned char t
 	luaObjects.push_back(ptr);
 }
 
-LuaObjectBase::LuaObjectBase(lua_State* state, unsigned char type) : LuaObjectBase::LuaObjectBase(state, true, type) {}
+LuaObjectBase::LuaObjectBase(GarrysMod::Lua::ILuaBase* LUA, unsigned char type) : LuaObjectBase::LuaObjectBase(LUA, true, type) {}
 
 
 //Important!!!!
@@ -31,7 +33,7 @@ LuaObjectBase::LuaObjectBase(lua_State* state, unsigned char type) : LuaObjectBa
 LuaObjectBase::~LuaObjectBase() {}
 
 //Makes C++ functions callable from lua
-void LuaObjectBase::registerFunction(lua_State* state, std::string name, GarrysMod::Lua::CFunc func) {
+void LuaObjectBase::registerFunction(GarrysMod::Lua::ILuaBase* LUA, std::string name, GarrysMod::Lua::CFunc func) {
 	this->m_callbackFunctions[name] = func;
 }
 
@@ -41,29 +43,32 @@ std::shared_ptr<LuaObjectBase> LuaObjectBase::getSharedPointerInstance() {
 }
 
 //Gets the C++ object associated with a lua table that represents it in LUA
-LuaObjectBase* LuaObjectBase::unpackSelf(lua_State* state, int type, bool shouldReference) {
-	return unpackLuaObject(state, 1, type, shouldReference);
+LuaObjectBase* LuaObjectBase::unpackSelf(GarrysMod::Lua::ILuaBase* LUA, int type, bool shouldReference) {
+	return unpackLuaObject(LUA, 1, type, shouldReference);
 }
 
 //Gets the C++ object associated with a lua table that represents it in LUA
-LuaObjectBase* LuaObjectBase::unpackLuaObject(lua_State* state, int index, int type, bool shouldReference) {
+LuaObjectBase* LuaObjectBase::unpackLuaObject(GarrysMod::Lua::ILuaBase* LUA, int index, int type, bool shouldReference) {
 	LUA->CheckType(index, GarrysMod::Lua::Type::TABLE);
 	LUA->GetField(index, "___lua_userdata_object");
-	GarrysMod::Lua::UserData* ud = (GarrysMod::Lua::UserData*) LUA->GetUserdata(-1);
-	if (ud->type != type && type != -1) {
+	int itype = LUA->GetType(-1);
+	LuaObjectBase* object = NULL;
+	if (itype == type || type == -1) {
+		object = LUA->GetUserType<LuaObjectBase>(-1, itype);
+	}
+	if (object == NULL) {
 		std::ostringstream oss;
-		oss << "Wrong type, expected " << type << " got " << ((int)ud->type);
+		oss << "Wrong type, expected " << type << " got " << itype;
 		LUA->ThrowError(oss.str().c_str());
 	}
-	LuaObjectBase* object = (LuaObjectBase*)ud->data;
 	if (shouldReference) {
-		referenceTable(state, object, index);
+		referenceTable(LUA, object, index);
 	}
 	LUA->Pop();
 	return object;
 }
 
-void LuaObjectBase::referenceTable(lua_State* state, LuaObjectBase* object, int index) {
+void LuaObjectBase::referenceTable(GarrysMod::Lua::ILuaBase* LUA, LuaObjectBase* object, int index) {
 	if (object->m_userdataReference != 0 || object->m_tableReference != 0) {
 		LUA->ThrowError("Tried to reference lua object twice (Query started twice?)");
 	}
@@ -76,34 +81,37 @@ void LuaObjectBase::referenceTable(lua_State* state, LuaObjectBase* object, int 
 }
 
 //Pushes the table reference of a C++ object that represents it in LUA
-int LuaObjectBase::pushTableReference(lua_State* state) {
+int LuaObjectBase::pushTableReference(GarrysMod::Lua::ILuaBase* LUA) {
 	if (m_tableReference != 0) {
 		LUA->ReferencePush(m_tableReference);
 		return 1;
 	}
-	GarrysMod::Lua::UserData* ud = (GarrysMod::Lua::UserData*) LUA->NewUserdata(sizeof(GarrysMod::Lua::UserData));
-	int userdatareference = LUA->ReferenceCreate();
-	LUA->ReferencePush(userdatareference);
-	LUA->ReferencePush(userdataMetaTable);
+
+	LUA->PushUserType(this, type);
+
+	LUA->PushMetaTable(type);
 	LUA->SetMetaTable(-2);
-	LUA->Pop();
-	ud->data = this;
-	ud->type = this->type;
+
 	LUA->CreateTable();
-	LUA->ReferencePush(userdatareference);
+
+	LUA->Push(-2);
 	LUA->SetField(-2, "___lua_userdata_object");
+
 	for (auto& callback : this->m_callbackFunctions) {
 		LUA->PushCFunction(callback.second);
 		LUA->SetField(-2, callback.first.c_str());
 	}
-	LUA->ReferencePush(tableMetaTable);
+
+	LUA->PushMetaTable(tableMetaTable);
 	LUA->SetMetaTable(-2);
-	LUA->ReferenceFree(userdatareference);
+
+	LUA->Remove(-2);
+
 	return 1;
 }
 
 //Unreferences the table that represents this C++ object in lua, so that it can be gc'ed
-void LuaObjectBase::unreference(lua_State* state) {
+void LuaObjectBase::unreference(GarrysMod::Lua::ILuaBase* LUA) {
 	if (m_tableReference != 0) {
 		LUA->ReferenceFree(m_tableReference);
 		m_tableReference = 0;
@@ -115,7 +123,7 @@ void LuaObjectBase::unreference(lua_State* state) {
 }
 
 //Checks whether or not a callback exists
-bool LuaObjectBase::hasCallback(lua_State* state, const char* functionName) {
+bool LuaObjectBase::hasCallback(GarrysMod::Lua::ILuaBase* LUA, const char* functionName) {
 	if (this->m_tableReference == 0) return false;
 	LUA->ReferencePush(this->m_tableReference);
 	LUA->GetField(-1, functionName);
@@ -124,7 +132,7 @@ bool LuaObjectBase::hasCallback(lua_State* state, const char* functionName) {
 	return hasCallback;
 }
 
-int LuaObjectBase::getCallbackReference(lua_State* state, const char* functionName) {
+int LuaObjectBase::getCallbackReference(GarrysMod::Lua::ILuaBase* LUA, const char* functionName) {
 	if (this->m_tableReference == 0) return 0;
 	LUA->ReferencePush(this->m_tableReference);
 	LUA->GetField(-1, functionName);
@@ -137,19 +145,19 @@ int LuaObjectBase::getCallbackReference(lua_State* state, const char* functionNa
 	return ref;
 }
 
-void LuaObjectBase::runFunction(lua_State* state, int funcRef, const char* sig, ...) {
+void LuaObjectBase::runFunction(GarrysMod::Lua::ILuaBase* LUA, int funcRef, const char* sig, ...) {
 	if (funcRef == 0) return;
 	va_list arguments;
 	va_start(arguments, sig);
-	runFunctionVarList(state, funcRef, sig, arguments);
+	runFunctionVarList(LUA, funcRef, sig, arguments);
 	va_end(arguments);
 }
 
-void LuaObjectBase::runFunctionVarList(lua_State* state, int funcRef, const char* sig, va_list arguments) {
+void LuaObjectBase::runFunctionVarList(GarrysMod::Lua::ILuaBase* LUA, int funcRef, const char* sig, va_list arguments) {
 	if (funcRef == 0) return;
 	if (this->m_tableReference == 0) return;
 	LUA->ReferencePush(funcRef);
-	pushTableReference(state);
+	pushTableReference(LUA);
 	int numArguments = 1;
 	if (sig) {
 		for (unsigned int i = 0; i < std::strlen(sig); i++) {
@@ -202,33 +210,35 @@ void LuaObjectBase::runFunctionVarList(lua_State* state, int funcRef, const char
 }
 
 //Runs callbacks associated with the lua object
-void LuaObjectBase::runCallback(lua_State* state, const char* functionName, const char* sig, ...) {
+void LuaObjectBase::runCallback(GarrysMod::Lua::ILuaBase* LUA, const char* functionName, const char* sig, ...) {
 	if (this->m_tableReference == 0) return;
-	int funcRef = getCallbackReference(state, functionName);
+	int funcRef = getCallbackReference(LUA, functionName);
 	if (funcRef == 0) {
 		LUA->ReferenceFree(funcRef);
 		return;
 	}
 	va_list arguments;
 	va_start(arguments, sig);
-	runFunctionVarList(state, funcRef, sig, arguments);
+	runFunctionVarList(LUA, funcRef, sig, arguments);
 	va_end(arguments);
 	LUA->ReferenceFree(funcRef);
 }
 
 //Called every tick, checks if the object can be destroyed
 int LuaObjectBase::doThink(lua_State* state) {
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
 	//Think objects need to be copied because a think call could modify the original thinkObject queue
 	//which leads to it invalidating the iterator and thus undefined behaviour
 	std::deque<std::shared_ptr<LuaObjectBase>> thinkObjectsCopy = luaThinkObjects;
 	for (auto& query : luaThinkObjects) {
-		query->think(state);
+		query->think(LUA);
 	}
 	if (luaRemovalObjects.size() > 0) {
 		for (auto it = luaRemovalObjects.begin(); it != luaRemovalObjects.end(); ) {
 			LuaObjectBase* obj = (*it).get();
 			if (obj->canbedestroyed) {
-				obj->onDestroyed(state);
+				obj->onDestroyed(LUA);
 				it = luaRemovalObjects.erase(it);
 				auto objectIt = std::find_if(luaObjects.begin(), luaObjects.end(), [&](std::shared_ptr<LuaObjectBase> const& p) {
 					return p.get() == obj;
@@ -253,10 +263,12 @@ int LuaObjectBase::doThink(lua_State* state) {
 //Called when the LUA table representing this C++ object has been gc'ed
 //Deletes the associated C++ object
 int LuaObjectBase::gcDeleteWrapper(lua_State* state) {
-	GarrysMod::Lua::UserData* obj = (GarrysMod::Lua::UserData*) LUA->GetUserdata(1);
-	if (!obj || (obj->type != TYPE_DATABASE && obj->type != TYPE_QUERY))
-		return 0;
-	LuaObjectBase* object = (LuaObjectBase*)obj->data;
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	int type = LUA->GetType(1);
+	if (type != TYPE_DATABASE && type != TYPE_QUERY) return 0;
+	LuaObjectBase* object = LUA->GetUserType<LuaObjectBase>(1, type);
+	if (object == NULL) return 0;
 	if (!object->scheduledForRemoval) {
 		if (object->m_userdataReference != 0) {
 			LUA->ReferenceFree(object->m_userdataReference);
@@ -272,7 +284,9 @@ int LuaObjectBase::gcDeleteWrapper(lua_State* state) {
 
 //Prints the name of the object
 int LuaObjectBase::toStringWrapper(lua_State* state) {
-	LuaObjectBase* object = unpackSelf(state);
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	LuaObjectBase* object = unpackSelf(LUA);
 	std::stringstream ss;
 	ss << object->classname << " " << object;
 	LUA->PushString(ss.str().c_str());
@@ -280,16 +294,18 @@ int LuaObjectBase::toStringWrapper(lua_State* state) {
 }
 
 //Creates metatables used for the LUA representation of the C++ table
-int LuaObjectBase::createMetatables(lua_State* state) {
-	LUA->CreateTable();
-
+int LuaObjectBase::createMetatables(GarrysMod::Lua::ILuaBase* LUA) {
+	TYPE_DATABASE = LUA->CreateMetaTable("MySQLOO database");
 	LUA->PushCFunction(LuaObjectBase::gcDeleteWrapper);
 	LUA->SetField(-2, "__gc");
-	userdataMetaTable = LUA->ReferenceCreate();
 
-	LUA->CreateTable();
+	TYPE_QUERY = LUA->CreateMetaTable("MySQLOO query");
+	LUA->PushCFunction(LuaObjectBase::gcDeleteWrapper);
+	LUA->SetField(-2, "__gc");
+
+	tableMetaTable = LUA->CreateMetaTable("MySQLOO table");
 	LUA->PushCFunction(LuaObjectBase::toStringWrapper);
 	LUA->SetField(-2, "__tostring");
-	tableMetaTable = LUA->ReferenceCreate();
+
 	return 0;
 }

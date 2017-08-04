@@ -33,12 +33,12 @@ private:
 class PreparedQuery : public Query {
 	friend class Database;
 public:
-	PreparedQuery(Database* dbase, lua_State* state);
+	PreparedQuery(Database* dbase, GarrysMod::Lua::ILuaBase* LUA);
 	virtual ~PreparedQuery(void);
 	bool executeStatement(MYSQL* connection, std::shared_ptr<IQueryData> data);
-	virtual void onDestroyed(lua_State* state);
+	virtual void onDestroyed(GarrysMod::Lua::ILuaBase* LUA);
 protected:
-	virtual std::shared_ptr<IQueryData> buildQueryData(lua_State* state);
+	virtual std::shared_ptr<IQueryData> buildQueryData(GarrysMod::Lua::ILuaBase* LUA);
 	void executeQuery(MYSQL* m_sql, std::shared_ptr<IQueryData> data);
 private:
 	std::deque<std::unordered_map<unsigned int, std::shared_ptr<PreparedQueryField>>> m_parameters;
