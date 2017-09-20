@@ -9,7 +9,7 @@ solution "MySQLOO"
 					"Boost/",
 					"MySQL/include/"	 }
 
-	if os.get() == "linux" then
+	if os.get() == "macosx" or os.get() == "linux" then
 
 		buildoptions{ "-std=c++11 -fPIC" }
 		linkoptions{ "-fPIC -static-libstdc++" }
@@ -43,7 +43,14 @@ solution "MySQLOO"
 		files{ "MySQLOO/source/**.*", "MySQLOO/include/**.*" }
 		kind "SharedLib"
 		libdirs { "MySQL/lib/" .. os.get() }
-		local platform = (os.get() == "linux" and "linux" or "win32")
+		local platform
+		if os.get() == "windows" then
+			platform = "win32"
+		elseif os.get() == "macosx" then
+			platform = "osx"
+		elseif os.get() == "linux" then
+			platform = "linux"
+		end
 		targetname( "gmsv_mysqloo_" .. platform)
 		targetprefix ("")
 		targetextension (".dll")
@@ -51,7 +58,7 @@ solution "MySQLOO"
 		
 		if os.get() == "windows" then
 			links { "libmysql" }
-		elseif os.get() == "linux" then
+		elseif os.get() == "macosx" or os.get() == "linux" then
 			links { "mysqlclient" }
 		end
 		
