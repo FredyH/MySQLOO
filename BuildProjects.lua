@@ -50,6 +50,8 @@ solution "MySQLOO"
 			platform = "osx"
 		elseif os.get() == "linux" then
 			platform = "linux"
+		else
+			error "Unsupported platform."
 		end
 		targetname( "gmsv_mysqloo_" .. platform)
 		targetprefix ("")
