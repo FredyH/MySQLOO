@@ -3,7 +3,6 @@
 #include "Database.h"
 #include "MySQLHeader.h"
 #include <iostream>
-#include <iostream>
 #include <fstream>
 #define MYSQLOO_VERSION "9"
 #define MYSQLOO_MINOR_VERSION "5"
