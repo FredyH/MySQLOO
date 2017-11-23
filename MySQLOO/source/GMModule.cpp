@@ -94,7 +94,7 @@ static int printOutdatatedVersion(lua_State* state) {
 	LUA->SetState(state);
 	printMessage(LUA, "Your server is using an outdated mysqloo9 version\n", 255, 0, 0);
 	printMessage(LUA, "Download the latest version from here:\n", 255, 0, 0);
-	printMessage(LUA, "https://github.com/syl0r/MySQLOO/releases\n", 86, 156, 214);
+	printMessage(LUA, "https://github.com/FredyH/MySQLOO/releases\n", 86, 156, 214);
 	runInTimer(LUA, 300, printOutdatatedVersion);
 	return 0;
 }
@@ -125,7 +125,7 @@ static int doVersionCheck(lua_State* state) {
 	LUA->PushSpecial(GarrysMod::Lua::SPECIAL_GLOB);
 	LUA->GetField(-1, "http");
 	LUA->GetField(-1, "Fetch");
-	LUA->PushString("https://raw.githubusercontent.com/syl0r/MySQLOO/master/minorversion.txt");
+	LUA->PushString("https://raw.githubusercontent.com/FredyH/MySQLOO/master/minorversion.txt");
 	LUA->PushCFunction(fetchSuccessful);
 	LUA->PushCFunction(fetchFailed);
 	LUA->Call(3, 0);
