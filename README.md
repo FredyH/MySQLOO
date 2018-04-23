@@ -22,7 +22,7 @@ They have to be placed within the root folder of your server (the one that conta
 
 -- mysqloo table
 
-mysqloo.connect( host, username, password [, database, port, socket] )
+mysqloo.connect( host, username, password, database [, port, socket] )
 -- returns [Database]
 -- Initializes the database object, note that this does not actually connect to the database.
 
