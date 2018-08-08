@@ -1,7 +1,7 @@
 function os.winSdkVersion()
-    local reg_arch = iif( os.is64bit(), "\\Wow6432Node\\", "\\" )
-    local sdk_version = os.getWindowsRegistry( "HKLM:SOFTWARE" .. reg_arch .."Microsoft\\Microsoft SDKs\\Windows\\v10.0\\ProductVersion" )
-    if sdk_version ~= nil then return sdk_version end
+	local reg_arch = iif( os.is64bit(), "\\Wow6432Node\\", "\\" )
+	local sdk_version = os.getWindowsRegistry( "HKLM:SOFTWARE" .. reg_arch .."Microsoft\\Microsoft SDKs\\Windows\\v10.0\\ProductVersion" )
+	if sdk_version ~= nil then return sdk_version end
 end
 
 solution "MySQLOO"
@@ -18,16 +18,15 @@ solution "MySQLOO"
 		linkoptions{ "-fPIC -static-libstdc++" }
     end
 
-	
 	configurations { "Release" }
 	platforms { "x86", "x86_64" }
-	
+
 	if os.target() == "windows" then
 		defines{ "WIN32" }
 	elseif os.target() == "linux" then
 		defines{ "LINUX" }
 	end
-		
+
 	local platform
 	if os.target() == "windows" then
 		platform = "win"
@@ -38,7 +37,7 @@ solution "MySQLOO"
 	else
 		error "Unsupported platform."
 	end
-	
+
 	filter "platforms:x86"
 		architecture "x86"
 		libdirs { "MySQL/lib/" .. os.target() }
@@ -53,8 +52,8 @@ solution "MySQLOO"
 		targetname( "gmsv_mysqloo_" .. platform .. "64")
 	filter {"system:windows", "action:vs*"}
 		systemversion((os.winSdkVersion() or "10.0.16299") .. ".0")
-        toolset "v141"
-		
+		toolset "v141"
+
 	project "MySQLOO"
 		symbols "On"
 		editandcontinue "Off"
@@ -74,4 +73,3 @@ solution "MySQLOO"
 		elseif os.target() == "macosx" or os.target() == "linux" then
 			links { "mariadbclient" }
 		end
-		
