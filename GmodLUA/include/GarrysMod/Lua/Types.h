@@ -68,6 +68,7 @@ namespace GarrysMod
                 NAVLADDER,
                 PARTICLESYSTEM,
                 PROJECTEDTEXTURE,
+                PHYSCOLLIDE,
 
                 COUNT
             };
@@ -118,6 +119,7 @@ namespace GarrysMod
                 "navladder",
                 "particlesystem",
                 "projectedtexture",
+                "physcollide",
 
                 0
             };

@@ -1,3 +1,4 @@
+#ifndef MYSQL_PLUGIN_AUTH_COMMON_INCLUDED
 /* Copyright (C) 2010 Sergei Golubchik and Monty Program Ab
 
    This library is free software; you can redistribute it and/or
@@ -15,8 +16,6 @@
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
    MA 02111-1301, USA */
 
-
-#ifndef MYSQL_PLUGIN_AUTH_COMMON_INCLUDED
 /**
   @file
 
@@ -69,10 +68,8 @@ typedef struct st_plugin_vio_info
 {
   enum { MYSQL_VIO_INVALID, MYSQL_VIO_TCP, MYSQL_VIO_SOCKET,
          MYSQL_VIO_PIPE, MYSQL_VIO_MEMORY } protocol;
-#ifndef _WIN32
   int socket;     /**< it's set, if the protocol is SOCKET or TCP */
-#else
-  SOCKET socket;     /**< it's set, if the protocol is SOCKET or TCP */
+#ifdef _WIN32
   HANDLE handle;  /**< it's set, if the protocol is PIPE or MEMORY */
 #endif
 } MYSQL_PLUGIN_VIO_INFO;

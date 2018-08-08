@@ -7,11 +7,10 @@ The module also fixed the memory leak issues the previous versions of MySQLOO ha
 For further information please [visit this forum thread](https://forum.facepunch.com/f/gmodaddon/jjdq/gmsv-mysqloo-v9-Rewritten-MySQL-Module-prepared-statements-transactions/1/).
 
 # Install instructions:
-There are prebuilt binaries available for [Linux and Windows](https://github.com/syl0r/MySQLOO/releases).
-They have to be placed within your garrysmod/lua/bin/ folder (create the bin folder if it does not exist)
+There are prebuilt binaries available for [Linux and Windows](https://github.com/syl0r/MySQLOO/releases) and for both 64 and 32 bit.
+They have to be placed within your garrysmod/lua/bin/ folder (create the bin folder if it does not exist).
 
-You are also going to need either [libmysql](https://github.com/syl0r/MySQLOO/raw/master/MySQL/lib/windows/libmysql.dll) on Windows or [libmysqlclient](https://github.com/syl0r/MySQLOO/raw/master/MySQL/lib/linux/libmysqlclient.so.18) on Linux.
-They have to be placed within the root folder of your server (the one that contains srcds.exe or srcds_run)
+**Note**: Previously you were requried to place libmysqlclient.dll besides your srcds executable. This is not required anymore since MySQLOO now links statically against libmysqlclient.
 
 
 
@@ -243,6 +242,10 @@ PreparedQuery:setNull(index)
 -- Returns nothing
 -- Sets the parameter at index (1-based) to be NULL
 
+PreparedQuery:clearParameters()
+-- Returns nothing
+-- Clears all currently set parameters inside the prepared statement.
+
 PreparedQuery:putNewParameters()
 -- Returns nothing
 -- This shouldn't be used anymore, just start the same prepared multiple times with different parameters
@@ -272,3 +275,16 @@ Transaction.onSuccess()
 --  Called when all queries in the transaction have been executed successfully
 
 ```
+
+# Build instructions:
+
+To build the project you first need to generate the appropriate solution for your system using [premake](https://premake.github.io/download.html).
+
+```
+premake5 --os=windows --file=BuildProjects.lua vs2017
+premake5 --os=macosx --file=BuildProjects.lua gmake
+premake5 --os=linux --file=BuildProjects.lua gmake
+```
+Then building MySQLOO should be as easy as either running make (linux) or pressing the build project button in Visual Studio (windows).
+**Note**: On Linux you might have to install some additional libraries required in the linking process, but I personally have not experienced any such issues.
+**Note:** Mac is currently not supported since the MariaDB connector is not available on mac (at least not precompiled).

@@ -14,6 +14,7 @@ PreparedQuery::PreparedQuery(Database* dbase, GarrysMod::Lua::ILuaBase* LUA) : Q
 	registerFunction(LUA, "setBoolean", PreparedQuery::setBoolean);
 	registerFunction(LUA, "setNull", PreparedQuery::setNull);
 	registerFunction(LUA, "putNewParameters", PreparedQuery::putNewParameters);
+	registerFunction(LUA, "clearParameters", PreparedQuery::clearParameters);
 	this->m_parameters.push_back(std::unordered_map<unsigned int, std::shared_ptr<PreparedQueryField>>());
 	//This pointer is used to prevent the database being accessed after it was deleted
 	//when this preparedq query still owns a MYSQL_STMT*
@@ -36,6 +37,14 @@ void PreparedQuery::onDestroyed(GarrysMod::Lua::ILuaBase* LUA) {
 		}
 	}
 	IQuery::onDestroyed(LUA);
+}
+
+int PreparedQuery::clearParameters(lua_State* state) {
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	PreparedQuery* object = (PreparedQuery*)unpackSelf(LUA, TYPE_QUERY);
+	object->m_parameters.clear();
+	return 0;
 }
 
 int PreparedQuery::setNumber(lua_State* state) {
