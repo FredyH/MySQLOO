@@ -1,22 +1,19 @@
-/* Copyright (C) 2010 Sergei Golubchik and Monty Program Ab
-
-   This library is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Library General Public
-   License as published by the Free Software Foundation; either
-   version 2 of the License, or (at your option) any later version.
-   
-   This library is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
-   
-   You should have received a copy of the GNU Library General Public
-   License along with this library; if not, write to the Free
-   Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
-   MA 02111-1301, USA */
-
-
 #ifndef MYSQL_PLUGIN_AUTH_COMMON_INCLUDED
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+
 /**
   @file
 
@@ -26,15 +23,36 @@
 #define MYSQL_PLUGIN_AUTH_COMMON_INCLUDED
 
 /** the max allowed length for a user name */
-#define MYSQL_USERNAME_LENGTH 512
+#define MYSQL_USERNAME_LENGTH 96
 
 /**
   return values of the plugin authenticate_user() method.
 */
 
 /**
+  Authentication failed, plugin internal error.
+  An error occurred in the authentication plugin itself.
+  These errors are reported in table performance_schema.host_cache,
+  column COUNT_AUTH_PLUGIN_ERRORS.
+*/
+#define CR_AUTH_PLUGIN_ERROR 3
+/**
+  Authentication failed, client server handshake.
+  An error occurred during the client server handshake.
+  These errors are reported in table performance_schema.host_cache,
+  column COUNT_HANDSHAKE_ERRORS.
+*/
+#define CR_AUTH_HANDSHAKE 2
+/**
+  Authentication failed, user credentials.
+  For example, wrong passwords.
+  These errors are reported in table performance_schema.host_cache,
+  column COUNT_AUTHENTICATION_ERRORS.
+*/
+#define CR_AUTH_USER_CREDENTIALS 1
+/**
   Authentication failed. Additionally, all other CR_xxx values
-  (libmariadb error code) can be used too.
+  (libmysql error code) can be used too.
 
   The client plugin may set the error code and the error message directly
   in the MYSQL structure and return CR_ERROR. If a CR_xxx specific error
@@ -47,7 +65,7 @@
   Authentication (client part) was successful. It does not mean that the
   authentication as a whole was successful, usually it only means
   that the client was able to send the user name and the password to the
-  server. If CR_OK is returned, the libmariadb reads the next packet expecting
+  server. If CR_OK is returned, the libmysql reads the next packet expecting
   it to be one of OK, ERROR, or CHANGE_PLUGIN packets.
 */
 #define CR_OK -1
@@ -55,7 +73,7 @@
   Authentication was successful.
   It means that the client has done its part successfully and also that
   a plugin has read the last packet (one of OK, ERROR, CHANGE_PLUGIN).
-  In this case, libmariadb will not read a packet from the server,
+  In this case, libmysql will not read a packet from the server,
   but it will use the data at mysql->net.read_pos.
 
   A plugin may return this value if the number of roundtrips in the
@@ -65,14 +83,29 @@
 */
 #define CR_OK_HANDSHAKE_COMPLETE -2
 
+/**
+Flag to be passed back to server from authentication plugins via
+authenticated_as when proxy mapping should be done by the server.
+*/
+#define PROXY_FLAG 0
+
+/*
+  We need HANDLE definition if on Windows. Define WIN32_LEAN_AND_MEAN (if
+  not already done) to minimize amount of imported declarations.
+*/
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#endif
+
 typedef struct st_plugin_vio_info
 {
   enum { MYSQL_VIO_INVALID, MYSQL_VIO_TCP, MYSQL_VIO_SOCKET,
          MYSQL_VIO_PIPE, MYSQL_VIO_MEMORY } protocol;
-#ifndef _WIN32
   int socket;     /**< it's set, if the protocol is SOCKET or TCP */
-#else
-  SOCKET socket;     /**< it's set, if the protocol is SOCKET or TCP */
+#ifdef _WIN32
   HANDLE handle;  /**< it's set, if the protocol is PIPE or MEMORY */
 #endif
 } MYSQL_PLUGIN_VIO_INFO;

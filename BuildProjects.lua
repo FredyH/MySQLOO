@@ -69,7 +69,7 @@ solution "MySQLOO"
 		targetdir("out/" .. os.target())
 		
 		if os.target() == "windows" then
-			links { "mariadbclient", "ws2_32.lib", "shlwapi.lib" }
+			links { "mysqlclient", "ws2_32.lib", "shlwapi.lib" }
 		elseif os.target() == "macosx" or os.target() == "linux" then
-			links { "mariadbclient" }
+			links { "mysqlclient" }
 		end

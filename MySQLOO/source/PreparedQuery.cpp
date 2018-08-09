@@ -44,6 +44,7 @@ int PreparedQuery::clearParameters(lua_State* state) {
 	LUA->SetState(state);
 	PreparedQuery* object = (PreparedQuery*)unpackSelf(LUA, TYPE_QUERY);
 	object->m_parameters.clear();
+	object->m_parameters.emplace_back();
 	return 0;
 }
 

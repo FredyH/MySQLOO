@@ -7,7 +7,7 @@ The module also fixed the memory leak issues the previous versions of MySQLOO ha
 For further information please [visit this forum thread](https://forum.facepunch.com/f/gmodaddon/jjdq/gmsv-mysqloo-v9-Rewritten-MySQL-Module-prepared-statements-transactions/1/).
 
 # Install instructions:
-There are prebuilt binaries available for [Linux and Windows](https://github.com/syl0r/MySQLOO/releases) and for both 64 and 32 bit.
+There are prebuilt binaries available for [Linux and Windows](https://github.com/syl0r/MySQLOO/releases) (both 32 and 64 bit).
 They have to be placed within your garrysmod/lua/bin/ folder (create the bin folder if it does not exist).
 
 **Note**: Previously you were requried to place libmysqlclient.dll besides your srcds executable. This is not required anymore since MySQLOO now links statically against libmysqlclient.

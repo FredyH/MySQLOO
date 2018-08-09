@@ -372,7 +372,7 @@ void Database::setAutoReconnect(my_bool autoReconnect) {
 
 //Should only be called from the db thread
 my_bool Database::getAutoReconnect() {
-	return m_sql->options.reconnect;
+	return m_sql->reconnect;
 }
 
 
