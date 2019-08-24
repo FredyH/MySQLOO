@@ -42,6 +42,7 @@ namespace GarrysMod
                 // Pushes table[key] on to the stack
                 // table = value at iStackPos
                 // key   = value at top of the stack
+                // Pops the key from the stack
                 virtual void        GetTable( int iStackPos ) = 0;
 
                 // Pushes table[key] on to the stack

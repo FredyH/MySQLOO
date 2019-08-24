@@ -5,10 +5,6 @@
 #undef ENTITY
 #endif
 
-#ifdef VECTOR
-#undef VECTOR
-#endif
-
 namespace GarrysMod
 {
     namespace Lua
@@ -36,7 +32,7 @@ namespace GarrysMod
 
                 // GMod Types
                 ENTITY,
-                VECTOR,
+                Vector, // GMOD: GO TODO - This was renamed... I'll probably forget to fix it before this ends up public
                 ANGLE,
                 PHYSOBJ,
                 SAVE,
