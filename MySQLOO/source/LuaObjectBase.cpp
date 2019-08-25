@@ -156,6 +156,14 @@ void LuaObjectBase::runFunction(GarrysMod::Lua::ILuaBase* LUA, int funcRef, cons
 void LuaObjectBase::runFunctionVarList(GarrysMod::Lua::ILuaBase* LUA, int funcRef, const char* sig, va_list arguments) {
 	if (funcRef == 0) return;
 	if (this->m_tableReference == 0) return;
+	
+	//Here we push an error reporter that apparently prints nice errors
+	LUA->PushSpecial(GarrysMod::Lua::SPECIAL_REG);
+	LUA->PushNumber(1);
+	LUA->RawGet(-2);
+	//If it does not exist for whatever reason we use no error reporter (= index 0)
+	int errorReporterIndex = LUA->IsType(-1, GarrysMod::Lua::Type::FUNCTION) ? LUA->Top() : 0;
+
 	LUA->ReferencePush(funcRef);
 	pushTableReference(LUA);
 	int numArguments = 1;
@@ -193,20 +201,10 @@ void LuaObjectBase::runFunctionVarList(GarrysMod::Lua::ILuaBase* LUA, int funcRe
 			}
 		}
 	}
-	if (LUA->PCall(numArguments, 0, 0)) {
-		const char* err = LUA->GetString(-1);
-		LUA->PushSpecial(GarrysMod::Lua::SPECIAL_GLOB);
-		LUA->GetField(-1, "ErrorNoHalt");
-		//In case someone removes ErrorNoHalt this doesn't break everything
-		if (!LUA->IsType(-1, GarrysMod::Lua::Type::FUNCTION)) {
-			LUA->Pop(2);
-			return;
-		}
-		LUA->PushString(err);
-		LUA->PushString("\n");
-		LUA->Call(2, 0);
-		LUA->Pop(2);
-	}
+	LUA->PCall(numArguments, 0, errorReporterIndex);
+
+	//Popping the error reporter
+	LUA->Pop(2);
 }
 
 //Runs callbacks associated with the lua object
