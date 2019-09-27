@@ -61,7 +61,7 @@ Database:query( sql )
 -- Returns [Query]
 -- Initializes a query to the database, [String] sql is the SQL query to run.
 
-Database:prepare()
+Database:prepare( sql )
 -- Returns [PreparedQuery]
 -- Creates a prepared query associated with the database
 
