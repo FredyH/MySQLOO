@@ -255,6 +255,7 @@ PreparedQuery:putNewParameters()
 -- with at least two queries.
 -- Since mysqloo works async, much of the power of transactions (such as manually rolling back a transaction) cannot be used properly, but
 -- there's still many areas they can be useful.
+-- Important note: Callbacks of individual queries that are part of the transactions are not run (both in error and successful case). Use the callbacks of the transaction instead.
 
 Transaction:addQuery(query)
 -- Adds a query to the transaction. The callbacks of the added queries will not be called.
