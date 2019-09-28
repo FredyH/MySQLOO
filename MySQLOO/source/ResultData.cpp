@@ -61,7 +61,11 @@ ResultData::ResultData(MYSQL_STMT* result) : ResultData((unsigned int)mysql_stmt
 	auto f = finally([&] { mysql_free_result(metaData); });
 	MYSQL_FIELD *fields = mysql_fetch_fields(metaData);
 	std::vector<MYSQL_BIND> binds(columnCount);
-	std::vector<my_bool> isFieldNull(columnCount);
+	//This is needed because C++ is stupid and std::vector<bool> is using bit encoding....
+	bool * isFieldNullArr = new bool[columnCount];
+	finally([&] {
+		delete[] isFieldNullArr;
+	});
 	std::vector<std::vector<char>> buffers;
 	std::vector<unsigned long> lengths(columnCount);
 	for (unsigned int i = 0; i < columnCount; i++) {
@@ -73,7 +77,7 @@ ResultData::ResultData(MYSQL_STMT* result) : ResultData((unsigned int)mysql_stmt
 		bind.buffer = buffers.back().data();
 		bind.buffer_length = fields[i].max_length + 1;
 		bind.length = &lengths[i];
-		bind.is_null = &isFieldNull[i];
+		bind.is_null = &isFieldNullArr[i];
 		bind.is_unsigned = 0;
 	}
 	mysqlStmtBindResult(result, binds.data());
