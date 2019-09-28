@@ -153,15 +153,21 @@ void LuaObjectBase::runFunction(GarrysMod::Lua::ILuaBase* LUA, int funcRef, cons
 	va_end(arguments);
 }
 
-static int BuildErrorStack(lua_State *state) {
+static int buildErrorStack(lua_State *state) {
 	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
 
 	LUA->PushSpecial(GarrysMod::Lua::SPECIAL_GLOB);
 	LUA->GetField(-1, "debug");
 	LUA->GetField(-1, "traceback");
 
-	LUA->Push(1);
-	LUA->Call(1, 1);
+	if (LUA->IsType(-1, GarrysMod::Lua::Type::FUNCTION)) {
+		LUA->Push(1);
+		LUA->Call(1, 1);
+	}
+	else {
+		LUA->Pop(3); // global, traceback
+	}
+
 
 	return 1;
 }
@@ -170,7 +176,7 @@ void LuaObjectBase::runFunctionVarList(GarrysMod::Lua::ILuaBase* LUA, int funcRe
 	if (funcRef == 0) return;
 	if (this->m_tableReference == 0) return;
 	
-	LUA->PushCFunction(BuildErrorStack);
+	LUA->PushCFunction(buildErrorStack);
 	int errorReporterIndex = LUA->Top();
 
 	LUA->ReferencePush(funcRef);
