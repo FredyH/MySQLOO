@@ -286,5 +286,6 @@ premake5 --os=macosx --file=BuildProjects.lua gmake
 premake5 --os=linux --file=BuildProjects.lua gmake
 ```
 Then building MySQLOO should be as easy as either running make (linux) or pressing the build project button in Visual Studio (windows).
+**Note**: To build MySQLOO in 64-bit, run `make config=release_x86_64`
 **Note**: On Linux you might have to install some additional libraries required in the linking process, but I personally have not experienced any such issues.
 **Note:** Mac is currently not supported since the MariaDB connector is not available on mac (at least not precompiled).
