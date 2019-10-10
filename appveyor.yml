@@ -1,0 +1,23 @@
+image: Visual Studio 2017
+
+shallow_clone: true
+
+configuration:
+  - Release
+
+platform:
+  - Win32
+  - x64
+
+install:
+  # Download Premake
+  - ps: Start-FileDownload 'https://github.com/premake/premake-core/releases/download/v5.0.0-alpha14/premake-5.0.0-alpha14-windows.zip' 'premake.zip'
+
+  # Extract it in-place; premake5.exe is at the top level.
+  - 7z x premake.zip
+
+  # Generate solution files using premake.
+  - premake5 --os=windows --file=BuildProjects.lua vs2017
+
+build:
+  project: solutions/windows-vs2017/MySQLOO.sln
