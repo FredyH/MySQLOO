@@ -113,7 +113,6 @@ int Database::queueSize(lua_State* state) {
 	Database* object = (Database*)unpackSelf(LUA, TYPE_DATABASE);
 	LUA->PushNumber(object->queryQueue.size());
 	return 1;
-
 }
 
 

@@ -63,7 +63,7 @@ ResultData::ResultData(MYSQL_STMT* result) : ResultData((unsigned int)mysql_stmt
 	std::vector<MYSQL_BIND> binds(columnCount);
 	//This is needed because C++ is stupid and std::vector<bool> is using bit encoding....
 	bool * isFieldNullArr = new bool[columnCount];
-	finally([&] {
+	auto fieldNullArrFree = finally([&] {
 		delete[] isFieldNullArr;
 	});
 	std::vector<std::vector<char>> buffers;
