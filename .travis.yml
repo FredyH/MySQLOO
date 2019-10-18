@@ -1,0 +1,27 @@
+language: cpp
+
+git:
+  depth: 1
+
+addons:
+  apt:
+    packages:
+    - g++-multilib
+
+matrix:
+  include:
+  - os: linux
+    install:
+    - wget -O premake.tar.gz "https://github.com/premake/premake-core/releases/download/v5.0.0-alpha14/premake-5.0.0-alpha14-linux.tar.gz"
+    - tar xvzf premake.tar.gz
+    - ./premake5 --os=linux --file=BuildProjects.lua gmake
+    before_script:
+    - cd solutions/linux-gmake
+    script:
+    # Compile 32-bit
+    - make
+    # Compile 64-bit
+    - make config=release_x86_64
+  # Unsupported for now
+  #- os: osx #
+  #  install: premake5 --os=macosx --file=BuildProjects.lua gmake
