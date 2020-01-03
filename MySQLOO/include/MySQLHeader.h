@@ -19,7 +19,6 @@ FinalAction<F> finally(F f) {
 #define _WINSOCKAPI_
 #include <winsock2.h>
 #include <windows.h>
-#include <my_global.h>
 #endif
 #include <mysql.h>
 

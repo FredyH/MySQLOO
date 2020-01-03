@@ -153,9 +153,32 @@ void LuaObjectBase::runFunction(GarrysMod::Lua::ILuaBase* LUA, int funcRef, cons
 	va_end(arguments);
 }
 
+static int buildErrorStack(lua_State *state) {
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+
+	LUA->PushSpecial(GarrysMod::Lua::SPECIAL_GLOB);
+	LUA->GetField(-1, "debug");
+	LUA->GetField(-1, "traceback");
+
+	if (LUA->IsType(-1, GarrysMod::Lua::Type::FUNCTION)) {
+		LUA->Push(1);
+		LUA->Call(1, 1);
+	}
+	else {
+		LUA->Pop(3); // global, traceback
+	}
+
+
+	return 1;
+}
+
 void LuaObjectBase::runFunctionVarList(GarrysMod::Lua::ILuaBase* LUA, int funcRef, const char* sig, va_list arguments) {
 	if (funcRef == 0) return;
 	if (this->m_tableReference == 0) return;
+	
+	LUA->PushCFunction(buildErrorStack);
+	int errorReporterIndex = LUA->Top();
+
 	LUA->ReferencePush(funcRef);
 	pushTableReference(LUA);
 	int numArguments = 1;
@@ -193,20 +216,23 @@ void LuaObjectBase::runFunctionVarList(GarrysMod::Lua::ILuaBase* LUA, int funcRe
 			}
 		}
 	}
-	if (LUA->PCall(numArguments, 0, 0)) {
-		const char* err = LUA->GetString(-1);
+	
+	if (LUA->PCall(numArguments, 0, errorReporterIndex)) {
 		LUA->PushSpecial(GarrysMod::Lua::SPECIAL_GLOB);
 		LUA->GetField(-1, "ErrorNoHalt");
 		//In case someone removes ErrorNoHalt this doesn't break everything
-		if (!LUA->IsType(-1, GarrysMod::Lua::Type::FUNCTION)) {
-			LUA->Pop(2);
-			return;
+		if (LUA->IsType(-1, GarrysMod::Lua::Type::FUNCTION)) {
+			LUA->Push(-3); // error
+			LUA->PushString("\n");
+			LUA->Call(2, 0);
 		}
-		LUA->PushString(err);
-		LUA->PushString("\n");
-		LUA->Call(2, 0);
-		LUA->Pop(2);
+		else
+			LUA->Pop(1); // function
+
+		LUA->Pop(2); // error, global
 	}
+
+	LUA->Pop(1); // error function
 }
 
 //Runs callbacks associated with the lua object

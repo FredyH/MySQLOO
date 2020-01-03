@@ -14,6 +14,7 @@ PreparedQuery::PreparedQuery(Database* dbase, GarrysMod::Lua::ILuaBase* LUA) : Q
 	registerFunction(LUA, "setBoolean", PreparedQuery::setBoolean);
 	registerFunction(LUA, "setNull", PreparedQuery::setNull);
 	registerFunction(LUA, "putNewParameters", PreparedQuery::putNewParameters);
+	registerFunction(LUA, "clearParameters", PreparedQuery::clearParameters);
 	this->m_parameters.push_back(std::unordered_map<unsigned int, std::shared_ptr<PreparedQueryField>>());
 	//This pointer is used to prevent the database being accessed after it was deleted
 	//when this preparedq query still owns a MYSQL_STMT*
@@ -36,6 +37,15 @@ void PreparedQuery::onDestroyed(GarrysMod::Lua::ILuaBase* LUA) {
 		}
 	}
 	IQuery::onDestroyed(LUA);
+}
+
+int PreparedQuery::clearParameters(lua_State* state) {
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	PreparedQuery* object = (PreparedQuery*)unpackSelf(LUA, TYPE_QUERY);
+	object->m_parameters.clear();
+	object->m_parameters.emplace_back();
+	return 0;
 }
 
 int PreparedQuery::setNumber(lua_State* state) {
@@ -161,7 +171,7 @@ bool PreparedQuery::mysqlStmtNextResult(MYSQL_STMT* stmt) {
 	return result == 0;
 }
 
-static my_bool nullBool = 1;
+static bool nullBool = true;
 static int trueValue = 1;
 static int falseValue = 0;
 
@@ -224,10 +234,10 @@ void PreparedQuery::generateMysqlBinds(MYSQL_BIND* binds, std::unordered_map<uns
 */
 void PreparedQuery::executeQuery(MYSQL* connection, std::shared_ptr<IQueryData> ptr) {
 	PreparedQueryData* data = (PreparedQueryData*)ptr.get();
-	my_bool oldReconnectStatus = m_database->getAutoReconnect();
+	bool oldReconnectStatus = m_database->getAutoReconnect();
 	//Autoreconnect has to be disabled for prepared statement since prepared statements
 	//get reset on the server if the connection fails and auto reconnects
-	m_database->setAutoReconnect((my_bool) 0);
+	m_database->setAutoReconnect(false);
 	auto resetReconnectStatus = finally([&] { m_database->setAutoReconnect(oldReconnectStatus); });
 	try {
 		MYSQL_STMT* stmt = nullptr;
@@ -240,7 +250,7 @@ void PreparedQuery::executeQuery(MYSQL* connection, std::shared_ptr<IQueryData> 
 			stmt = this->cachedStatement;
 		} else {
 			stmt = mysqlStmtInit(connection);
-			my_bool attrMaxLength = 1;
+			bool attrMaxLength = true;
 			mysql_stmt_attr_set(stmt, STMT_ATTR_UPDATE_MAX_LENGTH, &attrMaxLength);
 			mysqlStmtPrepare(stmt, this->m_query.c_str());
 			if (m_database->shouldCachePreparedStatements()) {
@@ -275,7 +285,7 @@ void PreparedQuery::executeQuery(MYSQL* connection, std::shared_ptr<IQueryData> 
 			//if we can get the client to reconnect (reconnect is caused by mysql_ping)
 			//If this fails we just go ahead and error
 			if (oldReconnectStatus && data->firstAttempt) {
-				m_database->setAutoReconnect((my_bool)1);
+				m_database->setAutoReconnect(true);
 				if (mysql_ping(connection) == 0) {
 					data->firstAttempt = false;
 					executeQuery(connection, ptr);

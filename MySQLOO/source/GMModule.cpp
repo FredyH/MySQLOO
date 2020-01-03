@@ -5,7 +5,7 @@
 #include <iostream>
 #include <fstream>
 #define MYSQLOO_VERSION "9"
-#define MYSQLOO_MINOR_VERSION "5"
+#define MYSQLOO_MINOR_VERSION "6"
 
 GMOD_MODULE_CLOSE() {
 	/* Deletes all the remaining luaobjects when the server changes map

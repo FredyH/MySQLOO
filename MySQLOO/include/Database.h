@@ -39,8 +39,8 @@ public:
 	void freeStatement(MYSQL_STMT* stmt);
 	void enqueueQuery(IQuery* query, std::shared_ptr<IQueryData> data);
 	void think(GarrysMod::Lua::ILuaBase*);
-	void setAutoReconnect(my_bool autoReconnect);
-	my_bool getAutoReconnect();
+	void setAutoReconnect(bool autoReconnect);
+	bool getAutoReconnect();
 	bool shouldCachePreparedStatements() {
 		return cachePreparedStatements;
 	}
@@ -72,7 +72,7 @@ private:
 	BlockingQueue<std::pair<std::shared_ptr<IQuery>, std::shared_ptr<IQueryData>>> queryQueue;
 	BlockingQueue<MYSQL_STMT*> cachedStatements;
 	BlockingQueue<MYSQL_STMT*> freedStatements;
-	MYSQL* m_sql;
+	MYSQL* m_sql = nullptr;
 	std::thread m_thread;
 	std::mutex m_connectMutex; //Mutex used during connection
 	std::mutex m_queryMutex; //Mutex that is locked while query thread operates on m_sql object
