@@ -16,7 +16,7 @@ solution "MySQLOO"
 	if os.target() == "macosx" or os.target() == "linux" then
 		buildoptions{ "-std=c++11 -fPIC" }
 		linkoptions{ "-fPIC -static-libstdc++" }
-    end
+	end
 
 	configurations { "Release" }
 	platforms { "x86", "x86_64" }
@@ -60,16 +60,16 @@ solution "MySQLOO"
 		vectorextensions "SSE"
 		floatingpoint "Fast"
 		optimize "On"
-		
+
 		defines{ "GMMODULE", "NDEBUG" }
 		files{ "MySQLOO/source/**.*", "MySQLOO/include/**.*" }
 		kind "SharedLib"
 		targetprefix ("")
 		targetextension (".dll")
 		targetdir("out/" .. os.target())
-		
+
 		if os.target() == "windows" then
 			links { "mysqlclient", "ws2_32.lib", "shlwapi.lib" }
 		elseif os.target() == "macosx" or os.target() == "linux" then
-			links { "mysqlclient" }
+			links { "mysqlclient", "pthread", "dl" }
 		end
