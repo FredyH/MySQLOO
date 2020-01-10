@@ -364,12 +364,12 @@ int Database::setCachePreparedStatements(lua_State* state) {
 //Should only be called from the db thread
 //While the mysql documentation says that mysql_options should only be called
 //before the connection is done it appears to work after just fine (at least for reconnect)
-void Database::setAutoReconnect(bool autoReconnect) {
+void Database::setAutoReconnect(my_bool autoReconnect) {
 	mysql_options(m_sql, MYSQL_OPT_RECONNECT, &autoReconnect);
 }
 
 //Should only be called from the db thread
-bool Database::getAutoReconnect() {
+my_bool Database::getAutoReconnect() {
 	return m_sql->reconnect;
 }
 
@@ -396,7 +396,7 @@ void Database::connectRun() {
 			return;
 		}
 		if (this->shouldAutoReconnect) {
-			setAutoReconnect(true);
+			setAutoReconnect((my_bool) 1);
 		}
 		const char* socket = (this->socket.length() == 0) ? nullptr : this->socket.c_str();
 		unsigned long clientFlag = (this->useMultiStatements) ? CLIENT_MULTI_STATEMENTS : 0;

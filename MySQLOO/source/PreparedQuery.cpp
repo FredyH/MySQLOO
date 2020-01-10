@@ -171,7 +171,7 @@ bool PreparedQuery::mysqlStmtNextResult(MYSQL_STMT* stmt) {
 	return result == 0;
 }
 
-static bool nullBool = true;
+static my_bool nullBool = 1;
 static int trueValue = 1;
 static int falseValue = 0;
 
@@ -234,10 +234,10 @@ void PreparedQuery::generateMysqlBinds(MYSQL_BIND* binds, std::unordered_map<uns
 */
 void PreparedQuery::executeQuery(MYSQL* connection, std::shared_ptr<IQueryData> ptr) {
 	PreparedQueryData* data = (PreparedQueryData*)ptr.get();
-	bool oldReconnectStatus = m_database->getAutoReconnect();
+	my_bool oldReconnectStatus = m_database->getAutoReconnect();
 	//Autoreconnect has to be disabled for prepared statement since prepared statements
 	//get reset on the server if the connection fails and auto reconnects
-	m_database->setAutoReconnect(false);
+	m_database->setAutoReconnect((my_bool) 0);
 	auto resetReconnectStatus = finally([&] { m_database->setAutoReconnect(oldReconnectStatus); });
 	try {
 		MYSQL_STMT* stmt = nullptr;
@@ -250,7 +250,7 @@ void PreparedQuery::executeQuery(MYSQL* connection, std::shared_ptr<IQueryData> 
 			stmt = this->cachedStatement;
 		} else {
 			stmt = mysqlStmtInit(connection);
-			bool attrMaxLength = true;
+			my_bool attrMaxLength = 1;
 			mysql_stmt_attr_set(stmt, STMT_ATTR_UPDATE_MAX_LENGTH, &attrMaxLength);
 			mysqlStmtPrepare(stmt, this->m_query.c_str());
 			if (m_database->shouldCachePreparedStatements()) {
@@ -285,7 +285,7 @@ void PreparedQuery::executeQuery(MYSQL* connection, std::shared_ptr<IQueryData> 
 			//if we can get the client to reconnect (reconnect is caused by mysql_ping)
 			//If this fails we just go ahead and error
 			if (oldReconnectStatus && data->firstAttempt) {
-				m_database->setAutoReconnect(true);
+				m_database->setAutoReconnect((my_bool) 1);
 				if (mysql_ping(connection) == 0) {
 					data->firstAttempt = false;
 					executeQuery(connection, ptr);
