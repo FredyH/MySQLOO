@@ -28,14 +28,13 @@ void PreparedQuery::onDestroyed(GarrysMod::Lua::ILuaBase* LUA) {
 	//This always runs after PreparedQuery::executeQuery() is done
 	//I am using atomic to prevent visibility issues though
 	auto ptr = this->weak_database.lock();
-	if (ptr.get() != nullptr) {
+	if (ptr.get() != nullptr && LUA != NULL) { //When the server shuts down this will be free'd by the database
 		MYSQL_STMT* stmt = this->cachedStatement;
 		if (stmt != nullptr) {
 			ptr->freeStatement(cachedStatement);
 			cachedStatement = nullptr;
 		}
 	}
-	IQuery::onDestroyed(LUA);
 }
 
 int PreparedQuery::setNumber(lua_State* state) {
