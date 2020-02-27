@@ -161,13 +161,15 @@ int Database::escape(lua_State* state) {
 	std::lock_guard<std::mutex> lock(object->m_connectMutex);
 	//No query mutex needed since this doesn't use the connection at all
 	if (!object->m_connectionDone || object->m_sql == nullptr) return 0;
-	const char* sQuery = LUA->GetString(2);
-	size_t nQueryLength = strlen(sQuery);
+
+	unsigned int nQueryLength;
+	const char* sQuery = LUA->GetString(2, &nQueryLength);
 	//escaped string can be twice as big as original string
 	//source: http://dev.mysql.com/doc/refman/5.1/en/mysql-real-escape-string.html
 	std::vector<char> escapedQuery(nQueryLength * 2 + 1);
-	mysql_real_escape_string(object->m_sql, escapedQuery.data(), sQuery, nQueryLength);
-	LUA->PushString(escapedQuery.data());
+	unsigned int nEscapedQueryLength = mysql_real_escape_string(object->m_sql, escapedQuery.data(), sQuery, nQueryLength);
+
+	LUA->PushString(escapedQuery.data(), nEscapedQueryLength);
 	return 1;
 }
 
