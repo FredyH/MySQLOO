@@ -1,66 +1,75 @@
-solution "MySQLOO"
+function os.winSdkVersion()
+	local reg_arch = iif( os.is64bit(), "\\Wow6432Node\\", "\\" )
+	local sdk_version = os.getWindowsRegistry( "HKLM:SOFTWARE" .. reg_arch .."Microsoft\\Microsoft SDKs\\Windows\\v10.0\\ProductVersion" )
+	if sdk_version ~= nil then return sdk_version end
+end
 
+solution "MySQLOO"
 	language "C++"
-	location ( "solutions/" .. os.get() .. "-" .. _ACTION )
-	flags { "Symbols", "NoEditAndContinue", "NoPCH", "EnableSSE", "NoImportLib"}
-	targetdir ( "out/" .. os.get() .. "/" )
+	location ( "solutions/" .. os.target() .. "-" .. _ACTION )
+	flags { "NoPCH", "NoImportLib"}
+	targetdir ( "out/" .. os.target() .. "/" )
 	includedirs {	"MySQLOO/include/",
 					"GmodLUA/include/",
 					"Boost/",
 					"MySQL/include/"	 }
-
-	if os.get() == "macosx" or os.get() == "linux" then
-
+	if os.target() == "macosx" or os.target() == "linux" then
 		buildoptions{ "-std=c++11 -fPIC" }
 		linkoptions{ "-fPIC -static-libstdc++" }
-
 	end
-	
-	configurations
-	{ 
-		"Release"
-	}
-	platforms
-	{
-		"x32"
-	}
-	
-	configuration "Release"
-		defines { "NDEBUG" }
-		flags{ "Optimize", "FloatFast" }
 
-		if os.get() == "windows" then
+	configurations { "Release" }
+	platforms { "x86", "x86_64" }
 
-			defines{ "WIN32" }
+	if os.target() == "windows" then
+		defines{ "WIN32" }
+	elseif os.target() == "linux" then
+		defines{ "LINUX" }
+	end
 
-		elseif os.get() == "linux" then
+	local platform
+	if os.target() == "windows" then
+		platform = "win"
+	elseif os.target() == "macosx" then
+		platform = "osx"
+	elseif os.target() == "linux" then
+		platform = "linux"
+	else
+		error "Unsupported platform."
+	end
 
-			defines{ "LINUX" }
-
+	filter "platforms:x86"
+		architecture "x86"
+		libdirs { "MySQL/lib/" .. os.target() }
+		if os.target() == "windows" then
+			targetname( "gmsv_mysqloo_" .. platform .. "32")
+		else
+			targetname( "gmsv_mysqloo_" .. platform)
 		end
+	filter "platforms:x86_64"
+		architecture "x86_64"		
+		libdirs { "MySQL/lib64/" .. os.target() }
+		targetname( "gmsv_mysqloo_" .. platform .. "64")
+	filter {"system:windows", "action:vs*"}
+		systemversion((os.winSdkVersion() or "10.0.16299") .. ".0")
+		toolset "v141"
+
 	project "MySQLOO"
-		defines{ "GMMODULE" }
+		symbols "On"
+		editandcontinue "Off"
+		vectorextensions "SSE"
+		floatingpoint "Fast"
+		optimize "On"
+
+		defines{ "GMMODULE", "NDEBUG" }
 		files{ "MySQLOO/source/**.*", "MySQLOO/include/**.*" }
 		kind "SharedLib"
-		libdirs { "MySQL/lib/" .. os.get() }
-		local platform
-		if os.get() == "windows" then
-			platform = "win32"
-		elseif os.get() == "macosx" then
-			platform = "osx"
-		elseif os.get() == "linux" then
-			platform = "linux"
-		else
-			error "Unsupported platform."
-		end
-		targetname( "gmsv_mysqloo_" .. platform)
 		targetprefix ("")
 		targetextension (".dll")
-		targetdir("out/" .. os.get())
-		
-		if os.get() == "windows" then
-			links { "libmysql" }
-		elseif os.get() == "macosx" or os.get() == "linux" then
-			links { "mysqlclient" }
+		targetdir("out/" .. os.target())
+
+		if os.target() == "windows" then
+			links { "mysqlclient", "ws2_32.lib", "shlwapi.lib" }
+		elseif os.target() == "macosx" or os.target() == "linux" then
+			links { "mysqlclient", "pthread", "dl" }
 		end
-		

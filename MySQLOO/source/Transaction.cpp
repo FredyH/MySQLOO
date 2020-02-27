@@ -112,7 +112,7 @@ bool Transaction::executeStatement(MYSQL* connection, std::shared_ptr<IQueryData
 	//Which could lead to parts of the transaction being executed outside of a transaction
 	//If they are being executed after the reconnect
 	my_bool oldReconnectStatus = m_database->getAutoReconnect();
-	m_database->setAutoReconnect((my_bool)0);
+	m_database->setAutoReconnect((my_bool) 0);
 	auto resetReconnectStatus = finally([&] { m_database->setAutoReconnect(oldReconnectStatus); });
 	try {
 		this->mysqlAutocommit(connection, false);
@@ -143,7 +143,7 @@ bool Transaction::executeStatement(MYSQL* connection, std::shared_ptr<IQueryData
 				//Because autoreconnect is disabled we want to try and explicitly execute the transaction once more
 				//if we can get the client to reconnect (reconnect is caused by mysql_ping)
 				//If this fails we just go ahead and error
-				m_database->setAutoReconnect((my_bool)1);
+				m_database->setAutoReconnect((my_bool) 1);
 				if (mysql_ping(connection) == 0) {
 					data->retried = true;
 					return executeStatement(connection, ptr);

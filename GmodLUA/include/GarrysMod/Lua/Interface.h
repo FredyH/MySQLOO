@@ -5,7 +5,28 @@
 
 struct lua_State
 {
-    unsigned char             _ignore_this_common_lua_header_[69];
+#if defined( _WIN32 ) && !defined( _M_X64 )
+    // Win32
+    unsigned char _ignore_this_common_lua_header_[48 + 22];
+#elif defined( _WIN32 ) && defined( _M_X64 )
+    // Win64
+    unsigned char _ignore_this_common_lua_header_[92 + 22];
+#elif defined( __linux__ ) && !defined( __x86_64__ )
+    // Linux32
+    unsigned char _ignore_this_common_lua_header_[48 + 22];
+#elif defined( __linux__ ) && defined( __x86_64__ )
+    // Linux64
+    unsigned char _ignore_this_common_lua_header_[92 + 22];
+#elif defined ( __APPLE__ ) && !defined( __x86_64__ )
+    // macOS32
+    unsigned char _ignore_this_common_lua_header_[48 + 22];
+#elif defined ( __APPLE__ ) && defined( __x86_64__ )
+    // macOS64
+    unsigned char _ignore_this_common_lua_header_[92 + 22];
+#else
+    #error agh
+#endif
+
     GarrysMod::Lua::ILuaBase* luabase;
 };
 

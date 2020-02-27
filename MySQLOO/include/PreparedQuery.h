@@ -42,6 +42,7 @@ protected:
 	void executeQuery(MYSQL* m_sql, std::shared_ptr<IQueryData> data);
 private:
 	std::deque<std::unordered_map<unsigned int, std::shared_ptr<PreparedQueryField>>> m_parameters;
+	static int clearParameters(lua_State* state);
 	static int setNumber(lua_State* state);
 	static int setString(lua_State* state);
 	static int setBoolean(lua_State* state);

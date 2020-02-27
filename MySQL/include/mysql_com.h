@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,12 +19,17 @@
 
 #ifndef _mysql_com_h
 #define _mysql_com_h
-
+#include "binary_log_types.h"
+#include "my_command.h"
 #define HOSTNAME_LENGTH 60
 #define SYSTEM_CHARSET_MBMAXLEN 3
+#define FILENAME_CHARSET_MBMAXLEN 5
 #define NAME_CHAR_LEN	64              /* Field/table name length */
-#define USERNAME_CHAR_LENGTH 16
+#define USERNAME_CHAR_LENGTH 32
+#define USERNAME_CHAR_LENGTH_STR "32"
+#ifndef NAME_LEN
 #define NAME_LEN                (NAME_CHAR_LEN*SYSTEM_CHARSET_MBMAXLEN)
+#endif
 #define USERNAME_LENGTH         (USERNAME_CHAR_LENGTH*SYSTEM_CHARSET_MBMAXLEN)
 
 #define MYSQL_AUTODETECT_CHARSET_NAME "auto"
@@ -40,6 +45,14 @@
 #define COLUMN_COMMENT_MAXLEN 1024
 #define INDEX_COMMENT_MAXLEN 1024
 #define TABLE_PARTITION_COMMENT_MAXLEN 1024
+
+/*
+  Maximum length of protocol packet.
+  OK packet length limit also restricted to this value as any length greater
+  than this value will have first byte of OK packet to be 254 thus does not
+  provide a means to identify if this is OK or EOF packet.
+*/
+#define MAX_PACKET_LENGTH (256L*256L*256L-1)
 
 /*
   USER_HOST_BUFF_SIZE -- length of string buffer, that is enough to contain
@@ -58,37 +71,20 @@
 #define MYSQL_SERVICENAME "MySQL"
 #endif /* _WIN32 */
 
+/* The length of the header part for each generated column in the .frm file. */
+#define FRM_GCOL_HEADER_SIZE 4
 /*
-  You should add new commands to the end of this list, otherwise old
-  servers won't be able to handle them as 'unsupported'.
+  Maximum length of the expression statement defined for generated columns.
 */
-
-enum enum_server_command
-{
-  COM_SLEEP, COM_QUIT, COM_INIT_DB, COM_QUERY, COM_FIELD_LIST,
-  COM_CREATE_DB, COM_DROP_DB, COM_REFRESH, COM_SHUTDOWN, COM_STATISTICS,
-  COM_PROCESS_INFO, COM_CONNECT, COM_PROCESS_KILL, COM_DEBUG, COM_PING,
-  COM_TIME, COM_DELAYED_INSERT, COM_CHANGE_USER, COM_BINLOG_DUMP,
-  COM_TABLE_DUMP, COM_CONNECT_OUT, COM_REGISTER_SLAVE,
-  COM_STMT_PREPARE, COM_STMT_EXECUTE, COM_STMT_SEND_LONG_DATA, COM_STMT_CLOSE,
-  COM_STMT_RESET, COM_SET_OPTION, COM_STMT_FETCH, COM_DAEMON,
-  COM_BINLOG_DUMP_GTID, COM_RESET_CONNECTION,
-  /* don't forget to update const char *command_name[] in sql_parse.cc */
-
-  /* Must be last */
-  COM_END
-};
-
-
+#define GENERATED_COLUMN_EXPRESSION_MAXLEN 65535 - FRM_GCOL_HEADER_SIZE
 /*
   Length of random string sent by server on handshake; this is also length of
-  obfuscated password, recieved from client
+  obfuscated password, received from client
 */
 #define SCRAMBLE_LENGTH 20
-#define SCRAMBLE_LENGTH_323 8
+#define AUTH_PLUGIN_DATA_PART_1_LENGTH 8
 /* length of password stored in the db: new passwords are preceeded with '*' */
 #define SCRAMBLED_PASSWORD_CHAR_LENGTH (SCRAMBLE_LENGTH*2+1)
-#define SCRAMBLED_PASSWORD_CHAR_LENGTH_323 (SCRAMBLE_LENGTH_323*2)
 
 
 #define NOT_NULL_FLAG	1		/* Field can't be NULL */
@@ -155,6 +151,7 @@ enum enum_server_command
 #define REFRESH_DES_KEY_FILE	0x40000L
 #define REFRESH_USER_RESOURCES	0x80000L
 #define REFRESH_FOR_EXPORT      0x100000L /* FLUSH TABLES ... FOR EXPORT */
+#define REFRESH_OPTIMIZER_COSTS 0x200000L /* FLUSH OPTIMIZER_COSTS */
 
 #define CLIENT_LONG_PASSWORD	1	/* new more secure passwords */
 #define CLIENT_FOUND_ROWS	2	/* Found instead of affected rows */
@@ -171,7 +168,7 @@ enum enum_server_command
 #define CLIENT_IGNORE_SIGPIPE   4096    /* IGNORE sigpipes */
 #define CLIENT_TRANSACTIONS	8192	/* Client knows about transactions */
 #define CLIENT_RESERVED         16384   /* Old flag for 4.1 protocol  */
-#define CLIENT_SECURE_CONNECTION 32768  /* New 4.1 authentication */
+#define CLIENT_RESERVED2        32768   /* Old flag for 4.1 authentication */
 #define CLIENT_MULTI_STATEMENTS (1UL << 16) /* Enable/disable multi-stmt support */
 #define CLIENT_MULTI_RESULTS    (1UL << 17) /* Enable/disable multi-results */
 #define CLIENT_PS_MULTI_RESULTS (1UL << 18) /* Multi-results in PS-protocol */
@@ -190,6 +187,8 @@ enum enum_server_command
   server to include the state change information in Ok packet.
 */
 #define CLIENT_SESSION_TRACK (1UL << 23)
+/* Client no longer needs EOF packet */
+#define CLIENT_DEPRECATE_EOF (1UL << 24)
 
 #define CLIENT_SSL_VERIFY_SERVER_CERT (1UL << 30)
 #define CLIENT_REMEMBER_OPTIONS (1UL << 31)
@@ -216,7 +215,7 @@ enum enum_server_command
                            | CLIENT_IGNORE_SIGPIPE \
                            | CLIENT_TRANSACTIONS \
                            | CLIENT_RESERVED \
-                           | CLIENT_SECURE_CONNECTION \
+                           | CLIENT_RESERVED2 \
                            | CLIENT_MULTI_STATEMENTS \
                            | CLIENT_MULTI_RESULTS \
                            | CLIENT_PS_MULTI_RESULTS \
@@ -227,6 +226,7 @@ enum enum_server_command
                            | CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA \
                            | CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS \
                            | CLIENT_SESSION_TRACK \
+                           | CLIENT_DEPRECATE_EOF \
 )
 
 /*
@@ -378,32 +378,6 @@ typedef struct st_net {
 
 
 #define packet_error (~(unsigned long) 0)
-
-enum enum_field_types { MYSQL_TYPE_DECIMAL, MYSQL_TYPE_TINY,
-			MYSQL_TYPE_SHORT,  MYSQL_TYPE_LONG,
-			MYSQL_TYPE_FLOAT,  MYSQL_TYPE_DOUBLE,
-			MYSQL_TYPE_NULL,   MYSQL_TYPE_TIMESTAMP,
-			MYSQL_TYPE_LONGLONG,MYSQL_TYPE_INT24,
-			MYSQL_TYPE_DATE,   MYSQL_TYPE_TIME,
-			MYSQL_TYPE_DATETIME, MYSQL_TYPE_YEAR,
-			MYSQL_TYPE_NEWDATE, MYSQL_TYPE_VARCHAR,
-			MYSQL_TYPE_BIT,
-			MYSQL_TYPE_TIMESTAMP2,
-			MYSQL_TYPE_DATETIME2,
-			MYSQL_TYPE_TIME2,
-                        MYSQL_TYPE_NEWDECIMAL=246,
-			MYSQL_TYPE_ENUM=247,
-			MYSQL_TYPE_SET=248,
-			MYSQL_TYPE_TINY_BLOB=249,
-			MYSQL_TYPE_MEDIUM_BLOB=250,
-			MYSQL_TYPE_LONG_BLOB=251,
-			MYSQL_TYPE_BLOB=252,
-			MYSQL_TYPE_VAR_STRING=253,
-			MYSQL_TYPE_STRING=254,
-			MYSQL_TYPE_GEOMETRY=255
-
-};
-
 /* For backward compatibility */
 #define CLIENT_MULTI_QUERIES    CLIENT_MULTI_STATEMENTS    
 #define FIELD_TYPE_DECIMAL     MYSQL_TYPE_DECIMAL
@@ -462,9 +436,7 @@ enum mysql_enum_shutdown_level {
   /* don't flush InnoDB buffers, flush other storage engines' buffers*/
   SHUTDOWN_WAIT_CRITICAL_BUFFERS= (MYSQL_SHUTDOWN_KILLABLE_UPDATE << 1) + 1,
   /* Now the 2 levels of the KILL command */
-#if MYSQL_VERSION_ID >= 50000
   KILL_QUERY= 254,
-#endif
   KILL_CONNECTION= 255
 };
 
@@ -496,12 +468,18 @@ enum enum_session_state_type
 {
   SESSION_TRACK_SYSTEM_VARIABLES,                       /* Session system variables */
   SESSION_TRACK_SCHEMA,                          /* Current schema */
-  SESSION_TRACK_STATE_CHANGE                  /* track session state changes */
+  SESSION_TRACK_STATE_CHANGE,                  /* track session state changes */
+  SESSION_TRACK_GTIDS,
+  SESSION_TRACK_TRANSACTION_CHARACTERISTICS,  /* Transaction chistics */
+  SESSION_TRACK_TRANSACTION_STATE             /* Transaction state */
 };
 
 #define SESSION_TRACK_BEGIN SESSION_TRACK_SYSTEM_VARIABLES
 
-#define SESSION_TRACK_END SESSION_TRACK_STATE_CHANGE
+#define SESSION_TRACK_END SESSION_TRACK_TRANSACTION_STATE
+
+#define IS_SESSION_STATE_TYPE(T) \
+  (((int)(T) >= SESSION_TRACK_BEGIN) && ((T) <= SESSION_TRACK_END))
 
 #define net_new_transaction(net) ((net)->pkt_nr=0)
 
@@ -513,6 +491,7 @@ my_bool	my_net_init(NET *net, Vio* vio);
 void my_net_local_init(NET *net);
 void net_end(NET *net);
 void net_clear(NET *net, my_bool check_buffer);
+void net_claim_memory_ownership(NET *net);
 my_bool net_realloc(NET *net, size_t length);
 my_bool	net_flush(NET *net);
 my_bool	my_net_write(NET *net,const unsigned char *packet, size_t len);

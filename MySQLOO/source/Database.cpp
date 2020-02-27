@@ -113,7 +113,6 @@ int Database::queueSize(lua_State* state) {
 	Database* object = (Database*)unpackSelf(LUA, TYPE_DATABASE);
 	LUA->PushNumber(object->queryQueue.size());
 	return 1;
-
 }
 
 
@@ -131,8 +130,7 @@ int Database::abortAllQueries(lua_State* state) {
 		data->setStatus(QUERY_ABORTED);
 		query->onQueryDataFinished(LUA, data);
 	}
-	LUA->PushNumber((double)object->queryQueue.size());
-	object->queryQueue.clear();
+	LUA->PushNumber((double) canceledQueries.size());
 	return 1;
 }
 
@@ -160,7 +158,7 @@ int Database::escape(lua_State* state) {
 	LUA->SetState(state);
 	Database* object = (Database*)unpackSelf(LUA, TYPE_DATABASE);
 	LUA->CheckType(2, GarrysMod::Lua::Type::STRING);
-	std::lock_guard<std::mutex>(object->m_connectMutex);
+	std::lock_guard<std::mutex> lock(object->m_connectMutex);
 	//No query mutex needed since this doesn't use the connection at all
 	if (!object->m_connectionDone || object->m_sql == nullptr) return 0;
 	const char* sQuery = LUA->GetString(2);
@@ -388,7 +386,7 @@ void Database::connectRun() {
 	});
 	{
 		auto connectionSignaliser = finally([&] { m_connectWakeupVariable.notify_one(); });
-		std::lock_guard<std::mutex>(this->m_connectMutex);
+		std::lock_guard<std::mutex> lock(this->m_connectMutex);
 		this->m_sql = mysql_init(nullptr);
 		if (this->m_sql == nullptr) {
 			m_success = false;
@@ -398,7 +396,7 @@ void Database::connectRun() {
 			return;
 		}
 		if (this->shouldAutoReconnect) {
-			setAutoReconnect((my_bool)1);
+			setAutoReconnect((my_bool) 1);
 		}
 		const char* socket = (this->socket.length() == 0) ? nullptr : this->socket.c_str();
 		unsigned long clientFlag = (this->useMultiStatements) ? CLIENT_MULTI_STATEMENTS : 0;

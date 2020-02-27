@@ -59,7 +59,7 @@ ResultData::ResultData(MYSQL_STMT* result) : ResultData((unsigned int)mysql_stmt
 	MYSQL_RES * metaData = mysql_stmt_result_metadata(result);
 	if (metaData == nullptr) { throw std::runtime_error("mysql_stmt_result_metadata: Unknown Error"); }
 	auto f = finally([&] { mysql_free_result(metaData); });
-	MYSQL_FIELD *fields = mysql_fetch_fields(metaData);
+	MYSQL_FIELD* fields = mysql_fetch_fields(metaData);
 	std::vector<MYSQL_BIND> binds(columnCount);
 	std::vector<my_bool> isFieldNull(columnCount);
 	std::vector<std::vector<char>> buffers;
