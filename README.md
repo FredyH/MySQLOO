@@ -10,6 +10,8 @@ For further information please [visit this forum thread](https://forum.facepunch
 There are prebuilt binaries available for [Linux and Windows](https://github.com/syl0r/MySQLOO/releases) (both 32 and 64 bit).
 They have to be placed within your garrysmod/lua/bin/ folder (create the bin folder if it does not exist).
 
+On Windows, vcredist 2008 (and maybe some more) are required for the library to load correctly.
+
 **Note**: Previously you were requried to place libmysqlclient.dll besides your srcds executable. This is not required anymore since MySQLOO now links statically against libmysqlclient.
 
 
