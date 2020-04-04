@@ -10,7 +10,7 @@ For further information please [visit this forum thread](https://forum.facepunch
 There are prebuilt binaries available for [Linux and Windows](https://github.com/syl0r/MySQLOO/releases) (both 32 and 64 bit).
 They have to be placed within your garrysmod/lua/bin/ folder (create the bin folder if it does not exist).
 
-On Windows, vcredist 2008 (and maybe some more) are required for the library to load correctly.
+On Windows, vcredist 2019 (possibly also 2008 and others) are required for the library to load correctly.
 
 **Note**: Previously you were requried to place libmysqlclient.dll besides your srcds executable. This is not required anymore since MySQLOO now links statically against libmysqlclient.
 
@@ -31,7 +31,6 @@ mysqloo.VERSION -- [String] Current MySQLOO version (currently "9")
 mysqloo.MINOR_VERSION -- [String] minor version of this library
 
 mysqloo.DATABASE_CONNECTED -- [Number] - Database is connected
-mysqloo.DATABASE_CONNECTING -- [Number] - Datbase is connecting
 mysqloo.DATABASE_NOT_CONNECTED -- [Number] - Database is not connected
 mysqloo.DATABASE_INTERNAL_ERROR -- [Number] - Internal error
 
