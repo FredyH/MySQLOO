@@ -17,7 +17,7 @@ Download the latest module for your server's operating system and architecture u
 ### Notes
 * If you're unsure of your server's operating system and architecture, type `lua_run print(jit.os, jit.arch)` into the server's console to find out. The output will be something similar to `Windows x86` (x86 is 32-bit, x64 is 64-bit).
 * If your server is using Windows, you will need to install vcredist 2019, possibly 2008 and others for the module to load correctly.
-* Previously you were requried to place libmysqlclient.dll besides your srcds executable. This is not required anymore since MySQLOO now links statically against libmysqlclient.
+* Previously you were required to place libmysqlclient.dll besides your srcds executable. This is not required anymore since MySQLOO now links statically against libmysqlclient.
 
 # Documentation
 
