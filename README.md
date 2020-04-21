@@ -6,15 +6,18 @@ The module also fixed the memory leak issues the previous versions of MySQLOO ha
 
 For further information please [visit this forum thread](https://forum.facepunch.com/f/gmodaddon/jjdq/gmsv-mysqloo-v9-Rewritten-MySQL-Module-prepared-statements-transactions/1/).
 
-# Install instructions:
-There are prebuilt binaries available for [Linux and Windows](https://github.com/syl0r/MySQLOO/releases) (both 32 and 64 bit).
-They have to be placed within your garrysmod/lua/bin/ folder (create the bin folder if it does not exist).
+# Install instructions
+Download the latest module for your server's operating system and architecture using the links provided below, then place that file within the `garrysmod/lua/bin/` folder on your server. If the `bin` folder doesn't exist, please create it.
 
-On Windows, vcredist 2019 (possibly also 2008 and others) are required for the library to load correctly.
+* [Windows (32-bit)](https://github.com/FredyH/MySQLOO/releases/latest/download/gmsv_mysqloo_win32.dll)
+* [Windows (64-bit)](https://github.com/FredyH/MySQLOO/releases/latest/download/gmsv_mysqloo_win64.dll)
+* [Linux (32-bit)](https://github.com/FredyH/MySQLOO/releases/latest/download/gmsv_mysqloo_linux.dll)
+* [Linux (64-bit)](https://github.com/FredyH/MySQLOO/releases/latest/download/gmsv_mysqloo_linux64.dll)
 
-**Note**: Previously you were requried to place libmysqlclient.dll besides your srcds executable. This is not required anymore since MySQLOO now links statically against libmysqlclient.
-
-
+### Notes
+* If you're unsure of your server's operating system and architecture, type `lua_run print(jit.os, jit.arch)` into the server's console to find out. The output will be something similar to `Windows x86` (x86 is 32-bit, x64 is 64-bit).
+* If your server is using Windows, you will need to install vcredist 2019, possibly 2008 and others for the module to load correctly.
+* Previously you were requried to place libmysqlclient.dll besides your srcds executable. This is not required anymore since MySQLOO now links statically against libmysqlclient.
 
 # Documentation
 
