@@ -131,27 +131,25 @@ static int doVersionCheck(lua_State* state) {
 
 	// Check if the reference to the ConVar object is set
 	if (iVersionCheckConVar != NULL) {
-		LUA->PushSpecial(GarrysMod::Lua::SPECIAL_GLOB); // Push the global table
-			// Retrieve the value of the ConVar
-			LUA->ReferencePush(iVersionCheckConVar); // Push the ConVar object
-			LUA->GetField(-1, "GetInt"); // Push the name of the function
-			LUA->ReferencePush(iVersionCheckConVar); // Push the ConVar object as the first self argument
-			LUA->Call(1, 1); // Call with 1 argument and 1 return
-			int iVersionCheckEnabled = (int)LUA->GetNumber(-1); // Retrieve the returned value
+		// Retrieve the value of the ConVar
+		LUA->ReferencePush(iVersionCheckConVar); // Push the ConVar object
+		LUA->GetField(-1, "GetInt"); // Push the name of the function
+		LUA->ReferencePush(iVersionCheckConVar); // Push the ConVar object as the first self argument
+		LUA->Call(1, 1); // Call with 1 argument and 1 return
+		int iVersionCheckEnabled = (int)LUA->GetNumber(-1); // Retrieve the returned value
 
-			// Check if the version check convar is set to 1
-			if (iVersionCheckEnabled == 1) {
-				// Execute the HTTP request
-				LUA->PushSpecial(GarrysMod::Lua::SPECIAL_GLOB);
-				LUA->GetField(-1, "http");
-				LUA->GetField(-1, "Fetch");
-				LUA->PushString("https://raw.githubusercontent.com/FredyH/MySQLOO/master/minorversion.txt");
-				LUA->PushCFunction(fetchSuccessful);
-				LUA->PushCFunction(fetchFailed);
-				LUA->Call(3, 0);
-				LUA->Pop(2);
-			}
-		LUA->Pop(); // Pop the global table
+		// Check if the version check convar is set to 1
+		if (iVersionCheckEnabled == 1) {
+			// Execute the HTTP request
+			LUA->PushSpecial(GarrysMod::Lua::SPECIAL_GLOB);
+			LUA->GetField(-1, "http");
+			LUA->GetField(-1, "Fetch");
+			LUA->PushString("https://raw.githubusercontent.com/FredyH/MySQLOO/master/minorversion.txt");
+			LUA->PushCFunction(fetchSuccessful);
+			LUA->PushCFunction(fetchFailed);
+			LUA->Call(3, 0);
+			LUA->Pop(2);
+		}
 	}
 
 	return 0;
