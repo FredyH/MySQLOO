@@ -11,6 +11,9 @@
 int iVersionCheckConVar = NULL;
 
 GMOD_MODULE_CLOSE() {
+	// Free the version check ConVar object reference
+	LUA->ReferenceFree(iVersionCheckConVar);
+
 	/* Deletes all the remaining luaobjects when the server changes map
 	 */
 	for (auto query : LuaObjectBase::luaRemovalObjects) {
@@ -148,9 +151,6 @@ static int doVersionCheck(lua_State* state) {
 				LUA->Call(3, 0);
 				LUA->Pop(2);
 			}
-
-			// Free the version check ConVar object reference
-			LUA->ReferenceFree(iVersionCheckConVar);
 		LUA->Pop(); // Pop the global table
 	}
 
