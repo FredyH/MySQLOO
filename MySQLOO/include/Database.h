@@ -39,8 +39,8 @@ public:
 	void freeStatement(MYSQL_STMT* stmt);
 	void enqueueQuery(IQuery* query, std::shared_ptr<IQueryData> data);
 	void think(GarrysMod::Lua::ILuaBase*);
-	void setAutoReconnect(my_bool autoReconnect);
-	my_bool getAutoReconnect();
+	void setAutoReconnect(bool autoReconnect);
+	bool getAutoReconnect();
 	bool shouldCachePreparedStatements() {
 		return cachePreparedStatements;
 	}
