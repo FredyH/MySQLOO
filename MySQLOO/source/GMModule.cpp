@@ -8,11 +8,11 @@
 #define MYSQLOO_MINOR_VERSION "6"
 
 // Variable to hold the reference to the version check ConVar object
-int iVersionCheckConVar = NULL;
+int versionCheckConVar = NULL;
 
 GMOD_MODULE_CLOSE() {
 	// Free the version check ConVar object reference
-	LUA->ReferenceFree(iVersionCheckConVar);
+	LUA->ReferenceFree(versionCheckConVar);
 
 	/* Deletes all the remaining luaobjects when the server changes map
 	 */
@@ -130,16 +130,16 @@ static int doVersionCheck(lua_State* state) {
 	LUA->SetState(state);
 
 	// Check if the reference to the ConVar object is set
-	if (iVersionCheckConVar != NULL) {
+	if (versionCheckConVar != NULL) {
 		// Retrieve the value of the ConVar
-		LUA->ReferencePush(iVersionCheckConVar); // Push the ConVar object
+		LUA->ReferencePush(versionCheckConVar); // Push the ConVar object
 		LUA->GetField(-1, "GetInt"); // Push the name of the function
-		LUA->ReferencePush(iVersionCheckConVar); // Push the ConVar object as the first self argument
+		LUA->ReferencePush(versionCheckConVar); // Push the ConVar object as the first self argument
 		LUA->Call(1, 1); // Call with 1 argument and 1 return
-		int iVersionCheckEnabled = (int)LUA->GetNumber(-1); // Retrieve the returned value
+		int versionCheckEnabled = (int)LUA->GetNumber(-1); // Retrieve the returned value
 
 		// Check if the version check convar is set to 1
-		if (iVersionCheckEnabled == 1) {
+		if (versionCheckEnabled == 1) {
 			// Execute the HTTP request
 			LUA->PushSpecial(GarrysMod::Lua::SPECIAL_GLOB);
 			LUA->GetField(-1, "http");
@@ -207,7 +207,7 @@ GMOD_MODULE_OPEN() {
 		LUA->PushNumber(0); // Min value
 		LUA->PushNumber(1); // Max value
 		LUA->Call(6, 1); // Call with 6 arguments and 1 result
-		iVersionCheckConVar = LUA->ReferenceCreate(); // Store the created ConVar object as a global variable
+		versionCheckConVar = LUA->ReferenceCreate(); // Store the created ConVar object as a global variable
 	LUA->Pop(); // Pop the global table
 
 	runInTimer(LUA, 5, doVersionCheck);
