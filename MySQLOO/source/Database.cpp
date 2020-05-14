@@ -30,6 +30,7 @@ Database::Database(GarrysMod::Lua::ILuaBase* LUA, std::string host, std::string 
 	registerFunction(LUA, "setMultiStatements", Database::setMultiStatements);
 	registerFunction(LUA, "ping", Database::ping);
 	registerFunction(LUA, "disconnect", Database::disconnect);
+	registerFunction(LUA, "setSSLSettings", Database::setSSLSettings);
 }
 
 Database::~Database() {
@@ -214,6 +215,53 @@ int Database::connect(lua_State* state) {
 	return 0;
 }
 
+void SSLSettings::applySSLSettings(MYSQL* m_sql) {
+	if (this->key != "") {
+		mysql_options(m_sql, MYSQL_OPT_SSL_KEY, this->key.c_str());
+	}
+	if (this->cert != "") {
+		mysql_options(m_sql, MYSQL_OPT_SSL_CERT, this->cert.c_str());
+	}
+	if (this->ca != "") {
+		mysql_options(m_sql, MYSQL_OPT_SSL_CA, this->ca.c_str());
+	}
+	if (this->capath != "") {
+		mysql_options(m_sql, MYSQL_OPT_SSL_CAPATH, this->capath.c_str());
+	}
+	if (this->cipher != "") {
+		mysql_options(m_sql, MYSQL_OPT_SSL_CIPHER, this->cipher.c_str());
+	}
+}
+
+/* Manually sets the instances SSL settings to use a custom SSL key, certificate, CA, CAPath, cipher, etc.
+ * This has to be called before connecting to the database.
+ */
+int Database::setSSLSettings(lua_State* state) {
+	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
+	LUA->SetState(state);
+	Database* object = (Database*)unpackSelf(LUA, TYPE_DATABASE);
+	if (object->m_status != DATABASE_NOT_CONNECTED) {
+		LUA->ThrowError("Cannot set SSL settings after connecting!");
+	}
+	if (LUA->IsType(2, GarrysMod::Lua::Type::STRING)) {
+		object->customSSLSettings.key = LUA->GetString(2);
+	}
+	if (LUA->IsType(3, GarrysMod::Lua::Type::STRING)) {
+		object->customSSLSettings.cert = LUA->GetString(3);
+	}
+	if (LUA->IsType(4, GarrysMod::Lua::Type::STRING)) {
+		object->customSSLSettings.ca = LUA->GetString(4);
+	}
+	if (LUA->IsType(5, GarrysMod::Lua::Type::STRING)) {
+		object->customSSLSettings.capath = LUA->GetString(5);
+	}
+	if (LUA->IsType(6, GarrysMod::Lua::Type::STRING)) {
+		object->customSSLSettings.cipher = LUA->GetString(6);
+	}
+	return 0;
+}
+
+
 void Database::shutdown() {
 	//This acts as a poison pill
 	this->queryQueue.put(std::make_pair(std::shared_ptr<IQuery>(), std::shared_ptr<IQueryData>()));
@@ -397,6 +445,7 @@ void Database::connectRun() {
 			m_status = DATABASE_CONNECTION_FAILED;
 			return;
 		}
+		this->customSSLSettings.applySSLSettings(this->m_sql);
 		if (this->shouldAutoReconnect) {
 			setAutoReconnect(true);
 		}

@@ -15,6 +15,17 @@
 #include "Query.h"
 #include "IQuery.h"
 
+class SSLSettings {
+public:
+	bool customSSLSettings = false;
+	std::string key = "";
+	std::string cert = "";
+	std::string ca = "";
+	std::string capath = "";
+	std::string cipher = "";
+	void applySSLSettings(MYSQL* m_sql);
+};
+
 class DatabaseThread;
 class ConnectThread;
 enum DatabaseStatus {
@@ -68,6 +79,7 @@ private:
 	static int ping(lua_State* state);
 	static int setCachePreparedStatements(lua_State* state);
 	static int disconnect(lua_State* state);
+	static int setSSLSettings(lua_State* state);
 	BlockingQueue<std::pair<std::shared_ptr<IQuery>, std::shared_ptr<IQueryData>>> finishedQueries;
 	BlockingQueue<std::pair<std::shared_ptr<IQuery>, std::shared_ptr<IQueryData>>> queryQueue;
 	BlockingQueue<MYSQL_STMT*> cachedStatements;
@@ -97,5 +109,6 @@ private:
 	std::string pw = "";
 	std::string socket = "";
 	unsigned int port;
+	SSLSettings customSSLSettings { };
 };
 #endif
