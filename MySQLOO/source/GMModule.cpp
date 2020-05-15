@@ -7,7 +7,12 @@
 #define MYSQLOO_VERSION "9"
 #define MYSQLOO_MINOR_VERSION "6"
 
+int versionCheckConVar = NULL;
+
 GMOD_MODULE_CLOSE() {
+	// Free the version check ConVar object reference
+	LUA->ReferenceFree(versionCheckConVar);
+
 	/* Deletes all the remaining luaobjects when the server changes map
 	 */
 	for (auto query : LuaObjectBase::luaRemovalObjects) {
@@ -121,15 +126,30 @@ static int fetchFailed(lua_State* state) {
 
 static int doVersionCheck(lua_State* state) {
 	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
-	LUA->SetState(state);
-	LUA->PushSpecial(GarrysMod::Lua::SPECIAL_GLOB);
-	LUA->GetField(-1, "http");
-	LUA->GetField(-1, "Fetch");
-	LUA->PushString("https://raw.githubusercontent.com/FredyH/MySQLOO/master/minorversion.txt");
-	LUA->PushCFunction(fetchSuccessful);
-	LUA->PushCFunction(fetchFailed);
-	LUA->Call(3, 0);
-	LUA->Pop(2);
+	
+	// Check if the reference to the ConVar object is set
+	if (versionCheckConVar != NULL) {
+		// Retrieve the value of the ConVar
+		LUA->ReferencePush(versionCheckConVar); // Push the ConVar object
+		LUA->GetField(-1, "GetInt"); // Push the name of the function
+		LUA->ReferencePush(versionCheckConVar); // Push the ConVar object as the first self argument
+		LUA->Call(1, 1); // Call with 1 argument and 1 return
+		int versionCheckEnabled = (int)LUA->GetNumber(-1); // Retrieve the returned value
+
+		// Check if the version check convar is set to 1
+		if (versionCheckEnabled == 1) {
+			// Execute the HTTP request
+			LUA->PushSpecial(GarrysMod::Lua::SPECIAL_GLOB);
+			LUA->GetField(-1, "http");
+			LUA->GetField(-1, "Fetch");
+			LUA->PushString("https://raw.githubusercontent.com/FredyH/MySQLOO/master/minorversion.txt");
+			LUA->PushCFunction(fetchSuccessful);
+			LUA->PushCFunction(fetchFailed);
+			LUA->Call(3, 0);
+			LUA->Pop(2);
+		}
+	}
+
 	return 0;
 }
 
@@ -174,6 +194,20 @@ GMOD_MODULE_OPEN() {
 
 	LUA->SetField(-2, "mysqloo");
 	LUA->Pop();
+
+	LUA->PushSpecial(GarrysMod::Lua::SPECIAL_GLOB); // Push the global table
+		// Create the version check ConVar
+		LUA->GetField(-1, "CreateConVar");
+		LUA->PushString("sv_mysqloo_versioncheck"); // Name
+		LUA->PushString("1"); // Default value
+		LUA->PushNumber(128); // FCVAR flags
+		LUA->PushString("Enable or disable the MySQLOO update checker."); // Help text
+		LUA->PushNumber(0); // Min value
+		LUA->PushNumber(1); // Max value
+		LUA->Call(6, 1); // Call with 6 arguments and 1 result
+		versionCheckConVar = LUA->ReferenceCreate(); // Store the created ConVar object as a global variable
+	LUA->Pop(); // Pop the global table
+
 	runInTimer(LUA, 5, doVersionCheck);
 	return 1;
 }
