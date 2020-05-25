@@ -71,5 +71,5 @@ solution "MySQLOO"
 		if os.target() == "windows" then
 			links { "libmysql", "ws2_32.lib", "shlwapi.lib" }
 		elseif os.target() == "macosx" or os.target() == "linux" then
-			links { "libmysql", "pthread", "dl" }
+			links { "mysqlclient", "pthread", "dl" }
 		end
