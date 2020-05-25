@@ -24,7 +24,11 @@ int Transaction::addQuery(lua_State* state) {
 	if (query == nullptr) {
 		LUA->ThrowError("Tried to pass non query to addQuery()");
 	}
-	//This is all very ugly
+	//We have an array of query data
+	//We need this so that we can add a single prepared query multiple times, each with possible different data.
+	transaction->addedQueryData.push_back(query->buildQueryData(LUA));
+	//This table here is used to prevent cyclic references and thus memory leaks.
+	//It is extremely ugly but I have yet to find a better solution.
 	LUA->Push(1);
 	LUA->GetField(-1, "__queries");
 	if (LUA->IsType(-1, GarrysMod::Lua::Type::NIL)) {
@@ -74,10 +78,14 @@ int Transaction::clearQueries(lua_State* state) {
 void Transaction::doCallback(GarrysMod::Lua::ILuaBase* LUA, std::shared_ptr<IQueryData> ptr) {
 	TransactionData* data = (TransactionData*)ptr.get();
 	data->setStatus(QUERY_COMPLETE);
+	std::vector<int> queryTableRefs;
 	for (auto& pair : data->m_queries) {
 		auto query = pair.first;
+		//So we get the current data rather than caching it
+		query->dataReference = 0;
 		auto queryData = pair.second;
 		query->setCallbackData(queryData);
+		queryTableRefs.push_back(query->getData(LUA));
 	}
 	switch (data->getResultStatus()) {
 	case QUERY_NONE:
@@ -90,11 +98,21 @@ void Transaction::doCallback(GarrysMod::Lua::ILuaBase* LUA, std::shared_ptr<IQue
 		}
 		break;
 	case QUERY_SUCCESS:
-		if (data->getSuccessReference() != 0) {
-			this->runFunction(LUA, data->getSuccessReference());
-		} else if (data->isFirstData()) {
-			this->runCallback(LUA, "onSuccess");
+		LUA->CreateTable();
+
+		for (int i = 0; i < queryTableRefs.size(); i++) {
+			LUA->PushNumber(i + 1);
+			LUA->ReferencePush(queryTableRefs[i]);
+			LUA->SetTable(-3);
 		}
+		int dataRef = LUA->ReferenceCreate();
+
+		if (data->getSuccessReference() != 0) {
+			this->runFunction(LUA, data->getSuccessReference(), "r", dataRef);
+		} else if (data->isFirstData()) {
+			this->runCallback(LUA, "onSuccess", "r", dataRef);
+		}
+		LUA->ReferenceFree(dataRef);
 		break;
 	}
 	for (auto& pair : data->m_queries) {
@@ -181,22 +199,21 @@ std::shared_ptr<IQueryData> Transaction::buildQueryData(GarrysMod::Lua::ILuaBase
 		LUA->Pop(2);
 		return ptr;
 	}
-	int index = 1;
 	//Stuff could go horribly wrong here if a lua error occurs
-	//but it really shouldn't
-	while (true) {
-		LUA->PushNumber(index++);
+	//but it really shouldn't unless someone screws with the __queries field
+	for (int i = 0; i < this->addedQueryData.size(); i++) {
+		auto queryDataPtr = this->addedQueryData[i];
+		LUA->PushNumber(i + 1);
 		LUA->GetTable(-2);
 		if (!LUA->IsType(-1, GarrysMod::Lua::Type::TABLE)) {
 			LUA->Pop();
 			break;
 		}
 		//This would error if it's not a query
-		Query* iQuery = (Query*)unpackLuaObject(LUA, -1, TYPE_QUERY, false);
+		Query * iQuery = (Query*)unpackLuaObject(LUA, -1, TYPE_QUERY, false);
 		auto queryPtr = std::dynamic_pointer_cast<Query>(iQuery->getSharedPointerInstance());
-		auto queryData = iQuery->buildQueryData(LUA);
-		iQuery->addQueryData(LUA, queryData, false);
-		data->m_queries.push_back(std::make_pair(queryPtr, queryData));
+		iQuery->addQueryData(LUA, queryDataPtr, false);
+		data->m_queries.push_back(std::make_pair(queryPtr, queryDataPtr));
 		LUA->Pop();
 	}
 	LUA->Pop(2);

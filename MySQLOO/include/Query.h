@@ -8,6 +8,7 @@
 class QueryData;
 class Query : public IQuery {
 	friend class Database;
+	friend class Transaction;
 public:
 	Query(Database* dbase, GarrysMod::Lua::ILuaBase* LUA);
 	virtual ~Query(void);
