@@ -1,27 +1,27 @@
 language: cpp
-
 git:
   depth: 1
-
 addons:
   apt:
     packages:
     - g++-multilib
-
 matrix:
   include:
   - os: linux
     install:
     - wget -O premake.tar.gz "https://github.com/premake/premake-core/releases/download/v5.0.0-alpha14/premake-5.0.0-alpha14-linux.tar.gz"
     - tar xvzf premake.tar.gz
-    - ./premake5 --os=linux --file=BuildProjects.lua gmake
+    - "./premake5 --os=linux --file=BuildProjects.lua gmake"
     before_script:
     - cd solutions/linux-gmake
     script:
-    # Compile 32-bit
     - make
-    # Compile 64-bit
     - make config=release_x86_64
-  # Unsupported for now
-  #- os: osx #
-  #  install: premake5 --os=macosx --file=BuildProjects.lua gmake
+deploy:
+  provider: releases
+  api_key:
+    secure: pqLdvb9HpRLTbHVrBrVfl5Qsl/AUSfw111HBT6OIEIkb+sgi0A1EWDKGEeJ7xzOrzhR8G6mwWEYGSR7Mf+KjnNUnM64maOBbUSFRkrepQhuoR6yLyVEMLX8tngnrWn5XqWV6DuDGYakm4keaUWhTxyKtIy/WgY6RCfyk0brZ6QNfpvPGcCbTMW9ZLb3X4msfJnA7Ju+nnA0VQo7h+ruBxw1vI6twLvxJI48WrhN8d35B1AZgxpFAHrwV3CfEV0LIz4kMUYsWI5+g7jcu+XA238t3wg8011XvsMJ3Nu20yqFL6lMiFLEyZ2Rt2GC3k/dHNypzzW3sqU3mRYnCu6gcnbHpQdRHNebvdpQGog/TriM+up9+XjdJGJAxJvw6OLBgzjoDuQOnOUBWICo099R9sBsV0NnzUT92RLaHDH58p6/nG8vo3FKJ9sKIkGEgmjLs2T9OK8+CeBGAavFG6/86dQ5n0OyewH8R2hzen62Dz75g57uQX6nn5J2Q6b0tp1INkICPx63nm9m/iUrV8oADx7GP2aZEUvr9FzE7X/Pi9l5boj7AzfRYzjG3TR5dyTB+m+Bz2mHkvEPNRqLEw/boGBXXRetTCo3tKpgfMX1CGEugYXKsyWItaQj8NMydLCxSxSCks5saWwmxfV/s9dgjNdbR1WQMeWoOBsjDCrvlRTc=
+  file: ".travis.yml"
+  on:
+    repo: FredyH/MySQLOO
+  skip_cleanup: 'true'
