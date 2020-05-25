@@ -23,5 +23,6 @@ matrix:
       api_key:
         secure: FNxCgy3Gvuy4ypv6K9M+d9gV5rkDKr4bcUzfeX3JQGLHiE74VI/nbkJYLprVVGr52OtkO8jsq4iL+YCosT8nkP6shJK2cQ68Vnng0Db2Hn1NqflBBg0vJ2IEv/ua1Os7mDOQwhrhTVuxx1timKaIpZQpDbO1FEj8uBsdYhSGX+3HBUctb9B9bluw6NC4rgM/ugSMy6g0JmTZirP5eNxuBffREidyydKIBgn+egKe7Cmh19OzPolIfyTfrvkGB3Mm5Ti7fmmZycPCvCVdhSPq5N7s2FQn1TdOOHN7NaIpeqEjdCTQFM3O/JKYdKvAo0y3FiHLrp2xou2N149ADOlumHATbe9tGQRpBDmnWZMcHQPVcPPCSpXCqT5/CP8UAaP0/RtqenFt4ZA8jFl6TrQJecHU8UdBscnn28Oq8r+C83czE/L/d6RezyjW8ph5IzUEdFQdhkSfOkI1CEqUpCydVh6lXT+Monx9pwGywU3WD3sCKs5DijH34xE4r2M/t41vkojUxSO/P+PUg7GY/ccZtelWFAQgrwZyJECdQWefzYaUfZk1tI6pnjOwtyF5rC2qXMR/W/ZQppRfdfv9oRqx8HOaSKxBqx/iJ2MEZn0v1pa028pc1FQbqVGWBuTdErd+KifH/ffSQdeVLlEkVbJOtWbLWutG1S9jaghAsythqH0=
       file: "release.zip"
+      skip_cleanup: true
       on:
         tags: true
