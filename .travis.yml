@@ -12,11 +12,8 @@ matrix:
     - wget -O premake.tar.gz "https://github.com/premake/premake-core/releases/download/v5.0.0-alpha14/premake-5.0.0-alpha14-linux.tar.gz"
     - tar xvzf premake.tar.gz
     - "./premake5 --os=linux --file=BuildProjects.lua gmake"
-    before_script:
-    - cd solutions/linux-gmake
     script:
-    - make
-    - make config=release_x86_64
+    - make -C solutions/linux-gmake
     - mkdir -p srcds/garrysmod/lua/bin
     - cp out/linux/gmsv_mysqloo_linux64.dll srcds/garrysmod/lua/bin/
     - cp MySQL/lib64/linux/libmysqlclient.so srcds/
