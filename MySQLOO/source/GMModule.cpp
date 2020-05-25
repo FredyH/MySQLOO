@@ -8,7 +8,7 @@
 #define MYSQLOO_MINOR_VERSION "6"
 
 // Variable to hold the reference to the version check ConVar object
-int versionCheckConVar = NULL;
+int versionCheckConVar = 0;
 
 GMOD_MODULE_CLOSE() {
 	// Free the version check ConVar object reference
@@ -130,7 +130,7 @@ static int doVersionCheck(lua_State* state) {
 	LUA->SetState(state);
 
 	// Check if the reference to the ConVar object is set
-	if (versionCheckConVar != NULL) {
+	if (versionCheckConVar != 0) {
 		// Retrieve the value of the ConVar
 		LUA->ReferencePush(versionCheckConVar); // Push the ConVar object
 		LUA->GetField(-1, "GetInt"); // Push the name of the function
