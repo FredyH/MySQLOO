@@ -60,7 +60,7 @@ static int connect(lua_State* state) {
 static int objectCount(lua_State* state) {
 	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
 	LUA->SetState(state);
-	LUA->PushNumber(LuaObjectBase::luaObjects.size());
+	LUA->PushNumber((double) LuaObjectBase::luaObjects.size());
 	return 1;
 }
 

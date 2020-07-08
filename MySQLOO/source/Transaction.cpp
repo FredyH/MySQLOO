@@ -18,11 +18,13 @@ int Transaction::addQuery(lua_State* state) {
 	Transaction* transaction = dynamic_cast<Transaction*>(unpackSelf(LUA, TYPE_QUERY));
 	if (transaction == nullptr) {
 		LUA->ThrowError("Tried to pass wrong self");
+		return 0;
 	}
 	IQuery* iQuery = (IQuery*)unpackLuaObject(LUA, 2, TYPE_QUERY, false);
 	Query* query = dynamic_cast<Query*>(iQuery);
 	if (query == nullptr) {
 		LUA->ThrowError("Tried to pass non query to addQuery()");
+		return 0;
 	}
 	//We have an array of query data
 	//We need this so that we can add a single prepared query multiple times, each with possible different data.

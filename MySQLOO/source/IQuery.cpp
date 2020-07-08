@@ -169,7 +169,7 @@ int IQuery::setOption(lua_State* state) {
 //Just throws an exception if anything goes wrong for ease of use
 
 void IQuery::mysqlQuery(MYSQL* sql, std::string &query) {
-	int result = mysql_real_query(sql, query.c_str(), query.length());
+	int result = mysql_real_query(sql, query.c_str(), (unsigned long) query.length());
 	if (result != 0) {
 		const char* errorMessage = mysql_error(sql);
 		int errorCode = mysql_errno(sql);

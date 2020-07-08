@@ -112,7 +112,7 @@ int Database::queueSize(lua_State* state) {
 	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
 	LUA->SetState(state);
 	Database* object = (Database*)unpackSelf(LUA, TYPE_DATABASE);
-	LUA->PushNumber(object->queryQueue.size());
+	LUA->PushNumber((double) object->queryQueue.size());
 	return 1;
 }
 

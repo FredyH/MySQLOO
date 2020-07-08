@@ -133,7 +133,7 @@ void PreparedQuery::mysqlStmtBindParameter(MYSQL_STMT* stmt, MYSQL_BIND* bind) {
 }
 
 void PreparedQuery::mysqlStmtPrepare(MYSQL_STMT* stmt, const char* str) {
-	unsigned int length = strlen(str);
+	unsigned long length = (unsigned long) strlen(str);
 	int result = mysql_stmt_prepare(stmt, str, length);
 	if (result != 0) {
 		const char* errorMessage = mysql_stmt_error(stmt);
@@ -211,7 +211,7 @@ void PreparedQuery::generateMysqlBinds(MYSQL_BIND* binds, std::unordered_map<uns
 			TypedQueryField<std::string>* textField = static_cast<TypedQueryField<std::string>*>(it->second.get());
 			bind->buffer_type = MYSQL_TYPE_STRING;
 			bind->buffer = (char*)textField->m_data.c_str();
-			bind->buffer_length = textField->m_data.length();
+			bind->buffer_length = (unsigned long) textField->m_data.length();
 			break;
 		}
 		case MYSQL_TYPE_NULL:

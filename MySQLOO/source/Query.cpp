@@ -175,7 +175,7 @@ void Query::dataToLua(GarrysMod::Lua::ILuaBase* LUA, int rowReference, unsigned 
 			LUA->PushNil();
 			break;
 		default:
-			LUA->PushString(columnValue.c_str(), columnValue.length());
+			LUA->PushString(columnValue.c_str(), (unsigned int) columnValue.length());
 			break;
 		}
 	}
