@@ -147,7 +147,7 @@ static int doVersionCheck(lua_State* state) {
 			LUA->PushString("https://raw.githubusercontent.com/FredyH/MySQLOO/master/minorversion.txt");
 			LUA->PushCFunction(fetchSuccessful);
 			LUA->PushCFunction(fetchFailed);
-			LUA->Call(3, 0);
+			LUA->PCall(3, 0, 0);
 			LUA->Pop(2);
 		}
 	}
