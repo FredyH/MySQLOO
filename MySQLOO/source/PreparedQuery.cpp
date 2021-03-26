@@ -1,11 +1,10 @@
 #include "PreparedQuery.h"
 #include "Database.h"
 #include "errmsg.h"
+#include "mysqld_error.h"
 #ifdef LINUX
 #include <stdlib.h>
 #endif
-//This is dirty but hopefully will be consistent between mysql connector versions
-#define ER_MAX_PREPARED_STMT_COUNT_REACHED 1461
 
 PreparedQuery::PreparedQuery(Database* dbase, GarrysMod::Lua::ILuaBase* LUA) : Query(dbase, LUA) {
 	classname = "PreparedQuery";
@@ -170,7 +169,7 @@ bool PreparedQuery::mysqlStmtNextResult(MYSQL_STMT* stmt) {
 	return result == 0;
 }
 
-static bool nullBool = 1;
+static my_bool nullBool = 1;
 static int trueValue = 1;
 static int falseValue = 0;
 
@@ -233,11 +232,9 @@ void PreparedQuery::generateMysqlBinds(MYSQL_BIND* binds, std::unordered_map<uns
 */
 void PreparedQuery::executeQuery(MYSQL* connection, std::shared_ptr<IQueryData> ptr) {
 	PreparedQueryData* data = (PreparedQueryData*)ptr.get();
-	bool oldReconnectStatus = m_database->getAutoReconnect();
+	bool shouldReconnect = m_database->getAutoReconnect();
 	//Autoreconnect has to be disabled for prepared statement since prepared statements
 	//get reset on the server if the connection fails and auto reconnects
-	m_database->setAutoReconnect(false);
-	auto resetReconnectStatus = finally([&] { m_database->setAutoReconnect(oldReconnectStatus); });
 	try {
 		MYSQL_STMT* stmt = nullptr;
 		auto stmtClose = finally([&] {
@@ -265,6 +262,12 @@ void PreparedQuery::executeQuery(MYSQL* connection, std::shared_ptr<IQueryData> 
 			mysqlStmtBindParameter(stmt, mysqlParameters.data());
 			mysqlStmtExecute(stmt);
 			do {
+				if (mysql_stmt_result_metadata(stmt) == nullptr) {
+					//This means the statement does not have a resultset (this apparently happens when calling stored procedures)
+					//We need to skip this result, otherwise it screws up the mysql connection
+					continue;
+				}
+
 				//There is a potential race condition here. What happens
 				//when the query executes fine but something goes wrong while storing the result?
 				mysqlStmtStoreResult(stmt);
@@ -277,14 +280,15 @@ void PreparedQuery::executeQuery(MYSQL* connection, std::shared_ptr<IQueryData> 
 		}
 	} catch (const MySQLException& error) {
 		int errorCode = error.getErrorCode();
-		if ((errorCode == CR_SERVER_LOST || errorCode == CR_SERVER_GONE_ERROR || errorCode == ER_MAX_PREPARED_STMT_COUNT_REACHED)) {
+		if (errorCode == CR_SERVER_LOST || errorCode == CR_SERVER_GONE_ERROR ||
+			errorCode == ER_MAX_PREPARED_STMT_COUNT_REACHED || errorCode == CR_NO_PREPARE_STMT ||
+			errorCode == ER_UNKNOWN_STMT_HANDLER) {
 			m_database->freeStatement(this->cachedStatement);
 			this->cachedStatement = nullptr;
 			//Because autoreconnect is disabled we want to try and explicitly execute the prepared query once more
 			//if we can get the client to reconnect (reconnect is caused by mysql_ping)
 			//If this fails we just go ahead and error
-			if (oldReconnectStatus && data->firstAttempt) {
-				m_database->setAutoReconnect(true);
+			if (shouldReconnect && data->firstAttempt) {
 				if (mysql_ping(connection) == 0) {
 					data->firstAttempt = false;
 					executeQuery(connection, ptr);

@@ -415,12 +415,15 @@ int Database::setCachePreparedStatements(lua_State* state) {
 //While the mysql documentation says that mysql_options should only be called
 //before the connection is done it appears to work after just fine (at least for reconnect)
 void Database::setAutoReconnect(bool autoReconnect) {
-	mysql_options(m_sql, MYSQL_OPT_RECONNECT, &autoReconnect);
+	my_bool myAutoReconnectBool = (my_bool) autoReconnect;
+	mysql_optionsv(m_sql, MYSQL_OPT_RECONNECT, &myAutoReconnectBool);
 }
 
 //Should only be called from the db thread
 bool Database::getAutoReconnect() {
-	return m_sql->reconnect;
+	my_bool autoReconnect;
+	mysql_get_optionv(m_sql, MYSQL_OPT_RECONNECT, &autoReconnect);
+	return (bool) autoReconnect;
 }
 
 

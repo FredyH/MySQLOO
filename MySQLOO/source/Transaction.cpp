@@ -102,8 +102,8 @@ void Transaction::doCallback(GarrysMod::Lua::ILuaBase* LUA, std::shared_ptr<IQue
 	case QUERY_SUCCESS:
 		LUA->CreateTable();
 
-		for (int i = 0; i < queryTableRefs.size(); i++) {
-			LUA->PushNumber(i + 1);
+		for (size_t i = 0; i < queryTableRefs.size(); i++) {
+			LUA->PushNumber(((double) i) + 1);
 			LUA->ReferencePush(queryTableRefs[i]);
 			LUA->SetTable(-3);
 		}
@@ -203,9 +203,9 @@ std::shared_ptr<IQueryData> Transaction::buildQueryData(GarrysMod::Lua::ILuaBase
 	}
 	//Stuff could go horribly wrong here if a lua error occurs
 	//but it really shouldn't unless someone screws with the __queries field
-	for (int i = 0; i < this->addedQueryData.size(); i++) {
+	for (size_t i = 0; i < this->addedQueryData.size(); i++) {
 		auto queryDataPtr = this->addedQueryData[i];
-		LUA->PushNumber(i + 1);
+		LUA->PushNumber(((double) i) + 1);
 		LUA->GetTable(-2);
 		if (!LUA->IsType(-1, GarrysMod::Lua::Type::TABLE)) {
 			LUA->Pop();

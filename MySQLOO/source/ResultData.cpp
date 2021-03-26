@@ -57,14 +57,14 @@ static void mysqlStmtBindResult(MYSQL_STMT* stmt, MYSQL_BIND* bind) {
 ResultData::ResultData(MYSQL_STMT* result) : ResultData((unsigned int)mysql_stmt_field_count(result), (unsigned int)mysql_stmt_num_rows(result)) {
 	if (this->columnCount == 0) return;
 	MYSQL_RES * metaData = mysql_stmt_result_metadata(result);
-	if (metaData == nullptr) { throw std::runtime_error("mysql_stmt_result_metadata: Unknown Error"); }
+	if (metaData == nullptr) { throw MySQLException(0, "mysql_stmt_result_metadata: Unknown Error"); }
 	auto f = finally([&] { mysql_free_result(metaData); });
 	MYSQL_FIELD* fields = mysql_fetch_fields(metaData);
 	std::vector<MYSQL_BIND> binds(columnCount);
 	std::vector<std::vector<char>> buffers;
 	std::vector<unsigned long> lengths(columnCount);
 	//This is needed because C++ is stupid and std::vector<bool> is using bit encoding....
-	bool* isFieldNullArr = new bool[columnCount];
+	my_bool* isFieldNullArr = new my_bool[columnCount];
 	auto fieldNullArrFree = finally([&] {
 		delete[] isFieldNullArr;
 	});
