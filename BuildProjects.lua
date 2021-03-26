@@ -72,5 +72,5 @@ solution "MySQLOO"
 		if os.target() == "windows" then
 			links { "mariadbclient", "ws2_32.lib", "shlwapi.lib", "crypt32.lib", "secur32.lib" }
 		elseif os.target() == "macosx" or os.target() == "linux" then
-			links { "mariadbclient", "pthread", "dl" }
+			links { "mariadbclient", "pthread", "dl", "ssl:static", "crypto:static" }
 		end
