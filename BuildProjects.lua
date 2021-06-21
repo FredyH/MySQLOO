@@ -22,9 +22,9 @@ solution "MySQLOO"
 	platforms { "x86", "x86_64" }
 
 	if os.target() == "windows" then
-		defines{ "WIN32" }
+		defines { "WIN32" }
 	elseif os.target() == "linux" then
-		defines{ "LINUX" }
+		defines { "LINUX" }
 	end
 
 	local platform
@@ -70,7 +70,7 @@ solution "MySQLOO"
 		targetdir("out/" .. os.target())
 
 		if os.target() == "windows" then
-			links { "mariadbclient", "ws2_32.lib", "shlwapi.lib", "crypt32.lib", "secur32.lib" }
+			links { "mariadbclient", "ws2_32.lib", "shlwapi.lib", "crypt32.lib", "secur32.lib", "bcrypt.lib" }
 		elseif os.target() == "macosx" or os.target() == "linux" then
-			links { "mariadbclient", "pthread", "dl", "ssl:static", "crypto:static" }
+			links { "mariadbclient:static", "ssl:static", "crypto:static", "pthread", "dl" }
 		end
