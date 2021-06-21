@@ -5,7 +5,7 @@
 #include <iostream>
 #include <fstream>
 #define MYSQLOO_VERSION "9"
-#define MYSQLOO_MINOR_VERSION "6"
+#define MYSQLOO_MINOR_VERSION "7"
 
 // Variable to hold the reference to the version check ConVar object
 int versionCheckConVar = 0;
