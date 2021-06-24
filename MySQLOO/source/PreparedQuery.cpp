@@ -262,20 +262,22 @@ void PreparedQuery::executeQuery(MYSQL* connection, std::shared_ptr<IQueryData> 
 			mysqlStmtBindParameter(stmt, mysqlParameters.data());
 			mysqlStmtExecute(stmt);
 			do {
+				data->m_affectedRows.push_back(mysql_stmt_affected_rows(stmt));
+				data->m_insertIds.push_back(mysql_stmt_insert_id(stmt));
+				data->m_resultStatus = QUERY_SUCCESS;
+
 				if (mysql_stmt_result_metadata(stmt) == nullptr) {
 					//This means the statement does not have a resultset (this apparently happens when calling stored procedures)
 					//We need to skip this result, otherwise it screws up the mysql connection
+					//Add an empty ResultData in that case
+					data->m_results.emplace_back();
 					continue;
 				}
-
 				//There is a potential race condition here. What happens
 				//when the query executes fine but something goes wrong while storing the result?
 				mysqlStmtStoreResult(stmt);
-				auto resultFree = finally([&] { mysql_stmt_free_result(stmt); });
-				data->m_affectedRows.push_back(mysql_stmt_affected_rows(stmt));
-				data->m_insertIds.push_back(mysql_stmt_insert_id(stmt));
 				data->m_results.emplace_back(stmt);
-				data->m_resultStatus = QUERY_SUCCESS;
+				mysql_stmt_free_result(stmt);
 			} while (mysqlStmtNextResult(stmt));
 		}
 	} catch (const MySQLException& error) {
