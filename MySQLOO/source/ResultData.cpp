@@ -12,7 +12,7 @@ ResultData::ResultData(unsigned int columnCount, unsigned int rows) {
 	this->rows.reserve(rows);
 }
 
-ResultData::ResultData() : ResultData(0, 0) {}
+ResultData::ResultData() : ResultData((unsigned int) 0, (unsigned int) 0) {} //Avoids conflict with pointers
 
 //Stores all of the rows of a result set
 //This is used so the result set can be free'd and doesn't have to be used in
@@ -54,11 +54,8 @@ static void mysqlStmtBindResult(MYSQL_STMT* stmt, MYSQL_BIND* bind) {
 
 //Stores all of the rows of a prepared query
 //This needs to be done because the query shouldn't be accessed from a different thread
-ResultData::ResultData(MYSQL_STMT* result) : ResultData((unsigned int)mysql_stmt_field_count(result), (unsigned int)mysql_stmt_num_rows(result)) {
+ResultData::ResultData(MYSQL_STMT* result, MYSQL_RES* metaData) : ResultData((unsigned int)mysql_stmt_field_count(result), (unsigned int)mysql_stmt_num_rows(result)) {
 	if (this->columnCount == 0) return;
-	MYSQL_RES * metaData = mysql_stmt_result_metadata(result);
-	if (metaData == nullptr) { throw MySQLException(0, "mysql_stmt_result_metadata: Unknown Error"); }
-	auto f = finally([&] { mysql_free_result(metaData); });
 	MYSQL_FIELD* fields = mysql_fetch_fields(metaData);
 	std::vector<MYSQL_BIND> binds(columnCount);
 	std::vector<std::vector<char>> buffers;

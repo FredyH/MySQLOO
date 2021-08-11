@@ -25,7 +25,7 @@ private:
 class ResultData {
 public:
 	ResultData(MYSQL_RES* result);
-	ResultData(MYSQL_STMT* result);
+	ResultData(MYSQL_STMT* result, MYSQL_RES* metaData);
 	ResultData();
 	~ResultData();
 	std::vector<std::string> & getColumns() { return columns; }

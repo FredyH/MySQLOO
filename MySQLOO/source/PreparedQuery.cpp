@@ -266,18 +266,22 @@ void PreparedQuery::executeQuery(MYSQL* connection, std::shared_ptr<IQueryData> 
 				data->m_insertIds.push_back(mysql_stmt_insert_id(stmt));
 				data->m_resultStatus = QUERY_SUCCESS;
 
-				if (mysql_stmt_result_metadata(stmt) == nullptr) {
+				MYSQL_RES* metaData = mysql_stmt_result_metadata(stmt);
+				if (metaData == nullptr) {
 					//This means the statement does not have a resultset (this apparently happens when calling stored procedures)
 					//We need to skip this result, otherwise it screws up the mysql connection
 					//Add an empty ResultData in that case
+					//This is only necessary due to MariaDB client behaving differently to the Mysql client
+					//otherwise we get a hang in the rest of the code below
 					data->m_results.emplace_back();
 					continue;
 				}
+				auto f = finally([&] { mysql_free_result(metaData); });
 				//There is a potential race condition here. What happens
 				//when the query executes fine but something goes wrong while storing the result?
 				mysqlStmtStoreResult(stmt);
-				data->m_results.emplace_back(stmt);
-				mysql_stmt_free_result(stmt);
+				auto f2 = finally([&] { mysql_stmt_free_result(stmt); });
+				data->m_results.emplace_back(stmt, metaData);
 			} while (mysqlStmtNextResult(stmt));
 		}
 	} catch (const MySQLException& error) {
