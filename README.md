@@ -137,6 +137,12 @@ Database:setCharacterSet(charSetName)
 -- Please note that this does block the main server thread if there is a query currently being ran
 -- Returns true on success, false and an error message on failure
 
+Database:setSSL(key, cert, ca, capath, cipher)
+-- Returns nothing
+-- Sets the SSL configuration of the database object. This allows you to enable secure connections over the internet using TLS.
+-- Every parameter is optional and can be omitted (set to nil) if not required.
+-- See https://dev.mysql.com/doc/c-api/8.0/en/mysql-ssl-set.html for the description of each parameter.
+
 -- Callbacks
 Database.onConnected( db )
 -- Called when the connection to the MySQL server is successful
