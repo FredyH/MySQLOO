@@ -8,11 +8,13 @@
 #define MYSQLOO_MINOR_VERSION "7"
 
 // Variable to hold the reference to the version check ConVar object
-int versionCheckConVar = 0;
+static int versionCheckConVar = 0;
 
 GMOD_MODULE_CLOSE() {
 	// Free the version check ConVar object reference
-	LUA->ReferenceFree(versionCheckConVar);
+	if (versionCheckConVar != 0) {
+		LUA->ReferenceFree(versionCheckConVar);
+	}
 
 	/* Deletes all the remaining luaobjects when the server changes map
 	 */

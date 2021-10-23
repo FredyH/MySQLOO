@@ -75,10 +75,11 @@ void Query::executeQuery(MYSQL* connection, std::shared_ptr<IQueryData> data) {
 	do {
 		MYSQL_RES * results = this->mysqlStoreResults(connection);
 		auto resultFree = finally([&] { mysql_free_result(results); });
-		if (results != nullptr)
+		if (results != nullptr) {
 			queryData->m_results.emplace_back(results);
-		else
+		} else {
 			queryData->m_results.emplace_back();
+		}
 		queryData->m_insertIds.push_back(mysql_insert_id(connection));
 		queryData->m_affectedRows.push_back(mysql_affected_rows(connection));
 	} while (this->mysqlNextResult(connection));
