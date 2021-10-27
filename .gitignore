@@ -9,3 +9,5 @@
 /out
 .vscode
 *.zip
+cmake-build-debug
+.idea
