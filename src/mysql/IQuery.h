@@ -110,7 +110,7 @@ public:
     }
 
     void setError(std::string err) {
-        m_errorText = err;
+        m_errorText = std::move(err);
     }
 
     bool isFinished() {
@@ -166,6 +166,7 @@ protected:
     int m_errorReference = 0;
     int m_abortReference = 0;
     int m_onDataReference = 0;
+    int m_tableReference = 0;
     bool m_wasFirstData = false;
 };
 

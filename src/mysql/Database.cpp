@@ -2,6 +2,7 @@
 #include "Query.h"
 #include "IQuery.h"
 #include "MySQLOOException.h"
+#include "Transaction.h"
 #include <string>
 #include <cstring>
 #include <iostream>
@@ -95,16 +96,14 @@ size_t Database::queueSize() {
 /* Aborts all queries that are in the queue of started queries and returns the number of successfully aborted queries.
  * Does not abort queries that are already taken from the queue and being processed.
  */
-size_t Database::abortAllQueries() {
+std::deque<std::pair<std::shared_ptr<IQuery>, std::shared_ptr<IQueryData>>> Database::abortAllQueries() {
     auto canceledQueries = queryQueue.clear();
     for (auto &pair: canceledQueries) {
         auto query = pair.first;
         auto data = pair.second;
         data->setStatus(QUERY_ABORTED);
-        //TODO:
-        //query->onQueryDataFinished(LUA, data);
     }
-    return canceledQueries.size();
+    return canceledQueries;
 }
 
 /* Waits for the connection of the database to finish by blocking the current thread until the connect thread finished.
@@ -275,6 +274,10 @@ std::shared_ptr<Query> Database::query(const std::string &query) {
 
 std::shared_ptr<PreparedQuery> Database::prepare(const std::string &query) {
     return std::shared_ptr<PreparedQuery>(new PreparedQuery(shared_from_this(), query));
+}
+
+std::shared_ptr<Transaction> Database::transaction() {
+    return std::shared_ptr<Transaction>(new Transaction(shared_from_this()));
 }
 
 bool Database::ping() {

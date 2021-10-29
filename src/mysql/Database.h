@@ -6,6 +6,7 @@
 #include <deque>
 #include <thread>
 #include <future>
+#include <memory>
 #include <mutex>
 #include <sstream>
 #include <condition_variable>
@@ -15,6 +16,7 @@
 #include "PreparedQuery.h"
 #include "IQuery.h"
 #include "PingQuery.h"
+#include "Transaction.h"
 
 struct SSLSettings {
     bool customSSLSettings = false;
@@ -76,9 +78,9 @@ public:
 
     std::shared_ptr<PreparedQuery> prepare(const std::string &query);
 
-   bool ping();
+    std::shared_ptr<Transaction> transaction();
 
-    //std::shared_ptr<Transaction> createTransaction(lua_State* state);
+    bool ping();
 
     std::string escape(const std::string &str);
 
@@ -88,7 +90,7 @@ public:
 
     void wait();
 
-    size_t abortAllQueries();
+    std::deque<std::pair<std::shared_ptr<IQuery>, std::shared_ptr<IQueryData>>> abortAllQueries();
 
     DatabaseStatus status();
 
@@ -102,12 +104,13 @@ public:
 
     void setMultiStatements(bool multiStatement);
 
-    //std::shared_ptr<PingQuery> ping();
     void setCachePreparedStatements(bool cachePreparedStatements);
 
     void disconnect(bool wait);
 
     void setSSLSettings(const SSLSettings &settings);
+    std::atomic<DatabaseStatus> m_status{DATABASE_NOT_CONNECTED};
+    std::string m_connection_err;
 
 private:
     Database(std::string host, std::string username, std::string pw, std::string database, unsigned int port,
@@ -143,8 +146,6 @@ private:
     std::atomic<bool> m_success{true};
     std::atomic<bool> m_connectionDone{false};
     std::atomic<bool> cachePreparedStatements{true};
-    std::atomic<DatabaseStatus> m_status{DATABASE_NOT_CONNECTED};
-    std::string m_connection_err;
     std::condition_variable m_queryWakupVariable;
     std::string database;
     std::string host;

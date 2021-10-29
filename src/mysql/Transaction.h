@@ -25,15 +25,15 @@ class Transaction : public IQuery {
     friend class Database;
 
 public:
-    explicit Transaction(const std::weak_ptr<Database> &database) : IQuery(database) {
-
-    }
 
     static std::shared_ptr<TransactionData>
     buildQueryData(const std::deque<std::pair<std::shared_ptr<Query>, std::shared_ptr<IQueryData>>>& queries);
 
 protected:
     bool executeStatement(Database &database, MYSQL *connection, std::shared_ptr<IQueryData> data) override;
+    explicit Transaction(const std::weak_ptr<Database> &database) : IQuery(database) {
+
+    }
 
 private:
     std::vector<std::shared_ptr<IQueryData>> addedQueryData;

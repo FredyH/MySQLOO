@@ -1,8 +1,6 @@
 #ifndef MYSQLOO_MYSQLERROR_H
 #define MYSQLOO_MYSQLERROR_H
 
-#endif //MYSQLOO_MYSQLERROR_H
-
 #include <exception>
 
 //When called from the outside
@@ -13,3 +11,5 @@ public:
 
     std::string message{};
 };
+
+#endif //MYSQLOO_MYSQLERROR_H
