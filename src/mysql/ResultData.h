@@ -12,7 +12,7 @@ public:
 	std::vector<std::string> & getValues() {
 		return values;
 	}
-	bool isFieldNull(int index) {
+	bool isFieldNull(unsigned int index) {
 		return nullFields[index];
 	}
 private:

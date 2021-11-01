@@ -30,7 +30,9 @@ public:
 
     void getNextResults();
 
-    static std::shared_ptr<QueryData> buildQueryData();
+    virtual std::shared_ptr<QueryData> buildQueryData();
+
+    int m_dataReference = 0;
 protected:
     Query(const std::weak_ptr<Database> &dbase, std::string query);
 

@@ -66,7 +66,7 @@ public:
 
     void putNewParameters();
 
-    std::shared_ptr<PreparedQueryData> buildQueryData();
+    std::shared_ptr<QueryData> buildQueryData() override;
 protected:
     void executeQuery(Database &database, MYSQL *m_sql, std::shared_ptr<IQueryData> data) override;
 

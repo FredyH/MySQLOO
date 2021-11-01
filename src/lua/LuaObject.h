@@ -10,17 +10,16 @@
 #include "GarrysMod/Lua/Interface.h"
 #include "../mysql/MySQLOOException.h"
 
+class LuaDatabase;
+
 using namespace GarrysMod::Lua;
 
 class LuaObject : public std::enable_shared_from_this<LuaObject> {
 public:
-    virtual void think(ILuaBase *lua) {};
-
     std::string toString();
 
-
     static std::deque<std::shared_ptr<LuaObject>> luaObjects;
-    static std::deque<std::shared_ptr<LuaObject>> luaThinkObjects;
+    static std::deque<std::shared_ptr<LuaDatabase>> luaDatabases;
 
     static std::shared_ptr<LuaObject> checkMySQLOOType(ILuaBase *lua, int position = 1);
 
@@ -34,8 +33,32 @@ public:
     //Lua functions
     static int luaObjectThink(lua_State *L);
 
-protected:
+    static void pcallWithErrorReporter(ILuaBase *LUA, int nargs, int nresults);
 
+    static bool getCallbackReference(ILuaBase *LUA, int functionReference, int tableReference,
+                                     const std::string &callbackName, bool allowCallback);
+
+    static int getLuaObjectType(ILuaBase *LUA, int stackPos = 1) {
+        LUA->CheckType(stackPos, GarrysMod::Lua::Type::Table);
+        LUA->GetField(stackPos, "__CppObject");
+        int type = LUA->GetType(-1);
+        LUA->Pop();
+        return type;
+    }
+
+    template<typename T>
+    static T *getLuaObject(ILuaBase *LUA, int type, int stackPos = 1) {
+        LUA->CheckType(stackPos, GarrysMod::Lua::Type::Table);
+        LUA->GetField(stackPos, "__CppObject");
+
+        T *returnValue = LUA->GetUserType<T>(-1, type);
+        if (returnValue == nullptr) {
+            LUA->ThrowError("[MySQLOO] Expected MySQLOO table");
+        }
+        LUA->Pop();
+        return returnValue;
+    }
+protected:
     explicit LuaObject(std::string className) : s_className(std::move(className)) {
 
     }
@@ -43,14 +66,7 @@ protected:
     std::string s_className;
 };
 
-template<typename T>
-T *getLuaObject(ILuaBase *LUA, int type, int stackPos = 1) {
-    T *returnValue = LUA->GetUserType<T>(-1, type);
-    if (returnValue == nullptr) {
-        LUA->ThrowError("[MySQLOO] Expected MySQLOO table");
-    }
-    return returnValue;
-}
+
 
 
 #define MYSQLOO_LUA_FUNCTION(FUNC)                          \
@@ -74,7 +90,12 @@ T *getLuaObject(ILuaBase *LUA, int type, int stackPos = 1) {
             {                                                 \
                 GarrysMod::Lua::ILuaBase* LUA = L->luabase;   \
                 LUA->SetState(L);                             \
-                return FUNC##__Imp( LUA );                    \
+                try {                                         \
+                    return FUNC##__Imp( LUA );                     \
+                } catch (const MySQLOOException& error) {            \
+                    LUA->ThrowError(error.message.c_str());            \
+                    return 0;                                     \
+                }                                                     \
             }                                                 \
             static int FUNC##__Imp( GarrysMod::Lua::ILuaBase* LUA )
 

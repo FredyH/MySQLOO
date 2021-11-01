@@ -62,6 +62,10 @@ public:
 
     void setOption(int option, bool enabled);
 
+    bool hasOption(int option) const {
+        return m_options & option;
+    }
+
     void addQueryData(const std::shared_ptr<IQueryData> &data);
 
     std::string error();
@@ -70,15 +74,14 @@ public:
 
     void wait(bool shouldSwap);
 
-protected:
-    //methods
-    QueryResultStatus getResultStatus();
-
-    virtual bool executeStatement(Database &database, MYSQL *m_sql, std::shared_ptr<IQueryData> data) = 0;
-
-    bool hasCallbackData() {
+    bool hasCallbackData() const {
         return callbackQueryData != nullptr;
     }
+    QueryResultStatus getResultStatus();
+    std::shared_ptr<IQueryData> callbackQueryData;
+protected:
+
+    virtual bool executeStatement(Database &database, MYSQL *m_sql, std::shared_ptr<IQueryData> data) = 0;
 
     //Wrapper functions for c api that throw exceptions
     void mysqlQuery(MYSQL *sql, std::string &query);
@@ -95,7 +98,6 @@ protected:
     std::mutex m_waitMutex;
     int m_options = 0;
     std::vector<std::shared_ptr<IQueryData>> runningQueryData;
-    std::shared_ptr<IQueryData> callbackQueryData;
     bool hasBeenStarted = false;
 };
 
@@ -156,17 +158,16 @@ public:
     bool isFirstData() const {
         return m_wasFirstData;
     }
-
-protected:
-    std::string m_errorText;
-    std::atomic<bool> finished{false};
-    std::atomic<QueryStatus> m_status{QUERY_NOT_RUNNING};
-    std::atomic<QueryResultStatus> m_resultStatus{QUERY_NONE};
     int m_successReference = 0;
     int m_errorReference = 0;
     int m_abortReference = 0;
     int m_onDataReference = 0;
     int m_tableReference = 0;
+protected:
+    std::string m_errorText;
+    std::atomic<bool> finished{false};
+    std::atomic<QueryStatus> m_status{QUERY_NOT_RUNNING};
+    std::atomic<QueryResultStatus> m_resultStatus{QUERY_NONE};
     bool m_wasFirstData = false;
 };
 

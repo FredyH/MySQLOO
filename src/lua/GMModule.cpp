@@ -4,6 +4,9 @@
 #include <fstream>
 #include "LuaObject.h"
 #include "LuaDatabase.h"
+#include "LuaTransaction.h"
+#include "LuaQuery.h"
+#include "LuaPreparedQuery.h"
 #define MYSQLOO_VERSION "9"
 #define MYSQLOO_MINOR_VERSION "7"
 
@@ -18,13 +21,8 @@ GMOD_MODULE_CLOSE() {
 
 	/* Deletes all the remaining luaobjects when the server changes map
 	 */
-    /*
-	for (auto query : LuaObjectBase::luaRemovalObjects) {
-		query->onDestroyed(nullptr);
-	}*/
-	//LuaObjectBase::luaRemovalObjects.clear();
 	LuaObject::luaObjects.clear();
-	LuaObject::luaThinkObjects.clear();
+	LuaObject::luaDatabases.clear();
 	mysql_thread_end();
 	mysql_library_end();
 	return 0;
@@ -160,6 +158,9 @@ GMOD_MODULE_OPEN() {
 
     //Creating MetaTables
     LuaDatabase::createMetaTable(LUA);
+    LuaQuery::createMetaTable(LUA);
+    LuaPreparedQuery::createMetaTable(LUA);
+    LuaTransaction::createMetaTable(LUA);
 
 	//LuaObjectBase::createMetatables(LUA);
 	LUA->PushSpecial(GarrysMod::Lua::SPECIAL_GLOB);

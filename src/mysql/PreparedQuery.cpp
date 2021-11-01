@@ -266,12 +266,12 @@ bool PreparedQuery::executeStatement(Database &database, MYSQL* connection, std:
 	return true;
 }
 
-std::shared_ptr<PreparedQueryData> PreparedQuery::buildQueryData() {
+std::shared_ptr<QueryData> PreparedQuery::buildQueryData() {
     std::shared_ptr<PreparedQueryData> data(new PreparedQueryData());
     data->m_parameters = this->m_parameters;
     while (m_parameters.size() > 1) {
         //Front so the last used parameters are the ones that are gonna stay
         m_parameters.pop_front();
     }
-    return data;
+    return std::dynamic_pointer_cast<QueryData>(data);
 }
