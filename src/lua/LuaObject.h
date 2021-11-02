@@ -58,6 +58,8 @@ public:
         LUA->Pop();
         return returnValue;
     }
+
+    static int getFunctionReference(ILuaBase *LUA, int stackPosition, const char* fieldName);
 protected:
     explicit LuaObject(std::string className) : s_className(std::move(className)) {
 

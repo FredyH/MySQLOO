@@ -15,7 +15,7 @@ IQuery::IQuery(std::weak_ptr<Database> database) : m_database(std::move(database
 
 IQuery::~IQuery() = default;
 
-QueryResultStatus IQuery::getResultStatus() {
+QueryResultStatus IQuery::getResultStatus() const {
     if (!hasCallbackData()) {
         return QUERY_NONE;
     }
@@ -62,7 +62,7 @@ void IQuery::wait(bool shouldSwap) {
 }
 
 //Returns the error message produced by the mysql query or 0 if there is none
-std::string IQuery::error() {
+std::string IQuery::error() const {
     if (!hasCallbackData()) {
         throw MySQLOOException("Query not started");
     }
@@ -158,4 +158,8 @@ void IQuery::addQueryData(const std::shared_ptr<IQueryData> &data) {
         data->m_wasFirstData = true;
     }
     runningQueryData.push_back(data);
+}
+
+void IQuery::finishQueryData(const std::shared_ptr<IQueryData> &data) {
+    runningQueryData.erase(std::remove(runningQueryData.begin(), runningQueryData.end(), data), runningQueryData.end());
 }

@@ -44,20 +44,19 @@ static void dataToLua(Query &query,
 
 //Stores the data associated with the current result set of the query
 //Only called once per result set (and then cached)
-int LuaQuery::createDataReference(GarrysMod::Lua::ILuaBase *LUA, QueryData &data) {
-    auto query = std::dynamic_pointer_cast<Query>(m_query);
-    if (query->m_dataReference != 0)
-        return query->m_dataReference;
+int LuaQuery::createDataReference(GarrysMod::Lua::ILuaBase *LUA, Query &query, QueryData &data) {
+    if (query.m_dataReference != 0)
+        return query.m_dataReference;
     LUA->CreateTable();
     int dataStackPosition = LUA->Top();
-    if (query->hasCallbackData() && data.hasMoreResults()) {
+    if (query.hasCallbackData() && data.hasMoreResults()) {
         ResultData &currentData = data.getResult();
         for (unsigned int i = 0; i < currentData.getRows().size(); i++) {
             ResultDataRow &row = currentData.getRows()[i];
             LUA->CreateTable();
             int rowStackPosition = LUA->Top();
             for (unsigned int j = 0; j < row.getValues().size(); j++) {
-                dataToLua(*query, LUA, j + 1, row.getValues()[j], currentData.getColumns()[j].c_str(),
+                dataToLua(query, LUA, j + 1, row.getValues()[j], currentData.getColumns()[j].c_str(),
                           currentData.getColumnTypes()[j], row.isFieldNull(j));
             }
             LUA->Push(dataStackPosition);
@@ -67,18 +66,21 @@ int LuaQuery::createDataReference(GarrysMod::Lua::ILuaBase *LUA, QueryData &data
             LUA->Pop(2); //data + row
         }
     }
-    query->m_dataReference = LUA->ReferenceCreate();
-    return query->m_dataReference;
-};
+    query.m_dataReference = LUA->ReferenceCreate();
+    return query.m_dataReference;
+}
 
-void LuaQuery::runSuccessCallback(ILuaBase *LUA, QueryData &data) {
-    int tableReference = this->createDataReference(LUA, data);
 
-    if (!LuaIQuery::getCallbackReference(LUA, data.m_successReference, data.m_tableReference,
-                                         "onSuccess", data.isFirstData())) {
+void LuaQuery::runSuccessCallback(ILuaBase *LUA, const std::shared_ptr<IQueryData> &data) {
+    auto query = std::dynamic_pointer_cast<Query>(m_query);
+    auto queryData = std::dynamic_pointer_cast<QueryData>(data);
+    int tableReference = LuaQuery::createDataReference(LUA, *query, *queryData);
+
+    if (!LuaIQuery::getCallbackReference(LUA, data->m_successReference, data->m_tableReference,
+                                         "onSuccess", data->isFirstData())) {
         return;
     }
-    LUA->ReferencePush(data.m_tableReference);
+    LUA->ReferencePush(data->m_tableReference);
     LUA->ReferencePush(tableReference);
     LuaObject::pcallWithErrorReporter(LUA, 2, 0);
 }
@@ -103,7 +105,7 @@ MYSQLOO_LUA_FUNCTION(getData) {
     if (!query->hasCallbackData() || query->callbackQueryData->getResultStatus() == QUERY_ERROR) {
         LUA->PushNil();
     } else {
-        int ref = luaQuery->createDataReference(LUA, (QueryData &) *(query->callbackQueryData));
+        int ref = LuaQuery::createDataReference(LUA, *query, (QueryData &) *(query->callbackQueryData));
         LUA->ReferencePush(ref);
     }
     return 1;
@@ -142,4 +144,12 @@ void LuaQuery::createMetaTable(ILuaBase *LUA) {
     LuaIQuery::TYPE_QUERY = LUA->CreateMetaTable("MySQLOO Query");
     LuaQuery::addMetaTableFunctions(LUA);
     LUA->Pop(); //Metatable
+}
+
+std::shared_ptr<IQueryData> LuaQuery::buildQueryData(ILuaBase *LUA, int stackPosition) {
+    auto query = std::dynamic_pointer_cast<Query>(this->m_query);
+    auto data = query->buildQueryData();
+    data->setStatus(QUERY_COMPLETE);
+    LuaIQuery::referenceCallbacks(LUA, stackPosition, *data);
+    return data;
 }

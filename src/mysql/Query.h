@@ -33,6 +33,8 @@ public:
     virtual std::shared_ptr<QueryData> buildQueryData();
 
     int m_dataReference = 0;
+
+    static std::shared_ptr<Query> create(const std::weak_ptr<Database> &dbase, std::string query);
 protected:
     Query(const std::weak_ptr<Database> &dbase, std::string query);
 

@@ -111,3 +111,15 @@ bool LuaObject::getCallbackReference(ILuaBase *LUA, int functionReference, int t
     }
     return true;
 }
+
+
+int LuaObject::getFunctionReference(ILuaBase *LUA, int stackPosition, const char* fieldName) {
+    LUA->GetField(stackPosition, fieldName);
+    int reference = 0;
+    if (LUA->IsType(-1, GarrysMod::Lua::Type::Function)) {
+        reference = LUA->ReferenceCreate();
+    } else {
+        LUA->Pop();
+    }
+    return reference;
+}

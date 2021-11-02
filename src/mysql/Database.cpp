@@ -16,7 +16,8 @@ Database::Database(std::string host, std::string username, std::string pw, std::
 
 }
 
-std::shared_ptr<Database> Database::createDatabase(const std::string &host, const std::string &username, const std::string &pw,
+std::shared_ptr<Database>
+Database::createDatabase(const std::string &host, const std::string &username, const std::string &pw,
                          const std::string &database, unsigned int port, const std::string &unixSocket) {
     return std::shared_ptr<Database>(new Database(host, username, pw, database, port, unixSocket));
 }
@@ -130,7 +131,8 @@ std::string Database::escape(const std::string &str) {
     //escaped string can be twice as big as original string
     //source: http://dev.mysql.com/doc/refman/5.1/en/mysql-real-escape-string.html
     std::vector<char> escapedQuery(str.size() * 2 + 1);
-    unsigned int nEscapedQueryLength = mysql_real_escape_string(m_sql, escapedQuery.data(), str.c_str(), str.size());
+    unsigned int nEscapedQueryLength = mysql_real_escape_string(m_sql, escapedQuery.data(), str.c_str(),
+                                                                (unsigned long) str.size());
     return {escapedQuery.data(), (size_t) nEscapedQueryLength};
 }
 

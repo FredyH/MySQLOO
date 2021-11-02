@@ -12,12 +12,13 @@
 class TransactionData : public IQueryData {
     friend class Transaction;
 
+public:
+    std::deque<std::pair<std::shared_ptr<Query>, std::shared_ptr<IQueryData>>> m_queries;
 protected:
     explicit TransactionData(std::deque<std::pair<std::shared_ptr<Query>, std::shared_ptr<IQueryData>>> queries) :
             m_queries(std::move(queries)) {
     };
 
-    std::deque<std::pair<std::shared_ptr<Query>, std::shared_ptr<IQueryData>>> m_queries;
     bool retried = false;
 };
 
@@ -27,10 +28,13 @@ class Transaction : public IQuery {
 public:
 
     static std::shared_ptr<TransactionData>
-    buildQueryData(const std::deque<std::pair<std::shared_ptr<Query>, std::shared_ptr<IQueryData>>>& queries);
+    buildQueryData(const std::deque<std::pair<std::shared_ptr<Query>, std::shared_ptr<IQueryData>>> &queries);
+
+    static std::shared_ptr<Transaction> create(const std::weak_ptr<Database> &database);
 
 protected:
     bool executeStatement(Database &database, MYSQL *connection, std::shared_ptr<IQueryData> data) override;
+
     explicit Transaction(const std::weak_ptr<Database> &database) : IQuery(database) {
 
     }

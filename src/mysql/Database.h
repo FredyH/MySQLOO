@@ -110,7 +110,14 @@ public:
 
     void setSSLSettings(const SSLSettings &settings);
     std::atomic<DatabaseStatus> m_status{DATABASE_NOT_CONNECTED};
-    std::string m_connection_err;
+
+    bool isConnectionDone() { return m_connectionDone; }
+    bool connectionSuccessful() { return m_success; }
+    std::string connectionError() { return m_connection_err; }
+
+    std::deque<std::pair<std::shared_ptr<IQuery>, std::shared_ptr<IQueryData>>> takeFinishedQueries() {
+        return finishedQueries.clear();
+    }
 
 private:
     Database(std::string host, std::string username, std::string pw, std::string database, unsigned int port,
@@ -138,6 +145,7 @@ private:
     unsigned int m_serverVersion = 0;
     std::string m_serverInfo;
     std::string m_hostInfo;
+    std::string m_connection_err;
     bool shouldAutoReconnect = true;
     bool useMultiStatements = true;
     bool dbCallbackRan = false;

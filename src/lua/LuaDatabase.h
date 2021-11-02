@@ -25,7 +25,7 @@ public:
         LuaObject::luaDatabases.push_back(instance);
         return instance;
     }
-
+    bool m_dbCallbackRan = false;
 
 protected:
     explicit LuaDatabase(std::shared_ptr<Database> database) : LuaObject("Database"),

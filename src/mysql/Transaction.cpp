@@ -16,7 +16,7 @@ bool Transaction::executeStatement(Database &database, MYSQL* connection, std::s
     database.setAutoReconnect(false);
 	auto resetReconnectStatus = finally([&] { database.setAutoReconnect(oldReconnectStatus); });
 	try {
-		this->mysqlAutocommit(connection, false);
+		Transaction::mysqlAutocommit(connection, false);
 		{
 			for (auto& query : data->m_queries) {
 				try {
@@ -33,7 +33,7 @@ bool Transaction::executeStatement(Database &database, MYSQL* connection, std::s
 		}
 		mysql_commit(connection);
 		data->setResultStatus(QUERY_SUCCESS);
-		this->mysqlAutocommit(connection, true);
+		Transaction::mysqlAutocommit(connection, true);
 	} catch (const MySQLException& error) {
 		//This check makes sure that setting mysqlAutocommit back to true doesn't cause the transaction to fail
 		//Even though the transaction was executed successfully
@@ -75,4 +75,8 @@ std::shared_ptr<TransactionData> Transaction::buildQueryData(const std::deque<st
 	//At this point the transaction is guaranteed to have a referenced table
 	//since this is always called shortly after transaction:start()
     return std::shared_ptr<TransactionData>(new TransactionData(queries));
+}
+
+std::shared_ptr<Transaction> Transaction::create(const std::weak_ptr<Database> &database) {
+    return std::shared_ptr<Transaction>(new Transaction(database));
 }

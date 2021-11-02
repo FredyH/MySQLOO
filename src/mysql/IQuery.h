@@ -68,7 +68,9 @@ public:
 
     void addQueryData(const std::shared_ptr<IQueryData> &data);
 
-    std::string error();
+    void finishQueryData(const std::shared_ptr<IQueryData> &data);
+
+    std::string error() const;
 
     std::vector<std::shared_ptr<IQueryData>> abort();
 
@@ -77,20 +79,20 @@ public:
     bool hasCallbackData() const {
         return callbackQueryData != nullptr;
     }
-    QueryResultStatus getResultStatus();
+    QueryResultStatus getResultStatus() const;
     std::shared_ptr<IQueryData> callbackQueryData;
 protected:
 
     virtual bool executeStatement(Database &database, MYSQL *m_sql, std::shared_ptr<IQueryData> data) = 0;
 
     //Wrapper functions for c api that throw exceptions
-    void mysqlQuery(MYSQL *sql, std::string &query);
+    static void mysqlQuery(MYSQL *sql, std::string &query);
 
-    void mysqlAutocommit(MYSQL *sql, bool auto_mode);
+    static void mysqlAutocommit(MYSQL *sql, bool auto_mode);
 
-    MYSQL_RES *mysqlStoreResults(MYSQL *sql);
+    static MYSQL_RES *mysqlStoreResults(MYSQL *sql);
 
-    bool mysqlNextResult(MYSQL *sql);
+    static bool mysqlNextResult(MYSQL *sql);
 
     //fields
     std::weak_ptr<Database> m_database{};

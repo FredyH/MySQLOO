@@ -5,7 +5,7 @@
 
 MYSQLOO_LUA_FUNCTION(start) {
     auto query = LuaIQuery::getLuaIQuery(LUA);
-    auto queryData = query->buildQueryData();
+    auto queryData = query->buildQueryData(nullptr, 0);
     query->m_query->start(queryData);
     return 0;
 }
@@ -74,7 +74,8 @@ void LuaIQuery::runErrorCallback(ILuaBase *LUA, const std::shared_ptr<IQueryData
         return;
     }
     LUA->ReferencePush(data->m_tableReference);
-    LUA->PushString(data->getError().c_str());
+    auto error = data->getError();
+    LUA->PushString(error.c_str());
     LuaObject::pcallWithErrorReporter(LUA, 2, 0);
 }
 
@@ -93,4 +94,67 @@ void LuaIQuery::addMetaTableFunctions(ILuaBase *LUA) {
     LUA->SetField(-2, "isRunning");
     LUA->PushCFunction(abort);
     LUA->SetField(-2, "abort");
+}
+
+void LuaIQuery::referenceCallbacks(ILuaBase *LUA, int stackPosition, IQueryData &data) {
+    LUA->Push(stackPosition);
+    data.m_tableReference = LUA->ReferenceCreate();
+
+    if (data.m_successReference == 0) {
+        data.m_successReference = getFunctionReference(LUA, stackPosition, "onSuccess");
+    }
+
+    if (data.m_abortReference == 0) {
+        data.m_abortReference = getFunctionReference(LUA, stackPosition, "onAborted");
+    }
+
+    if (data.m_onDataReference == 0) {
+        data.m_onDataReference = getFunctionReference(LUA, stackPosition, "onData");
+    }
+
+    if (data.m_errorReference == 0) {
+        data.m_errorReference = getFunctionReference(LUA, stackPosition, "onError");
+    }
+}
+void LuaIQuery::finishQueryData(GarrysMod::Lua::ILuaBase* LUA, const std::shared_ptr<IQueryData>& data) const {
+    auto query = this->m_query;
+    query->finishQueryData(data);
+    if (data->m_tableReference) {
+        LUA->ReferenceFree(data->m_tableReference);
+    }
+    if (data->m_onDataReference) {
+        LUA->ReferenceFree(data->m_onDataReference);
+    }
+    if (data->m_errorReference) {
+        LUA->ReferenceFree(data->m_errorReference);
+    }
+    if (data->m_abortReference) {
+        LUA->ReferenceFree(data->m_abortReference);
+    }
+    if (data->m_successReference) {
+        LUA->ReferenceFree(data->m_successReference);
+    }
+    data->m_onDataReference = 0;
+    data->m_errorReference = 0;
+    data->m_abortReference = 0;
+    data->m_successReference = 0;
+    data->m_tableReference = 0;
+}
+
+void LuaIQuery::runCallback(ILuaBase *LUA, const std::shared_ptr<IQueryData> &data) {
+    m_query->setCallbackData(data);
+
+    auto status = data->getResultStatus();
+    switch (status) {
+        case QUERY_NONE:
+            break; //Should not happen
+        case QUERY_ERROR:
+            runErrorCallback(LUA, data);
+            break;
+        case QUERY_SUCCESS:
+            runSuccessCallback(LUA, data);
+            break;
+    }
+
+    finishQueryData(LUA, data);
 }

@@ -275,3 +275,7 @@ std::shared_ptr<QueryData> PreparedQuery::buildQueryData() {
     }
     return std::dynamic_pointer_cast<QueryData>(data);
 }
+
+std::shared_ptr<PreparedQuery> PreparedQuery::create(const std::weak_ptr<Database> &dbase, std::string query) {
+    return std::shared_ptr<PreparedQuery>(new PreparedQuery(dbase, std::move(query)));
+}

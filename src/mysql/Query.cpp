@@ -75,8 +75,6 @@ my_ulonglong Query::lastInsert() {
     return data->getLastInsertID();
 }
 
-
-
 //Returns the last affected rows produced by INSERT/DELETE/UPDATE (0 for none, -1 for errors)
 //For a SELECT statement this returns the amount of rows returned
 my_ulonglong Query::affectedRows() {
@@ -91,3 +89,8 @@ my_ulonglong Query::affectedRows() {
 std::shared_ptr<QueryData> Query::buildQueryData() {
     return std::shared_ptr<QueryData>(new QueryData());
 }
+
+std::shared_ptr<Query> Query::create(const std::weak_ptr<Database> &dbase, std::string query) {
+    return std::shared_ptr<Query>(new Query(dbase, std::move(query)));
+}
+

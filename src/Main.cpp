@@ -7,7 +7,7 @@ static std::shared_ptr<Database> db;
 int main() {
     mysql_library_init(0, nullptr, nullptr);
     std::cout << "Test" << std::endl;
-    db = Database::createDatabase("127.0.0.1", "root", "test", "mysql", 3306, "");
+    db = Database::createDatabase("127.0.0.1", "root", "", "mysql", 3306, "");
     db->connect();
     db->wait();
     std::cout << "DB Connected" << std::endl;

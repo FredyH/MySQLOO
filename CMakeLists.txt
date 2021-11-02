@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.13)
 project(MySQLOO)
 add_subdirectory(GmodLUA)
-set(CMAKE_VERBOSE_MAKEFILE ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 file(GLOB_RECURSE MySQLOO_SRC "src/*.h" "src/*.cpp")
 set(SOURCE_FILES ${MySQLOO_SRC} src/Main.cpp)
