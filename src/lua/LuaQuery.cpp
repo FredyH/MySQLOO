@@ -39,7 +39,6 @@ static void dataToLua(Query &query,
     } else {
         LUA->SetField(-2, columnName);
     }
-    LUA->Pop();
 }
 
 //Stores the data associated with the current result set of the query
@@ -74,33 +73,33 @@ int LuaQuery::createDataReference(GarrysMod::Lua::ILuaBase *LUA, Query &query, Q
 void LuaQuery::runSuccessCallback(ILuaBase *LUA, const std::shared_ptr<IQueryData> &data) {
     auto query = std::dynamic_pointer_cast<Query>(m_query);
     auto queryData = std::dynamic_pointer_cast<QueryData>(data);
-    int tableReference = LuaQuery::createDataReference(LUA, *query, *queryData);
+    int dataReference = LuaQuery::createDataReference(LUA, *query, *queryData);
 
-    if (!LuaIQuery::getCallbackReference(LUA, data->m_successReference, data->m_tableReference,
-                                         "onSuccess", data->isFirstData())) {
+    if (!LuaIQuery::pushCallbackReference(LUA, data->m_successReference, data->m_tableReference,
+                                          "onSuccess", data->isFirstData())) {
         return;
     }
     LUA->ReferencePush(data->m_tableReference);
-    LUA->ReferencePush(tableReference);
-    LuaObject::pcallWithErrorReporter(LUA, 2, 0);
+    LUA->ReferencePush(dataReference);
+    LuaObject::pcallWithErrorReporter(LUA, 2);
 }
 
 MYSQLOO_LUA_FUNCTION(affectedRows) {
-    auto luaQuery = LuaQuery::getLuaQuery(LUA);
+    auto luaQuery = LuaQuery::getLuaObject<LuaQuery>(LUA);
     auto query = (Query *) luaQuery->m_query.get();
     LUA->PushNumber((double) query->affectedRows());
     return 1;
 }
 
 MYSQLOO_LUA_FUNCTION(lastInsert) {
-    auto luaQuery = LuaQuery::getLuaQuery(LUA);
+    auto luaQuery = LuaQuery::getLuaObject<LuaQuery>(LUA);
     auto query = (Query *) luaQuery->m_query.get();
     LUA->PushNumber((double) query->lastInsert());
     return 1;
 }
 
 MYSQLOO_LUA_FUNCTION(getData) {
-    auto luaQuery = LuaQuery::getLuaQuery(LUA);
+    auto luaQuery = LuaQuery::getLuaObject<LuaQuery>(LUA);
     auto query = (Query *) luaQuery->m_query.get();
     if (!query->hasCallbackData() || query->callbackQueryData->getResultStatus() == QUERY_ERROR) {
         LUA->PushNil();
@@ -112,14 +111,14 @@ MYSQLOO_LUA_FUNCTION(getData) {
 }
 
 MYSQLOO_LUA_FUNCTION(hasMoreResults) {
-    auto luaQuery = LuaQuery::getLuaQuery(LUA);
+    auto luaQuery = LuaQuery::getLuaObject<LuaQuery>(LUA);
     auto query = (Query *) luaQuery->m_query.get();
     LUA->PushBool(query->hasMoreResults());
     return 1;
 }
 
 LUA_FUNCTION(getNextResults) {
-    auto luaQuery = LuaQuery::getLuaQuery(LUA);
+    auto luaQuery = LuaQuery::getLuaObject<LuaQuery>(LUA);
     auto query = (Query *) luaQuery->m_query.get();
     query->getNextResults();
     return 0;

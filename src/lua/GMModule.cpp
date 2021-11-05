@@ -28,30 +28,6 @@ GMOD_MODULE_CLOSE() {
 	return 0;
 }
 
-/* Connects to the database and returns a Database instance that can be used
- * as an interface to the mysql server.
- */
-LUA_FUNCTION(mysqlooConnect) {
-	LUA->CheckType(1, GarrysMod::Lua::Type::String);
-	LUA->CheckType(2, GarrysMod::Lua::Type::String);
-	LUA->CheckType(3, GarrysMod::Lua::Type::String);
-	LUA->CheckType(4, GarrysMod::Lua::Type::String);
-	std::string host = LUA->GetString(1);
-	std::string username = LUA->GetString(2);
-	std::string pw = LUA->GetString(3);
-	std::string database = LUA->GetString(4);
-	unsigned int port = 3306;
-	std::string unixSocket;
-	if (LUA->IsType(5, GarrysMod::Lua::Type::Number)) {
-		port = (int)LUA->GetNumber(5);
-	}
-	if (LUA->IsType(6, GarrysMod::Lua::Type::String)) {
-		unixSocket = LUA->GetString(6);
-	}
-    auto object = Database::createDatabase(host, username, pw, database, port, unixSocket);
-	return 1;
-}
-
 /* Returns the amount of LuaObjectBase objects that are currently in use
  * This includes Database and Query instances
  */
@@ -91,13 +67,13 @@ static void printMessage(GarrysMod::Lua::ILuaBase* LUA, const char* str, int r, 
 	LUA->ReferenceFree(ref);
 }
 
-static int printOutdatatedVersion(lua_State* state) {
+static int printOutdatedVersion(lua_State* state) {
 	GarrysMod::Lua::ILuaBase* LUA = state->luabase;
 	LUA->SetState(state);
 	printMessage(LUA, "Your server is using an outdated mysqloo9 version\n", 255, 0, 0);
 	printMessage(LUA, "Download the latest version from here:\n", 255, 0, 0);
 	printMessage(LUA, "https://github.com/FredyH/MySQLOO/releases\n", 86, 156, 214);
-	runInTimer(LUA, 300, printOutdatatedVersion);
+	runInTimer(LUA, 300, printOutdatedVersion);
 	return 0;
 }
 
@@ -107,7 +83,7 @@ static int fetchSuccessful(lua_State* state) {
 	std::string version = LUA->GetString(1);
 	//version.size() < 3 so that the 404 response gets ignored
 	if (version != MYSQLOO_MINOR_VERSION && version.size() <= 3) {
-		printOutdatatedVersion(state);
+        printOutdatedVersion(state);
 	} else {
 		printMessage(LUA, "Your server is using the latest mysqloo9 version\n", 0, 255, 0);
 	}
@@ -151,12 +127,18 @@ static int doVersionCheck(lua_State* state) {
 	return 0;
 }
 
+//TODO List:
+// - memory leak with queries because sometimes first data is not cleared
+// - onData callbacks
+// - PreparedQueries do not properly clear their results
+
 GMOD_MODULE_OPEN() {
 	if (mysql_library_init(0, nullptr, nullptr)) {
 		LUA->ThrowError("Could not initialize mysql library.");
 	}
 
     //Creating MetaTables
+    LuaObject::createUserDataMetaTable(LUA);
     LuaDatabase::createMetaTable(LUA);
     LuaQuery::createMetaTable(LUA);
     LuaPreparedQuery::createMetaTable(LUA);
@@ -194,7 +176,7 @@ GMOD_MODULE_OPEN() {
 	LUA->PushNumber(OPTION_NAMED_FIELDS); LUA->SetField(-2, "OPTION_NAMED_FIELDS"); //Not used anymore
 	LUA->PushNumber(OPTION_CACHE); LUA->SetField(-2, "OPTION_CACHE"); //Not used anymore
 
-	LUA->PushCFunction(mysqlooConnect); LUA->SetField(-2, "connect");
+	LUA->PushCFunction(LuaDatabase::create); LUA->SetField(-2, "connect");
 	LUA->PushCFunction(objectCount); LUA->SetField(-2, "objectCount");
 
 	LUA->SetField(-2, "mysqloo");

@@ -3,10 +3,9 @@
 #include "../mysql/Transaction.h"
 
 MYSQLOO_LUA_FUNCTION(addQuery) {
-    auto luaTransaction = LuaObject::getLuaObject<LuaTransaction>(LUA, LuaObject::TYPE_TRANSACTION);
+    auto luaTransaction = LuaObject::getLuaObject<LuaTransaction>(LUA);
 
-    auto addedLuaQuery = LuaQuery::getLuaQuery(LUA, 2);
-    auto addedQuery = (Query *) addedLuaQuery->m_query.get();
+    auto addedLuaQuery = LuaQuery::getLuaObject<LuaQuery>(LUA, 2);
     LUA->Push(1);
     LUA->GetField(-1, "__queries");
     if (LUA->IsType(-1, GarrysMod::Lua::Type::Nil)) {
@@ -36,7 +35,7 @@ MYSQLOO_LUA_FUNCTION(getQueries) {
 }
 
 MYSQLOO_LUA_FUNCTION(clearQueries) {
-    auto luaTransaction = LuaObject::getLuaObject<LuaTransaction>(LUA, LuaObject::TYPE_TRANSACTION);
+    auto luaTransaction = LuaObject::getLuaObject<LuaTransaction>(LUA);
 
     LUA->Push(1);
     LUA->CreateTable();
@@ -63,23 +62,24 @@ void LuaTransaction::createMetaTable(ILuaBase *LUA) {
 
 std::shared_ptr<IQueryData> LuaTransaction::buildQueryData(ILuaBase *LUA, int stackPosition) {
     LUA->GetField(stackPosition, "__queries");
-
     std::deque<std::pair<std::shared_ptr<Query>, std::shared_ptr<IQueryData>>> queries;
-
-    for (int i = 0; i < this->m_addedQueryData.size(); i++) {
-        auto& queryData = this->m_addedQueryData[i];
-        LUA->PushNumber((double) (i + 1));
-        LUA->RawGet(-2);
-        if (!LUA->IsType(-1, GarrysMod::Lua::Type::Table)) {
-            LUA->Pop();
-            break;
+    if (LUA->GetType(-1) != GarrysMod::Lua::Type::Nil) {
+        for (int i = 0; i < this->m_addedQueryData.size(); i++) {
+            auto &queryData = this->m_addedQueryData[i];
+            LUA->PushNumber((double) (i + 1));
+            LUA->RawGet(-2);
+            if (!LUA->IsType(-1, GarrysMod::Lua::Type::Table)) {
+                LUA->Pop(); //Nil or whatever else is on the stack
+                break;
+            }
+            auto luaQuery = LuaQuery::getLuaObject<LuaQuery>(LUA, -1);
+            auto query = std::dynamic_pointer_cast<Query>(luaQuery->m_query);
+            query->addQueryData(queryData);
+            queries.emplace_back(query, queryData);
+            LUA->Pop(); //Query
         }
-        auto luaQuery = LuaQuery::getLuaQuery(LUA, -1);
-        auto query = std::dynamic_pointer_cast<Query>(luaQuery->m_query);
-        query->addQueryData(queryData);
-        queries.emplace_back(query, queryData);
     }
-
+    LUA->Pop(); //Queries table
     auto data = Transaction::buildQueryData(queries);
     LuaIQuery::referenceCallbacks(LUA, stackPosition, *data);
     return data;
@@ -87,29 +87,37 @@ std::shared_ptr<IQueryData> LuaTransaction::buildQueryData(ILuaBase *LUA, int st
 
 void LuaTransaction::runSuccessCallback(ILuaBase *LUA, const std::shared_ptr<IQueryData> &data) {
     auto transactionData = std::dynamic_pointer_cast<TransactionData>(data);
+    if (transactionData->m_tableReference == 0) return;
     transactionData->setStatus(QUERY_COMPLETE);
-    std::vector<int> queryTableRefs;
-    for (auto& pair : transactionData->m_queries) {
+    LUA->CreateTable();
+    int index = 0;
+    for (auto &pair: transactionData->m_queries) {
+        LUA->PushNumber((double) (++index));
         auto query = pair.first;
         //So we get the current data rather than caching it, if the same query is added multiple times.
-        query->m_dataReference = 0;
+        if (query->m_dataReference != 0) {
+            query->m_dataReference = 0;
+            LUA->ReferenceFree(query->m_dataReference);
+        }
         auto queryData = std::dynamic_pointer_cast<QueryData>(pair.second);
         query->setCallbackData(pair.second);
         int ref = LuaQuery::createDataReference(LUA, *query, *queryData);
-        queryTableRefs.push_back(ref);
-    }
-    LUA->CreateTable();
-    for (size_t i = 0; i < queryTableRefs.size(); i++) {
-        LUA->PushNumber((double) (i + 1));
-        LUA->ReferencePush(queryTableRefs[i]);
+        LUA->ReferencePush(ref);
         LUA->SetTable(-3);
+        //The last data reference can stay cached in the query and will be free'd once the query is gc'ed
     }
-    int dataRef = LUA->ReferenceCreate();
-    if (data->getSuccessReference() != 0) {
-
-    } else if (data->isFirstData()) {
-
+    if (!LuaIQuery::pushCallbackReference(LUA, data->m_successReference, data->m_tableReference,
+                                          "onSuccess", data->isFirstData())) {
+        LUA->Pop(); //Table of results
+        return;
     }
+    LUA->ReferencePush(transactionData->m_tableReference);
+    LUA->Push(-3); //Table of results
+    LuaObject::pcallWithErrorReporter(LUA, 2);
 
-    LUA->ReferenceFree(dataRef);
+    LUA->Pop(); //Table of results
+
+    for (auto &pair: transactionData->m_queries) {
+        LuaIQuery::finishQueryData(LUA, pair.second);
+    }
 }

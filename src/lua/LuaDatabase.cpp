@@ -6,7 +6,7 @@
 
 static void pushLuaObjectTable(ILuaBase *LUA, void *data, int type) {
     LUA->CreateTable();
-    LUA->PushUserType(data, type);
+    LUA->PushUserType(data, LuaObject::TYPE_USERDATA);
     LUA->SetField(-2, "__CppObject");
     LUA->PushMetaTable(type);
     LUA->SetMetaTable(-2);
@@ -37,7 +37,7 @@ LUA_CLASS_FUNCTION(LuaDatabase, create) {
 }
 
 MYSQLOO_LUA_FUNCTION(query) {
-    auto database = LuaObject::getLuaObject<LuaDatabase>(LUA, LuaObject::TYPE_DATABASE);
+    auto database = LuaObject::getLuaObject<LuaDatabase>(LUA);
     LUA->CheckType(2, GarrysMod::Lua::Type::String);
     unsigned int outLen = 0;
     const char *queryStr = LUA->GetString(2, &outLen);
@@ -49,7 +49,7 @@ MYSQLOO_LUA_FUNCTION(query) {
 }
 
 MYSQLOO_LUA_FUNCTION(prepare) {
-    auto database = LuaObject::getLuaObject<LuaDatabase>(LUA, LuaObject::TYPE_DATABASE);
+    auto database = LuaObject::getLuaObject<LuaDatabase>(LUA);
     LUA->CheckType(2, GarrysMod::Lua::Type::String);
     unsigned int outLen = 0;
     const char *queryStr = LUA->GetString(2, &outLen);
@@ -61,7 +61,7 @@ MYSQLOO_LUA_FUNCTION(prepare) {
 }
 
 MYSQLOO_LUA_FUNCTION(createTransaction) {
-    auto database = LuaObject::getLuaObject<LuaDatabase>(LUA, LuaObject::TYPE_DATABASE);
+    auto database = LuaObject::getLuaObject<LuaDatabase>(LUA);
     auto transaction = Transaction::create(database->m_database);
     auto luaTransaction = LuaTransaction::create(transaction);
 
@@ -70,7 +70,7 @@ MYSQLOO_LUA_FUNCTION(createTransaction) {
 }
 
 MYSQLOO_LUA_FUNCTION(connect) {
-    auto database = LuaObject::getLuaObject<LuaDatabase>(LUA, LuaObject::TYPE_DATABASE);
+    auto database = LuaObject::getLuaObject<LuaDatabase>(LUA);
     if (database->m_tableReference == 0) {
         LUA->Push(1);
         database->m_tableReference = LUA->ReferenceCreate();
@@ -80,7 +80,7 @@ MYSQLOO_LUA_FUNCTION(connect) {
 }
 
 MYSQLOO_LUA_FUNCTION(escape) {
-    auto database = LuaObject::getLuaObject<LuaDatabase>(LUA, LuaObject::TYPE_DATABASE);
+    auto database = LuaObject::getLuaObject<LuaDatabase>(LUA);
     unsigned int nQueryLength;
     const char *sQuery = LUA->GetString(2, &nQueryLength);
     auto escaped = database->m_database->escape(std::string(sQuery, nQueryLength));
@@ -89,7 +89,7 @@ MYSQLOO_LUA_FUNCTION(escape) {
 }
 
 MYSQLOO_LUA_FUNCTION(setCharacterSet) {
-    auto database = LuaObject::getLuaObject<LuaDatabase>(LUA, LuaObject::TYPE_DATABASE);
+    auto database = LuaObject::getLuaObject<LuaDatabase>(LUA);
     LUA->CheckType(2, GarrysMod::Lua::Type::String);
     const char *charset = LUA->GetString(2);
     bool success = database->m_database->setCharacterSet(charset);
@@ -99,7 +99,7 @@ MYSQLOO_LUA_FUNCTION(setCharacterSet) {
 }
 
 MYSQLOO_LUA_FUNCTION(setSSLSettings) {
-    auto database = LuaObject::getLuaObject<LuaDatabase>(LUA, LuaObject::TYPE_DATABASE);
+    auto database = LuaObject::getLuaObject<LuaDatabase>(LUA);
     SSLSettings sslSettings;
     if (LUA->IsType(2, GarrysMod::Lua::Type::String)) {
         sslSettings.key = LUA->GetString(2);
@@ -121,7 +121,7 @@ MYSQLOO_LUA_FUNCTION(setSSLSettings) {
 }
 
 MYSQLOO_LUA_FUNCTION(disconnect) {
-    auto database = LuaObject::getLuaObject<LuaDatabase>(LUA, LuaObject::TYPE_DATABASE);
+    auto database = LuaObject::getLuaObject<LuaDatabase>(LUA);
     bool wait = false;
     if (LUA->IsType(2, GarrysMod::Lua::Type::Bool)) {
         wait = LUA->GetBool(2);
@@ -131,52 +131,52 @@ MYSQLOO_LUA_FUNCTION(disconnect) {
 }
 
 MYSQLOO_LUA_FUNCTION(status) {
-    auto database = LuaObject::getLuaObject<LuaDatabase>(LUA, LuaObject::TYPE_DATABASE);
+    auto database = LuaObject::getLuaObject<LuaDatabase>(LUA);
     LUA->PushNumber(database->m_database->m_status);
     return 1;
 }
 
 MYSQLOO_LUA_FUNCTION(serverVersion) {
-    auto database = LuaObject::getLuaObject<LuaDatabase>(LUA, LuaObject::TYPE_DATABASE);
+    auto database = LuaObject::getLuaObject<LuaDatabase>(LUA);
     LUA->PushNumber(database->m_database->serverVersion());
     return 1;
 }
 
 MYSQLOO_LUA_FUNCTION(serverInfo) {
-    auto database = LuaObject::getLuaObject<LuaDatabase>(LUA, LuaObject::TYPE_DATABASE);
+    auto database = LuaObject::getLuaObject<LuaDatabase>(LUA);
     LUA->PushString(database->m_database->serverInfo().c_str());
     return 1;
 }
 
 MYSQLOO_LUA_FUNCTION(hostInfo) {
-    auto database = LuaObject::getLuaObject<LuaDatabase>(LUA, LuaObject::TYPE_DATABASE);
+    auto database = LuaObject::getLuaObject<LuaDatabase>(LUA);
     LUA->PushString(database->m_database->hostInfo().c_str());
     return 1;
 }
 
 MYSQLOO_LUA_FUNCTION(setAutoReconnect) {
-    auto database = LuaObject::getLuaObject<LuaDatabase>(LUA, LuaObject::TYPE_DATABASE);
+    auto database = LuaObject::getLuaObject<LuaDatabase>(LUA);
     LUA->CheckType(2, GarrysMod::Lua::Type::Bool);
     database->m_database->setAutoReconnect(LUA->GetBool(2));
     return 0;
 }
 
 MYSQLOO_LUA_FUNCTION(setMultiStatements) {
-    auto database = LuaObject::getLuaObject<LuaDatabase>(LUA, LuaObject::TYPE_DATABASE);
+    auto database = LuaObject::getLuaObject<LuaDatabase>(LUA);
     LUA->CheckType(2, GarrysMod::Lua::Type::Bool);
     database->m_database->setMultiStatements(LUA->GetBool(2));
     return 0;
 }
 
 MYSQLOO_LUA_FUNCTION(setCachePreparedStatements) {
-    auto database = LuaObject::getLuaObject<LuaDatabase>(LUA, LuaObject::TYPE_DATABASE);
+    auto database = LuaObject::getLuaObject<LuaDatabase>(LUA);
     LUA->CheckType(2, GarrysMod::Lua::Type::Bool);
     database->m_database->setCachePreparedStatements(LUA->GetBool(2));
     return 0;
 }
 
 MYSQLOO_LUA_FUNCTION(abortAllQueries) {
-    auto database = LuaObject::getLuaObject<LuaDatabase>(LUA, LuaObject::TYPE_DATABASE);
+    auto database = LuaObject::getLuaObject<LuaDatabase>(LUA);
     auto abortedQueries = database->m_database->abortAllQueries();
     for (auto pair: abortedQueries) {
         //TODO:
@@ -187,19 +187,19 @@ MYSQLOO_LUA_FUNCTION(abortAllQueries) {
 }
 
 MYSQLOO_LUA_FUNCTION(queueSize) {
-    auto database = LuaObject::getLuaObject<LuaDatabase>(LUA, LuaObject::TYPE_DATABASE);
+    auto database = LuaObject::getLuaObject<LuaDatabase>(LUA);
     LUA->PushNumber((double) database->m_database->queueSize());
     return 1;
 }
 
 MYSQLOO_LUA_FUNCTION(ping) {
-    auto database = LuaObject::getLuaObject<LuaDatabase>(LUA, LuaObject::TYPE_DATABASE);
+    auto database = LuaObject::getLuaObject<LuaDatabase>(LUA);
     LUA->PushBool(database->m_database->ping());
     return 1;
 }
 
 MYSQLOO_LUA_FUNCTION(wait) {
-    auto database = LuaObject::getLuaObject<LuaDatabase>(LUA, LuaObject::TYPE_DATABASE);
+    auto database = LuaObject::getLuaObject<LuaDatabase>(LUA);
     database->m_database->wait();
     return 0;
 }
@@ -277,7 +277,7 @@ void LuaDatabase::think(ILuaBase *LUA) {
             LUA->GetField(-1, "onConnected");
             if (LUA->GetType(-1) == GarrysMod::Lua::Type::Function) {
                 LUA->ReferencePush(this->m_tableReference);
-                pcallWithErrorReporter(LUA, 1, 0);
+                pcallWithErrorReporter(LUA, 1);
             }
             LUA->Pop(); //Callback function
         } else {
@@ -286,7 +286,7 @@ void LuaDatabase::think(ILuaBase *LUA) {
                 LUA->ReferencePush(this->m_tableReference);
                 auto error = database->connectionError();
                 LUA->PushString(error.c_str());
-                pcallWithErrorReporter(LUA, 2, 0);
+                pcallWithErrorReporter(LUA, 2);
             }
             LUA->Pop(); //Callback function
         }
@@ -300,10 +300,9 @@ void LuaDatabase::think(ILuaBase *LUA) {
     auto finishedQueries = database->takeFinishedQueries();
     for (auto &pair: finishedQueries) {
         auto data = pair.second;
-        auto query = pair.first;
         if (data->m_tableReference != 0) {
             LUA->ReferencePush(data->m_tableReference);
-            auto luaQuery = LuaIQuery::getLuaIQuery(LUA, -1);
+            auto luaQuery = LuaIQuery::getLuaObject<LuaIQuery>(LUA, -1);
             LUA->Pop();
             luaQuery->runCallback(LUA, data);
         }

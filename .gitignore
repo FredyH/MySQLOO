@@ -11,3 +11,4 @@
 *.zip
 cmake-build-debug
 .idea
+.vs

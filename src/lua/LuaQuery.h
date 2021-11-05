@@ -15,18 +15,6 @@ public:
 
     static void createMetaTable(ILuaBase *LUA);
 
-    static LuaQuery *getLuaQuery(ILuaBase *LUA, int stackPos = 1) {
-        int type = LuaObject::getLuaObjectType(LUA, stackPos);
-        if (type != LuaObject::TYPE_QUERY && type != LuaObject::TYPE_PREPARED_QUERY) {
-            LUA->ThrowError("[MySQLOO] Expected MySQLOO query");
-        }
-        auto *returnValue = LuaObject::getLuaObject<LuaQuery>(LUA, type, stackPos);
-        if (returnValue == nullptr) {
-            LUA->ThrowError("[MySQLOO] Expected MySQLOO table");
-        }
-        return returnValue;
-    }
-
     static std::shared_ptr<LuaQuery> create(const std::shared_ptr<Query> &query) {
         auto instance = std::shared_ptr<LuaQuery>(new LuaQuery(query, "MySQLOO Query"));
         LuaObject::luaObjects.push_back(instance);

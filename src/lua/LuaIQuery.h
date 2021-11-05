@@ -31,19 +31,6 @@ public:
 
     void finishQueryData(ILuaBase *LUA, const std::shared_ptr<IQueryData>& data) const;
 
-    static LuaIQuery *getLuaIQuery(ILuaBase *LUA, int stackPos = 1) {
-        int type = LuaObject::getLuaObjectType(LUA, stackPos);
-        if (type != LuaObject::TYPE_QUERY && type != LuaObject::TYPE_PREPARED_QUERY &&
-            type != LuaObject::TYPE_TRANSACTION) {
-            LUA->ThrowError("[MySQLOO] Expected MySQLOO table");
-        }
-        auto *returnValue = LuaObject::getLuaObject<LuaIQuery>(LUA, type, stackPos);
-        if (returnValue == nullptr) {
-            LUA->ThrowError("[MySQLOO] Expected MySQLOO table");
-        }
-        return returnValue;
-    }
-
 protected:
     explicit LuaIQuery(std::shared_ptr<IQuery> query, std::string className) : LuaObject(std::move(className)),
                                                                                m_query(std::move(query)) {}

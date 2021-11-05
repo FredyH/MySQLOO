@@ -10,65 +10,65 @@
 #include "GarrysMod/Lua/Interface.h"
 #include "../mysql/MySQLOOException.h"
 
+#include <iostream>
+
 class LuaDatabase;
 
 using namespace GarrysMod::Lua;
 
 class LuaObject : public std::enable_shared_from_this<LuaObject> {
 public:
+    virtual ~LuaObject() = default;
+
     std::string toString();
 
     static std::deque<std::shared_ptr<LuaObject>> luaObjects;
     static std::deque<std::shared_ptr<LuaDatabase>> luaDatabases;
 
-    static std::shared_ptr<LuaObject> checkMySQLOOType(ILuaBase *lua, int position = 1);
-
+    static int TYPE_USERDATA;
     static int TYPE_DATABASE;
     static int TYPE_QUERY;
     static int TYPE_PREPARED_QUERY;
     static int TYPE_TRANSACTION;
 
-    static void addMetaTableFunctions(ILuaBase *lua);
+    static void addMetaTableFunctions(ILuaBase *LUA);
+
+    static void createUserDataMetaTable(ILuaBase *lua);
 
     //Lua functions
     static int luaObjectThink(lua_State *L);
 
-    static void pcallWithErrorReporter(ILuaBase *LUA, int nargs, int nresults);
+    static void pcallWithErrorReporter(ILuaBase *LUA, int nargs);
 
-    static bool getCallbackReference(ILuaBase *LUA, int functionReference, int tableReference,
-                                     const std::string &callbackName, bool allowCallback);
+    static bool pushCallbackReference(ILuaBase *LUA, int functionReference, int tableReference,
+                                      const std::string &callbackName, bool allowCallback);
 
-    static int getLuaObjectType(ILuaBase *LUA, int stackPos = 1) {
-        LUA->CheckType(stackPos, GarrysMod::Lua::Type::Table);
-        LUA->GetField(stackPos, "__CppObject");
-        int type = LUA->GetType(-1);
-        LUA->Pop();
-        return type;
-    }
-
-    template<typename T>
-    static T *getLuaObject(ILuaBase *LUA, int type, int stackPos = 1) {
+    template<class T>
+    static T *getLuaObject(ILuaBase *LUA, int stackPos = 1) {
         LUA->CheckType(stackPos, GarrysMod::Lua::Type::Table);
         LUA->GetField(stackPos, "__CppObject");
 
-        T *returnValue = LUA->GetUserType<T>(-1, type);
-        if (returnValue == nullptr) {
+        auto *luaObject = LUA->GetUserType<LuaObject>(-1, TYPE_USERDATA);
+        if (luaObject == nullptr) {
             LUA->ThrowError("[MySQLOO] Expected MySQLOO table");
+        }
+        T *returnValue = dynamic_cast<T*>(luaObject);
+        if (returnValue == nullptr) {
+            LUA->ThrowError("[MySQLOO] Invalid CPP Object");
         }
         LUA->Pop();
         return returnValue;
     }
 
-    static int getFunctionReference(ILuaBase *LUA, int stackPosition, const char* fieldName);
+    static int getFunctionReference(ILuaBase *LUA, int stackPosition, const char *fieldName);
+
 protected:
-    explicit LuaObject(std::string className) : s_className(std::move(className)) {
+    explicit LuaObject(std::string className) : m_className(std::move(className)) {
 
     }
 
-    std::string s_className;
+    std::string m_className;
 };
-
-
 
 
 #define MYSQLOO_LUA_FUNCTION(FUNC)                          \

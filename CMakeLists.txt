@@ -1,15 +1,15 @@
 cmake_minimum_required(VERSION 3.13)
-project(MySQLOO)
+project(mysqloo)
 add_subdirectory(GmodLUA)
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-file(GLOB_RECURSE MySQLOO_SRC "src/*.h" "src/*.cpp")
-set(SOURCE_FILES ${MySQLOO_SRC} src/Main.cpp)
+file(GLOB_RECURSE MYSQLOO_SRC "src/*.h" "src/*.cpp")
+set(SOURCE_FILES ${MYSQLOO_SRC} src/Main.cpp)
+set(CMAKE_BUILD_TYPE Debug)
 
-add_executable(MySQLOO ${SOURCE_FILES})
-target_link_libraries(MySQLOO gmod-module-base)
+add_library(mysqloo SHARED ${SOURCE_FILES})
+target_link_libraries(mysqloo gmod-module-base)
 
-target_include_directories(MySQLOO PRIVATE MySQL/include)
+target_include_directories(mysqloo PRIVATE MySQL/include)
 
 if (CMAKE_SIZEOF_VOID_P EQUAL 8)
     if (WIN32)
@@ -30,11 +30,11 @@ elseif (CMAKE_SIZEOF_VOID_P EQUAL 4)
 endif ()
 
 if (WIN32)
-    target_link_libraries(MySQLOO ${MARIADB_CLIENT_LIB} crypt32 ws2_32 shlwapi bcrypt secur32)
+    target_link_libraries(mysqloo ${MARIADB_CLIENT_LIB} crypt32 ws2_32 shlwapi bcrypt secur32)
 else ()
     find_package(Threads REQUIRED)
-    target_link_libraries(MySQLOO ${MARIADB_CLIENT_LIB} ${SSL_LIB} ${CRYPTO_LIB} Threads::Threads ${CMAKE_DL_LIBS})
+    target_link_libraries(mysqloo ${MARIADB_CLIENT_LIB} ${SSL_LIB} ${CRYPTO_LIB} Threads::Threads ${CMAKE_DL_LIBS})
 endif ()
 
 
-set_gmod_suffix_prefix(MySQLOO)
+set_gmod_suffix_prefix(mysqloo)

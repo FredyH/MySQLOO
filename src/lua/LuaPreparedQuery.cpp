@@ -1,8 +1,7 @@
 #include "LuaPreparedQuery.h"
-#include "../mysql/PreparedQuery.h"
 
 MYSQLOO_LUA_FUNCTION(setNumber) {
-    auto luaQuery = LuaObject::getLuaObject<LuaPreparedQuery>(LUA, LuaObject::TYPE_PREPARED_QUERY);
+    auto luaQuery = LuaObject::getLuaObject<LuaPreparedQuery>(LUA);
     auto query = (PreparedQuery *) luaQuery->m_query.get();
     LUA->CheckType(2, GarrysMod::Lua::Type::Number);
     LUA->CheckType(3, GarrysMod::Lua::Type::Number);
@@ -15,7 +14,7 @@ MYSQLOO_LUA_FUNCTION(setNumber) {
 }
 
 MYSQLOO_LUA_FUNCTION(setString) {
-    auto luaQuery = LuaObject::getLuaObject<LuaPreparedQuery>(LUA, LuaObject::TYPE_PREPARED_QUERY);
+    auto luaQuery = LuaObject::getLuaObject<LuaPreparedQuery>(LUA);
     auto query = (PreparedQuery *) luaQuery->m_query.get();
     LUA->CheckType(2, GarrysMod::Lua::Type::Number);
     LUA->CheckType(3, GarrysMod::Lua::Type::String);
@@ -28,7 +27,7 @@ MYSQLOO_LUA_FUNCTION(setString) {
 }
 
 MYSQLOO_LUA_FUNCTION(setBoolean) {
-    auto luaQuery = LuaObject::getLuaObject<LuaPreparedQuery>(LUA, LuaObject::TYPE_PREPARED_QUERY);
+    auto luaQuery = LuaObject::getLuaObject<LuaPreparedQuery>(LUA);
     auto query = (PreparedQuery *) luaQuery->m_query.get();
     LUA->CheckType(2, GarrysMod::Lua::Type::Number);
     LUA->CheckType(3, GarrysMod::Lua::Type::Bool);
@@ -40,7 +39,7 @@ MYSQLOO_LUA_FUNCTION(setBoolean) {
 }
 
 MYSQLOO_LUA_FUNCTION(setNull) {
-    auto luaQuery = LuaObject::getLuaObject<LuaPreparedQuery>(LUA, LuaObject::TYPE_PREPARED_QUERY);
+    auto luaQuery = LuaObject::getLuaObject<LuaPreparedQuery>(LUA);
     auto query = (PreparedQuery *) luaQuery->m_query.get();
     LUA->CheckType(2, GarrysMod::Lua::Type::Number);
     double index = LUA->GetNumber(2);
@@ -50,14 +49,14 @@ MYSQLOO_LUA_FUNCTION(setNull) {
 }
 
 MYSQLOO_LUA_FUNCTION(putNewParameters) {
-    auto luaQuery = LuaObject::getLuaObject<LuaPreparedQuery>(LUA, LuaObject::TYPE_PREPARED_QUERY);
+    auto luaQuery = LuaObject::getLuaObject<LuaPreparedQuery>(LUA);
     auto query = (PreparedQuery *) luaQuery->m_query.get();
     query->putNewParameters();
     return 0;
 }
 
 MYSQLOO_LUA_FUNCTION(clearParameters) {
-    auto luaQuery = LuaObject::getLuaObject<LuaPreparedQuery>(LUA, LuaObject::TYPE_PREPARED_QUERY);
+    auto luaQuery = LuaObject::getLuaObject<LuaPreparedQuery>(LUA);
     auto query = (PreparedQuery *) luaQuery->m_query.get();
     query->clearParameters();
     return 0;
