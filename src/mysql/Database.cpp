@@ -44,39 +44,6 @@ void Database::freeStatement(MYSQL_STMT *stmt) {
     freedStatements.put(stmt);
 }
 
-/* Creates and returns a query instance and enqueues it into the queue of accepted queries.
-*/
-/*
-int Database::query(lua_State *state) {
-    GarrysMod::Lua::ILuaBase *LUA = state->luabase;
-    LUA->SetState(state);
-    Database *object = (Database *) unpackSelf(LUA, TYPE_DATABASE);
-    LUA->CheckType(2, GarrysMod::Lua::Type::STRING);
-    unsigned int outLen = 0;
-    const char *query = LUA->GetString(2, &outLen);
-    Query *queryObject = new Query(object, LUA);
-    queryObject->setQuery(std::string(query, outLen));
-    queryObject->pushTableReference(LUA);
-    return 1;
-}*/
-
-/* Creates and returns a PreparedQuery instance and enqueues it into the queue of accepted queries.
-*/
-/**/
-
-
-/* Creates and returns a PreparedQuery instance and enqueues it into the queue of accepted queries.
-*/
-/*
-int Database::createTransaction(lua_State *state) {
-    GarrysMod::Lua::ILuaBase *LUA = state->luabase;
-    LUA->SetState(state);
-    Database *object = (Database *) unpackSelf(LUA, TYPE_DATABASE);
-    Transaction *transactionObject = new Transaction(object, LUA);
-    transactionObject->pushTableReference(LUA);
-    return 1;
-}*/
-
 /* Enqueues a query into the queue of accepted queries.
  */
 void Database::enqueueQuery(const std::shared_ptr<IQuery> &query, const std::shared_ptr<IQueryData> &queryData) {
@@ -290,31 +257,6 @@ bool Database::ping() {
     return query->pingSuccess;
 }
 
-/*
-int Database::ping(lua_State *state) {
-    GarrysMod::Lua::ILuaBase *LUA = state->luabase;
-    LUA->SetState(state);
-    Database *database = (Database *) unpackSelf(LUA, TYPE_DATABASE);
-    if (database->m_status != DATABASE_CONNECTED) {
-        LUA->PushBool(false);
-        return 1;
-    }
-    //This pretty much uses most of the lua api
-    //We can't use the sql object directly since only the sql
-    //thread should use it to prevent threading issues
-    PingQuery *query = new PingQuery(database, LUA);
-    LUA->PushCFunction(IQuery::start);
-    query->pushTableReference(LUA);
-    LUA->Call(1, 0);
-    //swaps the query to the front of the queryqueue to reduce wait time
-    LUA->PushCFunction(IQuery::wait);
-    query->pushTableReference(LUA);
-    LUA->PushBool(true);
-    LUA->Call(2, 0);
-    LUA->PushBool(query->pingSuccess);
-    return 1;
-}*/
-
 //Set this to false if your database server imposes a low prepared statements limit
 //Or if you might create a very high amount of prepared queries in a short period of time
 void Database::setCachePreparedStatements(bool shouldCache) {
@@ -365,11 +307,11 @@ void Database::connectRun() {
         if (this->shouldAutoReconnect) {
             setAutoReconnect(true);
         }
-        const char *socket = (this->socket.length() == 0) ? nullptr : this->socket.c_str();
+        const char *socketStr = (this->socket.length() == 0) ? nullptr : this->socket.c_str();
         unsigned long clientFlag = (this->useMultiStatements) ? CLIENT_MULTI_STATEMENTS : 0;
         clientFlag |= CLIENT_MULTI_RESULTS;
         if (mysql_real_connect(this->m_sql, this->host.c_str(), this->username.c_str(), this->pw.c_str(),
-                               this->database.c_str(), this->port, socket, clientFlag) != this->m_sql) {
+                               this->database.c_str(), this->port, socketStr, clientFlag) != this->m_sql) {
             m_success = false;
             m_connection_err = mysql_error(this->m_sql);
             m_connectionDone = true;
@@ -395,15 +337,15 @@ void Database::connectRun() {
 }
 
 void Database::freeCachedStatements() {
-    auto statments = cachedStatements.clear();
-    for (auto &stmt: statments) {
+    auto statements = cachedStatements.clear();
+    for (auto &stmt: statements) {
         mysql_stmt_close(stmt);
     }
 }
 
 void Database::freeUnusedStatements() {
-    auto statments = freedStatements.clear();
-    for (auto &stmt: statments) {
+    auto statements = freedStatements.clear();
+    for (auto &stmt: statements) {
         mysql_stmt_close(stmt);
     }
 }
@@ -418,7 +360,7 @@ void Database::run() {
     while (true) {
         auto pair = this->queryQueue.take();
         //This detects the poison pill that is supposed to shutdown the database
-        if (pair.first.get() == nullptr) {
+        if (pair.first == nullptr) {
             return;
         }
         auto curquery = pair.first;

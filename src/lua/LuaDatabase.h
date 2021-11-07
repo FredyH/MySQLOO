@@ -21,11 +21,13 @@ public:
 
     static std::shared_ptr<LuaDatabase> create(std::shared_ptr<Database> database) {
         auto instance = std::shared_ptr<LuaDatabase>(new LuaDatabase(std::move(database)));
-        LuaObject::luaObjects.push_back(instance);
-        LuaObject::luaDatabases.push_back(instance);
+        LuaObject::luaObjects.insert(instance);
+        LuaObject::luaDatabases.insert(instance);
         return instance;
     }
     bool m_dbCallbackRan = false;
+
+    void onDestroyedByLua(ILuaBase *LUA) override;
 
 protected:
     explicit LuaDatabase(std::shared_ptr<Database> database) : LuaObject("Database"),

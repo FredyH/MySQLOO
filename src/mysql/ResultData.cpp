@@ -81,7 +81,7 @@ ResultData::ResultData(MYSQL_STMT* result, MYSQL_RES* metaData) : ResultData((un
 	}
 }
 
-ResultData::~ResultData() {}
+ResultData::~ResultData() = default;
 
 ResultDataRow::ResultDataRow(unsigned int columnCount) {
 	this->columnCount = columnCount;

@@ -64,7 +64,7 @@ std::shared_ptr<IQueryData> LuaTransaction::buildQueryData(ILuaBase *LUA, int st
     LUA->GetField(stackPosition, "__queries");
     std::deque<std::pair<std::shared_ptr<Query>, std::shared_ptr<IQueryData>>> queries;
     if (LUA->GetType(-1) != GarrysMod::Lua::Type::Nil) {
-        for (int i = 0; i < this->m_addedQueryData.size(); i++) {
+        for (size_t i = 0; i < this->m_addedQueryData.size(); i++) {
             auto &queryData = this->m_addedQueryData[i];
             LUA->PushNumber((double) (i + 1));
             LUA->RawGet(-2);
@@ -95,16 +95,13 @@ void LuaTransaction::runSuccessCallback(ILuaBase *LUA, const std::shared_ptr<IQu
         LUA->PushNumber((double) (++index));
         auto query = pair.first;
         //So we get the current data rather than caching it, if the same query is added multiple times.
-        if (query->m_dataReference != 0) {
-            query->m_dataReference = 0;
-            LUA->ReferenceFree(query->m_dataReference);
-        }
+        LuaQuery::freeDataReference(LUA, *query);
         auto queryData = std::dynamic_pointer_cast<QueryData>(pair.second);
         query->setCallbackData(pair.second);
         int ref = LuaQuery::createDataReference(LUA, *query, *queryData);
         LUA->ReferencePush(ref);
         LUA->SetTable(-3);
-        //The last data reference can stay cached in the query and will be free'd once the query is gc'ed
+        //The last data reference can stay cached in the query and will be freed once the query is gc'ed
     }
     if (!LuaIQuery::pushCallbackReference(LUA, data->m_successReference, data->m_tableReference,
                                           "onSuccess", data->isFirstData())) {
@@ -119,5 +116,7 @@ void LuaTransaction::runSuccessCallback(ILuaBase *LUA, const std::shared_ptr<IQu
 
     for (auto &pair: transactionData->m_queries) {
         LuaIQuery::finishQueryData(LUA, pair.second);
+        //We should only cache the data for the duration of the callback
+        LuaQuery::freeDataReference(LUA, *pair.first);
     }
 }

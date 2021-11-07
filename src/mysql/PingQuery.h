@@ -13,8 +13,8 @@ class PingQuery : public Query {
 public:
 	~PingQuery() override;
 protected:
-    explicit PingQuery(const std::weak_ptr<Database>& dbase);
-	void executeQuery(Database &database, MYSQL* m_sql, std::shared_ptr<IQueryData> data) override;
+    explicit PingQuery(const std::shared_ptr<Database>& dbase);
+	void executeQuery(Database &database, MYSQL* m_sql, const std::shared_ptr<IQueryData> &data) override;
 	bool pingSuccess = false;
 };
 #endif

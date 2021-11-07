@@ -77,6 +77,6 @@ std::shared_ptr<TransactionData> Transaction::buildQueryData(const std::deque<st
     return std::shared_ptr<TransactionData>(new TransactionData(queries));
 }
 
-std::shared_ptr<Transaction> Transaction::create(const std::weak_ptr<Database> &database) {
+std::shared_ptr<Transaction> Transaction::create(const std::shared_ptr<Database> &database) {
     return std::shared_ptr<Transaction>(new Transaction(database));
 }

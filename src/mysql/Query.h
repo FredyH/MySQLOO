@@ -20,7 +20,7 @@ public:
 
     bool executeStatement(Database &database, MYSQL *m_sql, std::shared_ptr<IQueryData> data) override;
 
-    virtual void executeQuery(Database &database, MYSQL *m_sql, std::shared_ptr<IQueryData> data);
+    virtual void executeQuery(Database &database, MYSQL *m_sql, const std::shared_ptr<IQueryData> &data);
 
     my_ulonglong lastInsert();
 
@@ -34,9 +34,9 @@ public:
 
     int m_dataReference = 0;
 
-    static std::shared_ptr<Query> create(const std::weak_ptr<Database> &dbase, std::string query);
+    static std::shared_ptr<Query> create(const std::shared_ptr<Database> &dbase, const std::string& query);
 protected:
-    Query(const std::weak_ptr<Database> &dbase, std::string query);
+    Query(const std::shared_ptr<Database> &dbase, std::string query);
 
     std::string m_query;
 };

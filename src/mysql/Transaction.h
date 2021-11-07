@@ -30,17 +30,14 @@ public:
     static std::shared_ptr<TransactionData>
     buildQueryData(const std::deque<std::pair<std::shared_ptr<Query>, std::shared_ptr<IQueryData>>> &queries);
 
-    static std::shared_ptr<Transaction> create(const std::weak_ptr<Database> &database);
+    static std::shared_ptr<Transaction> create(const std::shared_ptr<Database> &database);
 
 protected:
     bool executeStatement(Database &database, MYSQL *connection, std::shared_ptr<IQueryData> data) override;
 
-    explicit Transaction(const std::weak_ptr<Database> &database) : IQuery(database) {
+    explicit Transaction(const std::shared_ptr<Database> &database) : IQuery(database) {
 
     }
-
-private:
-    std::vector<std::shared_ptr<IQueryData>> addedQueryData;
 };
 
 #endif

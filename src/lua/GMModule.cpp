@@ -19,7 +19,16 @@ GMOD_MODULE_CLOSE() {
 		LUA->ReferenceFree(versionCheckConVar);
 	}
 
-	/* Deletes all the remaining luaobjects when the server changes map
+    //Wait for all current queries to finish
+    for (auto &db : LuaObject::luaDatabases) {
+        try {
+            db->m_database->disconnect(true);
+        } catch (const MySQLOOException &exception) {
+            //Ignore, that means the database was already disconnected
+        }
+    }
+
+	/* Deletes all the remaining luaObjects when the server changes map
 	 */
 	LuaObject::luaObjects.clear();
 	LuaObject::luaDatabases.clear();
@@ -127,15 +136,25 @@ static int doVersionCheck(lua_State* state) {
 	return 0;
 }
 
+LUA_FUNCTION(allocationCount) {
+    LUA->PushNumber(LuaObject::allocationCount);
+    return 1;
+}
+
+LUA_FUNCTION(deallocationCount) {
+    LUA->PushNumber(LuaObject::deallocationCount);
+    return 1;
+}
+
 //TODO List:
-// - memory leak with queries because sometimes first data is not cleared
 // - onData callbacks
-// - PreparedQueries do not properly clear their results
 
 GMOD_MODULE_OPEN() {
 	if (mysql_library_init(0, nullptr, nullptr)) {
 		LUA->ThrowError("Could not initialize mysql library.");
 	}
+    LuaObject::luaObjects = {};
+    LuaObject::luaDatabases = {};
 
     //Creating MetaTables
     LuaObject::createUserDataMetaTable(LUA);
@@ -144,7 +163,6 @@ GMOD_MODULE_OPEN() {
     LuaPreparedQuery::createMetaTable(LUA);
     LuaTransaction::createMetaTable(LUA);
 
-	//LuaObjectBase::createMetatables(LUA);
 	LUA->PushSpecial(GarrysMod::Lua::SPECIAL_GLOB);
 	LUA->GetField(-1, "hook");
 	LUA->GetField(-1, "Add");
@@ -177,7 +195,11 @@ GMOD_MODULE_OPEN() {
 	LUA->PushNumber(OPTION_CACHE); LUA->SetField(-2, "OPTION_CACHE"); //Not used anymore
 
 	LUA->PushCFunction(LuaDatabase::create); LUA->SetField(-2, "connect");
+
+    //Debug/testing functions
 	LUA->PushCFunction(objectCount); LUA->SetField(-2, "objectCount");
+    LUA->PushCFunction(allocationCount); LUA->SetField(-2, "allocationCount");
+    LUA->PushCFunction(deallocationCount); LUA->SetField(-2, "deallocationCount");
 
 	LUA->SetField(-2, "mysqloo");
 	LUA->Pop();

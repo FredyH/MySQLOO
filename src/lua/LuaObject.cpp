@@ -9,27 +9,26 @@ int LuaObject::TYPE_QUERY = 0;
 int LuaObject::TYPE_TRANSACTION = 0;
 int LuaObject::TYPE_PREPARED_QUERY = 0;
 
-std::deque<std::shared_ptr<LuaObject>> LuaObject::luaObjects = {};
-std::deque<std::shared_ptr<LuaDatabase>> LuaObject::luaDatabases = {};
+std::unordered_set<std::shared_ptr<LuaObject>> LuaObject::luaObjects = {};
+std::unordered_set<std::shared_ptr<LuaDatabase>> LuaObject::luaDatabases = {};
+std::atomic_long LuaObject::allocationCount = { 0 };
+std::atomic_long LuaObject::deallocationCount = { 0 };
 
 LUA_FUNCTION(luaObjectGc) {
     auto luaObject = LUA->GetUserType<LuaObject>(1, LuaObject::TYPE_USERDATA);
-    LuaObject::luaDatabases.erase(
-            std::remove(LuaObject::luaDatabases.begin(), LuaObject::luaDatabases.end(), luaObject->shared_from_this()),
-            LuaObject::luaDatabases.end()
-    );
-    LuaObject::luaObjects.erase(
-            std::remove(LuaObject::luaObjects.begin(), LuaObject::luaObjects.end(), luaObject->shared_from_this()),
-            LuaObject::luaObjects.end()
-    );
+    luaObject->onDestroyedByLua(LUA);
+
+    LuaObject::luaObjects.erase(luaObject->shared_from_this());
+
     //After this function this object should be deleted.
     //For the Database this might cause the database thread to join
-    //TODO: Figure out if this is wise.
+    //But the database can only be destroyed if no queries for it exist, i.e. joining
+    //should always work instantly, unless the server is changing maps, in which case we want it to wait.
     return 0;
 }
 
 LUA_CLASS_FUNCTION(LuaObject, luaObjectThink) {
-    std::deque<std::shared_ptr<LuaDatabase>> databasesCopy = LuaObject::luaDatabases;
+    std::unordered_set<std::shared_ptr<LuaDatabase>> databasesCopy = LuaObject::luaDatabases;
     for (auto &database: databasesCopy) {
         database->think(LUA);
     }

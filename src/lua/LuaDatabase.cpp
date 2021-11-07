@@ -39,10 +39,15 @@ LUA_CLASS_FUNCTION(LuaDatabase, create) {
 MYSQLOO_LUA_FUNCTION(query) {
     auto database = LuaObject::getLuaObject<LuaDatabase>(LUA);
     LUA->CheckType(2, GarrysMod::Lua::Type::String);
+
     unsigned int outLen = 0;
     const char *queryStr = LUA->GetString(2, &outLen);
     auto query = Query::create(database->m_database, std::string(queryStr, outLen));
-    auto luaQuery = LuaQuery::create(query);
+
+    LUA->Push(1);
+    int databaseRef = LUA->ReferenceCreate();
+
+    auto luaQuery = LuaQuery::create(query, databaseRef);
 
     pushLuaObjectTable(LUA, luaQuery.get(), LuaObject::TYPE_QUERY);
     return 1;
@@ -54,7 +59,11 @@ MYSQLOO_LUA_FUNCTION(prepare) {
     unsigned int outLen = 0;
     const char *queryStr = LUA->GetString(2, &outLen);
     auto query = PreparedQuery::create(database->m_database, std::string(queryStr, outLen));
-    auto luaQuery = LuaPreparedQuery::create(query);
+
+    LUA->Push(1);
+    int databaseRef = LUA->ReferenceCreate();
+
+    auto luaQuery = LuaPreparedQuery::create(query, databaseRef);
 
     pushLuaObjectTable(LUA, luaQuery.get(), LuaObject::TYPE_PREPARED_QUERY);
     return 1;
@@ -63,7 +72,11 @@ MYSQLOO_LUA_FUNCTION(prepare) {
 MYSQLOO_LUA_FUNCTION(createTransaction) {
     auto database = LuaObject::getLuaObject<LuaDatabase>(LUA);
     auto transaction = Transaction::create(database->m_database);
-    auto luaTransaction = LuaTransaction::create(transaction);
+
+    LUA->Push(1);
+    int databaseRef = LUA->ReferenceCreate();
+
+    auto luaTransaction = LuaTransaction::create(transaction, databaseRef);
 
     pushLuaObjectTable(LUA, luaTransaction.get(), LuaObject::TYPE_TRANSACTION);
     return 1;
@@ -307,4 +320,9 @@ void LuaDatabase::think(ILuaBase *LUA) {
             luaQuery->runCallback(LUA, data);
         }
     }
+}
+
+void LuaDatabase::onDestroyedByLua(ILuaBase *LUA) {
+    m_database->disconnect(true); //Wait for any outstanding queries to finish.
+    LuaObject::luaDatabases.erase(std::dynamic_pointer_cast<LuaDatabase>(shared_from_this()));
 }

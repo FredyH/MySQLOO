@@ -4,9 +4,10 @@
 #define MYSQLOO_LUAOBJECT_H
 
 #include <memory>
-#include <deque>
+#include <unordered_set>
 #include <utility>
 #include <sstream>
+#include <atomic>
 #include "GarrysMod/Lua/Interface.h"
 #include "../mysql/MySQLOOException.h"
 
@@ -18,12 +19,16 @@ using namespace GarrysMod::Lua;
 
 class LuaObject : public std::enable_shared_from_this<LuaObject> {
 public:
-    virtual ~LuaObject() = default;
+    virtual ~LuaObject() {
+        deallocationCount++;
+    }
 
     std::string toString();
 
-    static std::deque<std::shared_ptr<LuaObject>> luaObjects;
-    static std::deque<std::shared_ptr<LuaDatabase>> luaDatabases;
+    virtual void onDestroyedByLua(ILuaBase *LUA) {};
+
+    static std::unordered_set<std::shared_ptr<LuaObject>> luaObjects;
+    static std::unordered_set<std::shared_ptr<LuaDatabase>> luaDatabases;
 
     static int TYPE_USERDATA;
     static int TYPE_DATABASE;
@@ -52,7 +57,7 @@ public:
         if (luaObject == nullptr) {
             LUA->ThrowError("[MySQLOO] Expected MySQLOO table");
         }
-        T *returnValue = dynamic_cast<T*>(luaObject);
+        T *returnValue = dynamic_cast<T *>(luaObject);
         if (returnValue == nullptr) {
             LUA->ThrowError("[MySQLOO] Invalid CPP Object");
         }
@@ -61,10 +66,12 @@ public:
     }
 
     static int getFunctionReference(ILuaBase *LUA, int stackPosition, const char *fieldName);
+    static std::atomic_long allocationCount;
+    static std::atomic_long deallocationCount;
 
 protected:
     explicit LuaObject(std::string className) : m_className(std::move(className)) {
-
+        allocationCount++;
     }
 
     std::string m_className;

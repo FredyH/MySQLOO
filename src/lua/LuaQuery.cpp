@@ -73,6 +73,8 @@ int LuaQuery::createDataReference(GarrysMod::Lua::ILuaBase *LUA, Query &query, Q
 void LuaQuery::runSuccessCallback(ILuaBase *LUA, const std::shared_ptr<IQueryData> &data) {
     auto query = std::dynamic_pointer_cast<Query>(m_query);
     auto queryData = std::dynamic_pointer_cast<QueryData>(data);
+    //Need to clear old data, if it exists
+    freeDataReference(LUA, *query);
     int dataReference = LuaQuery::createDataReference(LUA, *query, *queryData);
 
     if (!LuaIQuery::pushCallbackReference(LUA, data->m_successReference, data->m_tableReference,
@@ -82,6 +84,7 @@ void LuaQuery::runSuccessCallback(ILuaBase *LUA, const std::shared_ptr<IQueryDat
     LUA->ReferencePush(data->m_tableReference);
     LUA->ReferencePush(dataReference);
     LuaObject::pcallWithErrorReporter(LUA, 2);
+    freeDataReference(LUA, *query); //Only cache data for duration of callback
 }
 
 MYSQLOO_LUA_FUNCTION(affectedRows) {
@@ -151,4 +154,16 @@ std::shared_ptr<IQueryData> LuaQuery::buildQueryData(ILuaBase *LUA, int stackPos
     data->setStatus(QUERY_COMPLETE);
     LuaIQuery::referenceCallbacks(LUA, stackPosition, *data);
     return data;
+}
+
+void LuaQuery::onDestroyedByLua(ILuaBase *LUA) {
+    LuaIQuery::onDestroyedByLua(LUA);
+    freeDataReference(LUA, *std::dynamic_pointer_cast<Query>(m_query));
+}
+
+void LuaQuery::freeDataReference(ILuaBase *LUA, Query &query) {
+    if (query.m_dataReference != 0) {
+        LUA->ReferenceFree(query.m_dataReference);
+        query.m_dataReference = 0;
+    }
 }

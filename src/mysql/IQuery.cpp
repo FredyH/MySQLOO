@@ -9,7 +9,7 @@
 //before the callback is called can result in race conditions.
 //Always check for QUERY_COMPLETE!!!
 
-IQuery::IQuery(std::weak_ptr<Database> database) : m_database(std::move(database)) {
+IQuery::IQuery(const std::shared_ptr<Database> &database) : m_database(database) {
     m_options = OPTION_NAMED_FIELDS | OPTION_INTERPRET_DATA | OPTION_CACHE;
 }
 
@@ -48,8 +48,8 @@ void IQuery::wait(bool shouldSwap) {
     }
     std::shared_ptr<IQueryData> lastInsertedQuery = runningQueryData.back();
     //Changing the order of the query might have unwanted side effects, so this is disabled by default
-    auto database = m_database.lock();
-    if (database && shouldSwap) {
+    auto database = m_database;
+    if (shouldSwap) {
         database->queryQueue.swapToFrontIf(
                 [&](std::pair<std::shared_ptr<IQuery>, std::shared_ptr<IQueryData>> const &p) {
                     return p.second.get() == lastInsertedQuery.get();
@@ -71,12 +71,12 @@ std::string IQuery::error() const {
 
 //Attempts to abort the query, returns true if it was able to stop at least one query in time, false otherwise
 std::vector<std::shared_ptr<IQueryData>> IQuery::abort() {
-    auto database = m_database.lock();
+    auto database = m_database;
     if (!database) return {};
     //This is copied so that I can remove entries from that vector in onQueryDataFinished
-    auto vec = runningQueryData;
+    auto runningQueries = runningQueryData;
     std::vector<std::shared_ptr<IQueryData>> abortedQueries;
-    for (auto &data: vec) {
+    for (auto &data: runningQueries) {
         //It doesn't really matter if any of them are in a transaction since in that case they
         //aren't in the query queue
         bool wasRemoved = database->queryQueue.removeIf(
@@ -145,11 +145,10 @@ bool IQuery::mysqlNextResult(MYSQL *sql) {
 
 //Queues the query into the queue of the database instance associated with it
 void IQuery::start(const std::shared_ptr<IQueryData> &queryData) {
-    if (auto db = m_database.lock()) {
-        addQueryData(queryData);
-        db->enqueueQuery(shared_from_this(), queryData);
-        hasBeenStarted = true;
-    }
+    auto db = m_database;
+    addQueryData(queryData);
+    db->enqueueQuery(shared_from_this(), queryData);
+    hasBeenStarted = true;
 }
 
 
@@ -161,5 +160,13 @@ void IQuery::addQueryData(const std::shared_ptr<IQueryData> &data) {
 }
 
 void IQuery::finishQueryData(const std::shared_ptr<IQueryData> &data) {
-    runningQueryData.erase(std::remove(runningQueryData.begin(), runningQueryData.end(), data), runningQueryData.end());
+    if (runningQueryData.empty()) return;
+    auto front = runningQueryData.front();
+    if (front == data) {
+        //Fast path, O(1)
+        runningQueryData.pop_front();
+    } else {
+        //Slow path, O(n), should only happen in very rare circumstances.
+        runningQueryData.erase(std::remove(runningQueryData.begin(), runningQueryData.end(), data), runningQueryData.end());
+    }
 }

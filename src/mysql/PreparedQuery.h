@@ -5,7 +5,6 @@
 #include "Query.h"
 #include "MySQLHeader.h"
 #include <sstream>
-#include <string.h>
 
 
 class PreparedQueryField {
@@ -68,12 +67,12 @@ public:
 
     std::shared_ptr<QueryData> buildQueryData() override;
 
-    static std::shared_ptr<PreparedQuery> create(const std::weak_ptr<Database> &dbase, std::string query);
+    static std::shared_ptr<PreparedQuery> create(const std::shared_ptr<Database> &dbase, std::string query);
 protected:
-    void executeQuery(Database &database, MYSQL *m_sql, std::shared_ptr<IQueryData> data) override;
+    void executeQuery(Database &database, MYSQL *m_sql, const std::shared_ptr<IQueryData> &data) override;
 
 private:
-    PreparedQuery(const std::weak_ptr<Database> &dbase, std::string query);
+    PreparedQuery(const std::shared_ptr<Database> &dbase, std::string query);
 
     std::deque<std::unordered_map<unsigned int, std::shared_ptr<PreparedQueryField>>> m_parameters{};
 

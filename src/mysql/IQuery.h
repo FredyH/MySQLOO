@@ -6,6 +6,7 @@
 #include <mutex>
 #include <atomic>
 #include <utility>
+#include <deque>
 #include <vector>
 #include <condition_variable>
 
@@ -48,7 +49,7 @@ class IQuery : public std::enable_shared_from_this<IQuery> {
     friend class Database;
 
 public:
-    explicit IQuery(std::weak_ptr<Database> database);
+    explicit IQuery(const std::shared_ptr<Database>& database);
 
     virtual ~IQuery();
 
@@ -95,11 +96,11 @@ protected:
     static bool mysqlNextResult(MYSQL *sql);
 
     //fields
-    std::weak_ptr<Database> m_database{};
+    std::shared_ptr<Database> m_database{};
     std::condition_variable m_waitWakeupVariable;
     std::mutex m_waitMutex;
     int m_options = 0;
-    std::vector<std::shared_ptr<IQueryData>> runningQueryData;
+    std::deque<std::shared_ptr<IQueryData>> runningQueryData;
     bool hasBeenStarted = false;
 };
 

@@ -7,18 +7,18 @@
 #include <stdlib.h>
 #endif
 
-Query::Query(const std::weak_ptr<Database>& dbase, std::string query) : IQuery(dbase), m_query(std::move(query)) {
+Query::Query(const std::shared_ptr<Database>& dbase, std::string query) : IQuery(dbase), m_query(std::move(query)) {
 }
 
 Query::~Query() = default;
 
-void Query::executeQuery(Database &database, MYSQL* connection, std::shared_ptr<IQueryData> data) {
+void Query::executeQuery(Database &database, MYSQL* connection, const std::shared_ptr<IQueryData> &data) {
     auto queryData = std::dynamic_pointer_cast<QueryData>(data);
-	this->mysqlQuery(connection, this->m_query);
+	Query::mysqlQuery(connection, this->m_query);
 	//Stores all result sets
 	//MySQL result sets shouldn't be accessed from different threads!
 	do {
-		MYSQL_RES * results = this->mysqlStoreResults(connection);
+		MYSQL_RES * results = Query::mysqlStoreResults(connection);
 		auto resultFree = finally([&] { mysql_free_result(results); });
 		if (results != nullptr) {
 			queryData->m_results.emplace_back(results);
@@ -27,7 +27,7 @@ void Query::executeQuery(Database &database, MYSQL* connection, std::shared_ptr<
 		}
 		queryData->m_insertIds.push_back(mysql_insert_id(connection));
 		queryData->m_affectedRows.push_back(mysql_affected_rows(connection));
-	} while (this->mysqlNextResult(connection));
+	} while (Query::mysqlNextResult(connection));
 }
 
 //Executes the raw query
@@ -90,7 +90,7 @@ std::shared_ptr<QueryData> Query::buildQueryData() {
     return std::shared_ptr<QueryData>(new QueryData());
 }
 
-std::shared_ptr<Query> Query::create(const std::weak_ptr<Database> &dbase, std::string query) {
-    return std::shared_ptr<Query>(new Query(dbase, std::move(query)));
+std::shared_ptr<Query> Query::create(const std::shared_ptr<Database> &dbase, const std::string& query) {
+    return std::shared_ptr<Query>(new Query(dbase, query));
 }
 
