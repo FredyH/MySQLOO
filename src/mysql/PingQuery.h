@@ -5,7 +5,7 @@
 #include "Query.h"
 #include "MySQLHeader.h"
 #include <sstream>
-#include <string.h>
+#include <cstring>
 
 
 class PingQuery : public Query {

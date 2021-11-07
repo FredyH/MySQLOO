@@ -20,7 +20,6 @@
 #include "Transaction.h"
 
 struct SSLSettings {
-    bool customSSLSettings = false;
     std::string key;
     std::string cert;
     std::string ca;
@@ -29,10 +28,6 @@ struct SSLSettings {
 
     void applySSLSettings(MYSQL *m_sql) const;
 };
-
-class DatabaseThread;
-
-class ConnectThread;
 
 enum DatabaseStatus {
     DATABASE_CONNECTED = 0,
@@ -45,13 +40,6 @@ class Database : public std::enable_shared_from_this<Database> {
     friend class IQuery;
 
 public:
-    enum {
-        INTEGER = 0,
-        BIT,
-        FLOATING_POINT,
-        STRING,
-    };
-
     static std::shared_ptr<Database>
     createDatabase(const std::string &host, const std::string &username, const std::string &pw,
                    const std::string &database, unsigned int port,
@@ -149,7 +137,6 @@ private:
     std::string m_connection_err;
     bool shouldAutoReconnect = true;
     bool useMultiStatements = true;
-    bool dbCallbackRan = false;
     bool startedConnecting = false;
     bool disconnected = false;
     std::atomic<bool> m_success{true};
@@ -164,8 +151,6 @@ private:
     unsigned int port;
     SSLSettings customSSLSettings{};
     std::atomic<DatabaseStatus> m_status{DATABASE_NOT_CONNECTED};
-
-    std::shared_ptr<PreparedQuery> prepare();
 };
 
 #endif

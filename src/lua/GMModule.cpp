@@ -136,9 +136,6 @@ LUA_FUNCTION(deallocationCount) {
     return 1;
 }
 
-//TODO List:
-// - onData callbacks
-
 GMOD_MODULE_OPEN() {
     if (mysql_library_init(0, nullptr, nullptr)) {
         LUA->ThrowError("Could not initialize mysql library.");

@@ -30,8 +30,6 @@ public:
 
     static void runErrorCallback(ILuaBase *LUA, const std::shared_ptr<IQueryData> &data);
 
-    static void runOnDataCallbacks(ILuaBase *LUA, const std::shared_ptr<IQueryData> &data);
-
     void runCallback(ILuaBase *LUA, const std::shared_ptr<IQueryData> &data);
 
     static void finishQueryData(ILuaBase *LUA, const std::shared_ptr<IQuery> &query, const std::shared_ptr<IQueryData> &data);

@@ -69,6 +69,38 @@ int LuaQuery::createDataReference(GarrysMod::Lua::ILuaBase *LUA, Query &query, Q
     return query.m_dataReference;
 }
 
+static void runOnDataCallbacks(
+        ILuaBase *LUA,
+        const std::shared_ptr<Query> &query,
+        const std::shared_ptr<IQueryData> &data,
+        int dataReference
+) {
+    if (!LuaIQuery::pushCallbackReference(LUA, data->m_onDataReference, data->m_tableReference,
+                                          "onData", data->isFirstData())) {
+        return;
+    }
+    int callbackPosition = LUA->Top();
+    int index = 1;
+    LUA->ReferencePush(dataReference);
+    while (true) {
+        LUA->PushNumber(index++);
+        LUA->RawGet(-2);
+        if (LUA->GetType(-1) == GarrysMod::Lua::Type::Nil) {
+            LUA->Pop(); //Nil
+            break;
+        }
+        int rowPosition = LUA->Top();
+        LUA->Push(callbackPosition);
+        LUA->ReferencePush(data->m_tableReference);
+        LUA->Push(rowPosition);
+        LuaObject::pcallWithErrorReporter(LUA, 2);
+
+        LUA->Pop(); //Row
+    }
+
+    LUA->Pop(2); //Callback, data
+}
+
 
 void LuaQuery::runSuccessCallback(ILuaBase *LUA, const std::shared_ptr<IQueryData> &data) {
     auto query = std::dynamic_pointer_cast<Query>(m_query);
@@ -76,6 +108,7 @@ void LuaQuery::runSuccessCallback(ILuaBase *LUA, const std::shared_ptr<IQueryDat
     //Need to clear old data, if it exists
     freeDataReference(LUA, *query);
     int dataReference = LuaQuery::createDataReference(LUA, *query, *queryData);
+    runOnDataCallbacks(LUA, query, data, dataReference);
 
     if (!LuaIQuery::pushCallbackReference(LUA, data->m_successReference, data->m_tableReference,
                                           "onSuccess", data->isFirstData())) {

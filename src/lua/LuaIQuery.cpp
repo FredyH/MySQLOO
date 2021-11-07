@@ -1,6 +1,5 @@
 
 #include "LuaIQuery.h"
-#include "../mysql/Query.h"
 
 
 MYSQLOO_LUA_FUNCTION(start) {
