@@ -3,7 +3,6 @@
 #include <utility>
 #include "errmsg.h"
 #include "Database.h"
-#include "../../MySQLOO/include/LuaObjectBase.h"
 
 bool Transaction::executeStatement(Database &database, MYSQL* connection, std::shared_ptr<IQueryData> ptr) {
     std::shared_ptr<TransactionData> data = std::dynamic_pointer_cast<TransactionData>(ptr);
