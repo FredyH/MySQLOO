@@ -3,6 +3,7 @@
 #define MYSQLOO_LUATRANSACTION_H
 
 #include "LuaIQuery.h"
+#include "../mysql/Transaction.h"
 
 class LuaTransaction : public LuaIQuery {
 public:

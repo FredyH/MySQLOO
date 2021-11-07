@@ -1,10 +1,11 @@
-cmake_minimum_required(VERSION 3.13)
+cmake_minimum_required(VERSION 3.5)
 project(mysqloo)
 add_subdirectory(GmodLUA)
 
 file(GLOB_RECURSE MYSQLOO_SRC "src/*.h" "src/*.cpp")
 set(SOURCE_FILES ${MYSQLOO_SRC} src/Main.cpp)
 set(CMAKE_BUILD_TYPE RelWithDebInfo)
+set (CMAKE_CXX_STANDARD 14)
 
 add_library(mysqloo SHARED ${SOURCE_FILES})
 target_link_libraries(mysqloo gmod-module-base)
@@ -35,6 +36,5 @@ else ()
     find_package(Threads REQUIRED)
     target_link_libraries(mysqloo ${MARIADB_CLIENT_LIB} ${SSL_LIB} ${CRYPTO_LIB} Threads::Threads ${CMAKE_DL_LIBS})
 endif ()
-
 
 set_gmod_suffix_prefix(mysqloo)

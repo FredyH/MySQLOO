@@ -1,6 +1,5 @@
 #include "LuaTransaction.h"
 #include "LuaQuery.h"
-#include "../mysql/Transaction.h"
 
 MYSQLOO_LUA_FUNCTION(addQuery) {
     auto luaTransaction = LuaObject::getLuaObject<LuaTransaction>(LUA);
