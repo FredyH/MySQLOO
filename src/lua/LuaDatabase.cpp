@@ -4,6 +4,8 @@
 #include "LuaPreparedQuery.h"
 #include "LuaTransaction.h"
 
+std::unordered_set<LuaDatabase*>* LuaDatabase::luaDatabases = nullptr;
+
 static void pushLuaObjectTable(ILuaBase *LUA, void *data, int type) {
     LUA->CreateTable();
     LUA->PushUserType(data, LuaObject::TYPE_USERDATA);
@@ -30,9 +32,9 @@ LUA_CLASS_FUNCTION(LuaDatabase, create) {
         unixSocket = LUA->GetString(6);
     }
     auto createdDatabase = Database::createDatabase(host, username, pw, database, port, unixSocket);
-    auto luaDatabase = LuaDatabase::create(createdDatabase);
+    auto luaDatabase = new LuaDatabase(createdDatabase);
 
-    pushLuaObjectTable(LUA, luaDatabase.get(), LuaObject::TYPE_DATABASE);
+    pushLuaObjectTable(LUA, luaDatabase, LuaObject::TYPE_DATABASE);
     return 1;
 }
 
@@ -47,9 +49,9 @@ MYSQLOO_LUA_FUNCTION(query) {
     LUA->Push(1);
     int databaseRef = LUA->ReferenceCreate();
 
-    auto luaQuery = LuaQuery::create(query, databaseRef);
+    auto luaQuery = new LuaQuery(query, databaseRef);
 
-    pushLuaObjectTable(LUA, luaQuery.get(), LuaObject::TYPE_QUERY);
+    pushLuaObjectTable(LUA, luaQuery, LuaObject::TYPE_QUERY);
     return 1;
 }
 
@@ -63,9 +65,9 @@ MYSQLOO_LUA_FUNCTION(prepare) {
     LUA->Push(1);
     int databaseRef = LUA->ReferenceCreate();
 
-    auto luaQuery = LuaPreparedQuery::create(query, databaseRef);
+    auto luaQuery = new LuaPreparedQuery(query, databaseRef);
 
-    pushLuaObjectTable(LUA, luaQuery.get(), LuaObject::TYPE_PREPARED_QUERY);
+    pushLuaObjectTable(LUA, luaQuery, LuaObject::TYPE_PREPARED_QUERY);
     return 1;
 }
 
@@ -76,9 +78,9 @@ MYSQLOO_LUA_FUNCTION(createTransaction) {
     LUA->Push(1);
     int databaseRef = LUA->ReferenceCreate();
 
-    auto luaTransaction = LuaTransaction::create(transaction, databaseRef);
+    auto luaTransaction = new LuaTransaction(transaction, databaseRef);
 
-    pushLuaObjectTable(LUA, luaTransaction.get(), LuaObject::TYPE_TRANSACTION);
+    pushLuaObjectTable(LUA, luaTransaction, LuaObject::TYPE_TRANSACTION);
     return 1;
 }
 
@@ -145,7 +147,7 @@ MYSQLOO_LUA_FUNCTION(disconnect) {
 
 MYSQLOO_LUA_FUNCTION(status) {
     auto database = LuaObject::getLuaObject<LuaDatabase>(LUA);
-    LUA->PushNumber(database->m_database->m_status);
+    LUA->PushNumber(database->m_database->status());
     return 1;
 }
 
@@ -170,7 +172,7 @@ MYSQLOO_LUA_FUNCTION(hostInfo) {
 MYSQLOO_LUA_FUNCTION(setAutoReconnect) {
     auto database = LuaObject::getLuaObject<LuaDatabase>(LUA);
     LUA->CheckType(2, GarrysMod::Lua::Type::Bool);
-    database->m_database->setAutoReconnect(LUA->GetBool(2));
+    database->m_database->setShouldAutoReconnect(LUA->GetBool(2));
     return 0;
 }
 
@@ -191,9 +193,8 @@ MYSQLOO_LUA_FUNCTION(setCachePreparedStatements) {
 MYSQLOO_LUA_FUNCTION(abortAllQueries) {
     auto database = LuaObject::getLuaObject<LuaDatabase>(LUA);
     auto abortedQueries = database->m_database->abortAllQueries();
-    for (auto pair: abortedQueries) {
-        //TODO:
-        //query->onQueryDataFinished(LUA, data);
+    for (const auto& pair: abortedQueries) {
+        LuaIQuery::finishQueryData(LUA, pair.first, pair.second);
     }
     LUA->PushNumber((double) abortedQueries.size());
     return 1;
@@ -249,7 +250,7 @@ void LuaDatabase::createMetaTable(ILuaBase *LUA) {
     LUA->SetField(-2, "hostInfo");
 
     LUA->PushCFunction(setAutoReconnect);
-    LUA->SetField(-2, "setAutoReconnect");
+    LUA->SetField(-2, "setSQLAutoReconnect");
 
     LUA->PushCFunction(setMultiStatements);
     LUA->SetField(-2, "setMultiStatements");
@@ -324,5 +325,9 @@ void LuaDatabase::think(ILuaBase *LUA) {
 
 void LuaDatabase::onDestroyedByLua(ILuaBase *LUA) {
     m_database->disconnect(true); //Wait for any outstanding queries to finish.
-    LuaObject::luaDatabases.erase(std::dynamic_pointer_cast<LuaDatabase>(shared_from_this()));
+    //If this is called, LUA is either reloading or no queries exist in the query queue of the database, clear it
+    //This needs to be cleared to avoid the queries leaking
+    m_database->takeFinishedQueries();
+    m_database->abortAllQueries();
+
 }

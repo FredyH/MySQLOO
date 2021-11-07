@@ -9,6 +9,7 @@
 #include <memory>
 #include <mutex>
 #include <sstream>
+#include <unordered_set>
 #include <condition_variable>
 #include "GarrysMod/Lua/Interface.h"
 #include "../BlockingQueue.h"
@@ -66,8 +67,6 @@ public:
 
     void setShouldAutoReconnect(bool autoReconnect);
 
-    void setAutoReconnect(bool autoReconnect);
-
     bool getAutoReconnect();
 
     bool shouldCachePreparedStatements() {
@@ -92,7 +91,7 @@ public:
 
     std::deque<std::pair<std::shared_ptr<IQuery>, std::shared_ptr<IQueryData>>> abortAllQueries();
 
-    DatabaseStatus status();
+    DatabaseStatus status() const;
 
     unsigned int serverVersion();
 
@@ -109,7 +108,6 @@ public:
     void disconnect(bool wait);
 
     void setSSLSettings(const SSLSettings &settings);
-    std::atomic<DatabaseStatus> m_status{DATABASE_NOT_CONNECTED};
 
     bool isConnectionDone() { return m_connectionDone; }
     bool connectionSuccessful() { return m_success; }
@@ -118,6 +116,8 @@ public:
     std::deque<std::pair<std::shared_ptr<IQuery>, std::shared_ptr<IQueryData>>> takeFinishedQueries() {
         return finishedQueries.clear();
     }
+
+    void setSQLAutoReconnect(bool autoReconnect);
 
 private:
     Database(std::string host, std::string username, std::string pw, std::string database, unsigned int port,
@@ -135,12 +135,13 @@ private:
 
     BlockingQueue<std::pair<std::shared_ptr<IQuery>, std::shared_ptr<IQueryData>>> finishedQueries{};
     BlockingQueue<std::pair<std::shared_ptr<IQuery>, std::shared_ptr<IQueryData>>> queryQueue{};
-    BlockingQueue<MYSQL_STMT *> cachedStatements{};
-    BlockingQueue<MYSQL_STMT *> freedStatements{};
+    std::unordered_set<MYSQL_STMT*> cachedStatements{};
+    std::unordered_set<MYSQL_STMT*> freedStatements{};
     MYSQL *m_sql = nullptr;
     std::thread m_thread;
     std::mutex m_connectMutex; //Mutex used during connection
     std::mutex m_queryMutex; //Mutex that is locked while query thread operates on m_sql object
+    std::mutex m_statementMutex; //Mutex that protects cached prepared statements
     std::condition_variable m_connectWakeupVariable;
     unsigned int m_serverVersion = 0;
     std::string m_serverInfo;
@@ -162,6 +163,7 @@ private:
     std::string socket;
     unsigned int port;
     SSLSettings customSSLSettings{};
+    std::atomic<DatabaseStatus> m_status{DATABASE_NOT_CONNECTED};
 
     std::shared_ptr<PreparedQuery> prepare();
 };

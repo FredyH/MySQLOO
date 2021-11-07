@@ -13,8 +13,8 @@ bool Transaction::executeStatement(Database &database, MYSQL* connection, std::s
 	//Which could lead to parts of the transaction being executed outside of a transaction
 	//If they are being executed after the reconnect
 	bool oldReconnectStatus = database.getAutoReconnect();
-    database.setAutoReconnect(false);
-	auto resetReconnectStatus = finally([&] { database.setAutoReconnect(oldReconnectStatus); });
+    database.setSQLAutoReconnect(false);
+	auto resetReconnectStatus = finally([&] { database.setSQLAutoReconnect(oldReconnectStatus); });
 	try {
 		Transaction::mysqlAutocommit(connection, false);
 		{
@@ -44,7 +44,7 @@ bool Transaction::executeStatement(Database &database, MYSQL* connection, std::s
 				//Because autoreconnect is disabled we want to try and explicitly execute the transaction once more
 				//if we can get the client to reconnect (reconnect is caused by mysql_ping)
 				//If this fails we just go ahead and error
-                database.setAutoReconnect(true);
+                database.setSQLAutoReconnect(true);
 				if (mysql_ping(connection) == 0) {
 					data->retried = true;
 					return executeStatement(database, connection, ptr);

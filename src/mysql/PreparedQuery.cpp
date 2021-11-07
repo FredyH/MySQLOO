@@ -17,8 +17,7 @@ PreparedQuery::PreparedQuery(const std::shared_ptr<Database> &dbase, std::string
 
 
 PreparedQuery::~PreparedQuery() {
-    auto statement = cachedStatement.load();
-    m_database->freeStatement(statement);
+    m_database->freeStatement(cachedStatement);
 }
 
 

@@ -17,8 +17,12 @@ class LuaDatabase;
 
 using namespace GarrysMod::Lua;
 
-class LuaObject : public std::enable_shared_from_this<LuaObject> {
+class LuaObject {
 public:
+    explicit LuaObject(std::string className) : m_className(std::move(className)) {
+        allocationCount++;
+    }
+
     virtual ~LuaObject() {
         deallocationCount++;
     }
@@ -26,9 +30,6 @@ public:
     std::string toString();
 
     virtual void onDestroyedByLua(ILuaBase *LUA) {};
-
-    static std::unordered_set<std::shared_ptr<LuaObject>> luaObjects;
-    static std::unordered_set<std::shared_ptr<LuaDatabase>> luaDatabases;
 
     static int TYPE_USERDATA;
     static int TYPE_DATABASE;
@@ -68,12 +69,7 @@ public:
     static int getFunctionReference(ILuaBase *LUA, int stackPosition, const char *fieldName);
     static std::atomic_long allocationCount;
     static std::atomic_long deallocationCount;
-
 protected:
-    explicit LuaObject(std::string className) : m_className(std::move(className)) {
-        allocationCount++;
-    }
-
     std::string m_className;
 };
 

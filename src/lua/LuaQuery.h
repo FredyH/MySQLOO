@@ -15,12 +15,6 @@ public:
 
     static void createMetaTable(ILuaBase *LUA);
 
-    static std::shared_ptr<LuaQuery> create(const std::shared_ptr<Query> &query, int databaseRef) {
-        auto instance = std::shared_ptr<LuaQuery>(new LuaQuery(query, "MySQLOO Query", databaseRef));
-        LuaObject::luaObjects.insert(instance);
-        return instance;
-    }
-
     void runSuccessCallback(ILuaBase *LUA, const std::shared_ptr<IQueryData> &data) override;
 
     std::shared_ptr<IQueryData> buildQueryData(ILuaBase *LUA, int stackPosition) override;
@@ -30,6 +24,12 @@ public:
 protected:
     explicit LuaQuery(const std::shared_ptr<Query> &query, const std::string &className, int databaseRef) : LuaIQuery(
             std::dynamic_pointer_cast<IQuery>(query), className, databaseRef) {
+    }
+
+public:
+    explicit LuaQuery(const std::shared_ptr<Query> &query, int databaseRef) : LuaQuery(query, "MySQLOO Query",
+                                                                                       databaseRef) {
+
     }
 };
 

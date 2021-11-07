@@ -17,7 +17,7 @@ PingQuery::~PingQuery() = default;
 */
 void PingQuery::executeQuery(Database &database, MYSQL *connection, const std::shared_ptr<IQueryData> &data) {
     bool oldAutoReconnect = database.getAutoReconnect();
-    database.setAutoReconnect(true);
+    database.setSQLAutoReconnect(true);
     this->pingSuccess = mysql_ping(connection) == 0;
-    database.setAutoReconnect(oldAutoReconnect);
+    database.setSQLAutoReconnect(oldAutoReconnect);
 }

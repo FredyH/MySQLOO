@@ -115,7 +115,7 @@ void LuaTransaction::runSuccessCallback(ILuaBase *LUA, const std::shared_ptr<IQu
     LUA->Pop(); //Table of results
 
     for (auto &pair: transactionData->m_queries) {
-        LuaIQuery::finishQueryData(LUA, pair.second);
+        LuaIQuery::finishQueryData(LUA, pair.first, pair.second);
         //We should only cache the data for the duration of the callback
         LuaQuery::freeDataReference(LUA, *pair.first);
     }

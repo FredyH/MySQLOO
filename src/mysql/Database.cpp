@@ -1,19 +1,16 @@
 #include "Database.h"
-#include "Query.h"
-#include "IQuery.h"
 #include "MySQLOOException.h"
-#include "Transaction.h"
 #include <string>
 #include <cstring>
 #include <iostream>
-#include <chrono>
 #include <utility>
+#include "../lua/LuaObject.h"
 
 Database::Database(std::string host, std::string username, std::string pw, std::string database, unsigned int port,
                    std::string unixSocket) :
         database(std::move(database)), host(std::move(host)), username(std::move(username)), pw(std::move(pw)),
         socket(std::move(unixSocket)), port(port) {
-
+    LuaObject::allocationCount++;
 }
 
 std::shared_ptr<Database>
@@ -28,20 +25,50 @@ Database::~Database() {
     if (this->m_thread.joinable()) {
         this->m_thread.join();
     }
+    LuaObject::allocationCount--;
 }
 
 
 //This makes sure that all stmts always get freed
 void Database::cacheStatement(MYSQL_STMT *stmt) {
     if (stmt == nullptr) return;
-    cachedStatements.put(stmt);
+    std::unique_lock<std::mutex> lock(m_statementMutex);
+    cachedStatements.insert(stmt);
 }
 
 //This notifies the database thread to free this statement some time in the future
 void Database::freeStatement(MYSQL_STMT *stmt) {
     if (stmt == nullptr) return;
-    cachedStatements.remove(stmt);
-    freedStatements.put(stmt);
+    std::unique_lock<std::mutex> lock(m_statementMutex);
+    if (cachedStatements.find(stmt) != cachedStatements.end()) {
+        //Otherwise, the statement was already freed
+        cachedStatements.erase(stmt);
+        freedStatements.insert(stmt);
+    }
+}
+
+//Frees all statements that were allocated by the database
+//This is called when the database shuts down
+void Database::freeCachedStatements() {
+    std::unique_lock<std::mutex> lock(m_statementMutex);
+    for (auto &stmt: cachedStatements) {
+        mysql_stmt_close(stmt);
+    }
+    cachedStatements.clear();
+    for (auto &stmt: freedStatements) {
+        mysql_stmt_close(stmt);
+    }
+    freedStatements.clear();
+}
+
+//Frees all statements that have been marked as unused, i.e. the prepared query has been destroyed.
+//Called periodically by the database thread
+void Database::freeUnusedStatements() {
+    std::unique_lock<std::mutex> lock(m_statementMutex);
+    for (auto &stmt: freedStatements) {
+        mysql_stmt_close(stmt);
+    }
+    freedStatements.clear();
 }
 
 /* Enqueues a query into the queue of accepted queries.
@@ -67,7 +94,6 @@ size_t Database::queueSize() {
 std::deque<std::pair<std::shared_ptr<IQuery>, std::shared_ptr<IQueryData>>> Database::abortAllQueries() {
     auto canceledQueries = queryQueue.clear();
     for (auto &pair: canceledQueries) {
-        auto query = pair.first;
         auto data = pair.second;
         data->setStatus(QUERY_ABORTED);
     }
@@ -186,7 +212,7 @@ void Database::disconnect(bool wait) {
 
 /* Returns the status of the database, constants can be found in GMModule
  */
-DatabaseStatus Database::status() {
+DatabaseStatus Database::status() const {
     return m_status;
 }
 
@@ -269,7 +295,7 @@ void Database::setCachePreparedStatements(bool shouldCache) {
 //Should only be called from the db thread
 //While the mysql documentation says that mysql_options should only be called
 //before the connection is done it appears to work after just fine (at least for reconnect)
-void Database::setAutoReconnect(bool shouldReconnect) {
+void Database::setSQLAutoReconnect(bool shouldReconnect) {
     auto myAutoReconnectBool = (my_bool) shouldReconnect;
     mysql_optionsv(m_sql, MYSQL_OPT_RECONNECT, &myAutoReconnectBool);
 }
@@ -305,7 +331,7 @@ void Database::connectRun() {
         }
         this->customSSLSettings.applySSLSettings(this->m_sql);
         if (this->shouldAutoReconnect) {
-            setAutoReconnect(true);
+            setSQLAutoReconnect(true);
         }
         const char *socketStr = (this->socket.length() == 0) ? nullptr : this->socket.c_str();
         unsigned long clientFlag = (this->useMultiStatements) ? CLIENT_MULTI_STATEMENTS : 0;
@@ -336,25 +362,10 @@ void Database::connectRun() {
     }
 }
 
-void Database::freeCachedStatements() {
-    auto statements = cachedStatements.clear();
-    for (auto &stmt: statements) {
-        mysql_stmt_close(stmt);
-    }
-}
-
-void Database::freeUnusedStatements() {
-    auto statements = freedStatements.clear();
-    for (auto &stmt: statements) {
-        mysql_stmt_close(stmt);
-    }
-}
-
 /* The run method of the thread of the database instance.
  */
 void Database::run() {
     auto a = finally([&] {
-        this->freeUnusedStatements();
         this->freeCachedStatements();
     });
     while (true) {
@@ -376,7 +387,7 @@ void Database::run() {
             std::unique_lock<std::mutex> queryMutex(curquery->m_waitMutex);
             curquery->m_waitWakeupVariable.notify_one();
         }
-        //So that statements get freed sometimes even if the queue is constantly full
+        //So that statements get eventually freed even if the queue is constantly full
         freeUnusedStatements();
     }
 }

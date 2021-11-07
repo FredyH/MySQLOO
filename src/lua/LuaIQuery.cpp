@@ -117,8 +117,7 @@ void LuaIQuery::referenceCallbacks(ILuaBase *LUA, int stackPosition, IQueryData 
     }
 }
 
-void LuaIQuery::finishQueryData(GarrysMod::Lua::ILuaBase *LUA, const std::shared_ptr<IQueryData> &data) const {
-    auto query = this->m_query;
+void LuaIQuery::finishQueryData(GarrysMod::Lua::ILuaBase *LUA, const std::shared_ptr<IQuery> &query, const std::shared_ptr<IQueryData> &data) {
     query->finishQueryData(data);
     if (data->m_tableReference) {
         LUA->ReferenceFree(data->m_tableReference);
@@ -157,7 +156,7 @@ void LuaIQuery::runCallback(ILuaBase *LUA, const std::shared_ptr<IQueryData> &da
             break;
     }
 
-    finishQueryData(LUA, data);
+    LuaIQuery::finishQueryData(LUA, m_query, data);
 }
 
 void LuaIQuery::onDestroyedByLua(ILuaBase *LUA) {

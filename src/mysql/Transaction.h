@@ -5,6 +5,7 @@
 #include <atomic>
 #include <condition_variable>
 #include <utility>
+#include <iostream>
 #include "IQuery.h"
 #include "Query.h"
 
@@ -26,7 +27,6 @@ class Transaction : public IQuery {
     friend class Database;
 
 public:
-
     static std::shared_ptr<TransactionData>
     buildQueryData(const std::deque<std::pair<std::shared_ptr<Query>, std::shared_ptr<IQueryData>>> &queries);
 

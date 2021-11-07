@@ -18,22 +18,20 @@ public:
 
     int m_tableReference = 0;
     std::shared_ptr<Database> m_database;
-
-    static std::shared_ptr<LuaDatabase> create(std::shared_ptr<Database> database) {
-        auto instance = std::shared_ptr<LuaDatabase>(new LuaDatabase(std::move(database)));
-        LuaObject::luaObjects.insert(instance);
-        LuaObject::luaDatabases.insert(instance);
-        return instance;
-    }
     bool m_dbCallbackRan = false;
 
     void onDestroyedByLua(ILuaBase *LUA) override;
 
-protected:
+    ~LuaDatabase() override {
+        luaDatabases->erase(this);
+    }
+
     explicit LuaDatabase(std::shared_ptr<Database> database) : LuaObject("Database"),
                                                                m_database(std::move(database)) {
-
+        luaDatabases->insert(this);
     }
+
+    static std::unordered_set<LuaDatabase*>* luaDatabases;
 };
 
 

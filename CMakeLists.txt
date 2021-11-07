@@ -4,7 +4,7 @@ add_subdirectory(GmodLUA)
 
 file(GLOB_RECURSE MYSQLOO_SRC "src/*.h" "src/*.cpp")
 set(SOURCE_FILES ${MYSQLOO_SRC} src/Main.cpp)
-set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_BUILD_TYPE Release)
 
 add_library(mysqloo SHARED ${SOURCE_FILES})
 target_link_libraries(mysqloo gmod-module-base)

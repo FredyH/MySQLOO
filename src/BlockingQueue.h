@@ -40,7 +40,7 @@ public:
 
 	void remove(T elem) {
 		std::lock_guard<std::recursive_mutex> lock(mutex);
-		backingQueue.erase(std::remove(backingQueue.begin(), backingQueue.end(), elem));
+		backingQueue.erase(std::remove(backingQueue.begin(), backingQueue.end(), elem), backingQueue.end());
 	}
 
 	size_t size() {

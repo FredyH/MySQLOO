@@ -3,6 +3,7 @@
 #include <utility>
 #include "Database.h"
 #include "MySQLOOException.h"
+#include "../lua/LuaObject.h"
 
 //Important:
 //Calling any query functions that rely on data from the query thread
@@ -11,9 +12,12 @@
 
 IQuery::IQuery(const std::shared_ptr<Database> &database) : m_database(database) {
     m_options = OPTION_NAMED_FIELDS | OPTION_INTERPRET_DATA | OPTION_CACHE;
+    LuaObject::allocationCount++;
 }
 
-IQuery::~IQuery() = default;
+IQuery::~IQuery() {
+    LuaObject::allocationCount--;
+}
 
 QueryResultStatus IQuery::getResultStatus() const {
     if (!hasCallbackData()) {
