@@ -94,13 +94,14 @@ size_t Database::queueSize() {
 std::deque<std::pair<std::shared_ptr<IQuery>, std::shared_ptr<IQueryData>>> Database::abortAllQueries() {
     auto canceledQueries = queryQueue.clear();
     for (auto &pair: canceledQueries) {
+        if (!pair.first || !pair.second) continue;
         auto data = pair.second;
         data->setStatus(QUERY_ABORTED);
     }
     return canceledQueries;
 }
 
-/* Waits for the connection of the database to finish by blocking the current thread until the connect thread finished.
+/* Waits for the connection of the database to finish by blocking the current thread until the connection thread finished.
  */
 void Database::wait() {
     if (!startedConnecting) {
@@ -200,9 +201,6 @@ void Database::shutdown() {
  * database thread to end.
  */
 void Database::disconnect(bool wait) {
-    if (m_status != DATABASE_CONNECTED) {
-        throw MySQLOOException("Database not connected.");
-    }
     shutdown();
     if (wait && m_thread.joinable()) {
         m_thread.join();

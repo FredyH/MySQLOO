@@ -102,12 +102,10 @@ static void runOnDataCallbacks(
 }
 
 
-void LuaQuery::runSuccessCallback(ILuaBase *LUA, const std::shared_ptr<IQueryData> &data) {
-    auto query = std::dynamic_pointer_cast<Query>(m_query);
-    auto queryData = std::dynamic_pointer_cast<QueryData>(data);
+void LuaQuery::runSuccessCallback(ILuaBase *LUA, const std::shared_ptr<Query>& query, const std::shared_ptr<QueryData> &data) {
     //Need to clear old data, if it exists
     freeDataReference(LUA, *query);
-    int dataReference = LuaQuery::createDataReference(LUA, *query, *queryData);
+    int dataReference = LuaQuery::createDataReference(LUA, *query, *data);
     runOnDataCallbacks(LUA, query, data, dataReference);
 
     if (!LuaIQuery::pushCallbackReference(LUA, data->m_successReference, data->m_tableReference,
@@ -136,7 +134,7 @@ MYSQLOO_LUA_FUNCTION(lastInsert) {
 
 MYSQLOO_LUA_FUNCTION(getData) {
     auto luaQuery = LuaQuery::getLuaObject<LuaQuery>(LUA);
-    auto query = (Query *) luaQuery->m_query.get();
+    auto query = std::dynamic_pointer_cast<Query>(luaQuery->m_query);
     if (!query->hasCallbackData() || query->callbackQueryData->getResultStatus() == QUERY_ERROR) {
         LUA->PushNil();
     } else {
@@ -155,7 +153,8 @@ MYSQLOO_LUA_FUNCTION(hasMoreResults) {
 
 LUA_FUNCTION(getNextResults) {
     auto luaQuery = LuaQuery::getLuaObject<LuaQuery>(LUA);
-    auto query = (Query *) luaQuery->m_query.get();
+    auto query = std::dynamic_pointer_cast<Query>(luaQuery->m_query);
+    LuaQuery::freeDataReference(LUA, *query);
     query->getNextResults();
     return 0;
 }

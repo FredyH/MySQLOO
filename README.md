@@ -170,15 +170,11 @@ Query:getData()
 Query:abort()
 -- Returns [Boolean]
 -- Attempts to abort the query if it is still in the state QUERY_WAITING
--- Returns true if aborting was successful, false otherwise
+-- Returns true if at least one running instance of the query was aborted successfully, false otherwise
 
 Query:lastInsert()
 -- Returns [Number]
 -- Gets the autoincrement index of the last inserted row of the current result set
-
-Query:status()
--- Returns [Number] (mysqloo.QUERY_* enums)
--- Gets the status of the query.
 
 Query:affectedRows()
 -- Returns [Number]
@@ -198,11 +194,15 @@ Query:wait(shouldSwap)
 
 Query:error()
 -- Returns [String]
--- Gets the error caused by the query (if any).
+-- Gets the error caused by the query, or "" if there was no error.
 
 Query:hasMoreResults()
 -- Returns [Boolean]
 -- Returns true if the query still has more data associated with it (which means getNextResults() can be called)
+-- Note: This function works unfortunately different that one would expect.
+-- hasMoreResults() returns true if there is currently a result that can be popped, rather than if there is an
+-- additional result that has data. However, this does make for a nicer code that handles multiple results.
+-- See Examples/multi_results.lua for an example how to use it.
 
 Query:getNextResults()
 -- Returns [Table]

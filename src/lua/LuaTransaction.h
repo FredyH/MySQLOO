@@ -13,7 +13,8 @@ public:
 
     static void createMetaTable(ILuaBase *LUA);
 
-    void runSuccessCallback(ILuaBase *LUA, const std::shared_ptr<IQueryData> &data) override;
+    static void runSuccessCallback(ILuaBase *LUA, const std::shared_ptr<Transaction> &transaction,
+                                   const std::shared_ptr<TransactionData> &data);
 
     explicit LuaTransaction(const std::shared_ptr<Transaction> &transaction, int databaseRef) : LuaIQuery(
             std::static_pointer_cast<IQuery>(transaction), "MySQLOO Transaction", databaseRef

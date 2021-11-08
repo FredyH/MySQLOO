@@ -28,6 +28,10 @@ LUA_FUNCTION(luaObjectGc) {
 LUA_CLASS_FUNCTION(LuaObject, luaObjectThink) {
     std::unordered_set<LuaDatabase*> databasesCopy = *LuaDatabase::luaDatabases;
     for (auto &database: databasesCopy) {
+        if (LuaDatabase::luaDatabases->find(database) == LuaDatabase::luaDatabases->end()) {
+            //This means the database instance was collected during the think hook and is thus invalid.
+            continue;
+        }
         database->think(LUA);
     }
     return 0;

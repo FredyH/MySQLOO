@@ -15,7 +15,7 @@ public:
 
     static void createMetaTable(ILuaBase *LUA);
 
-    void runSuccessCallback(ILuaBase *LUA, const std::shared_ptr<IQueryData> &data) override;
+    static void runSuccessCallback(ILuaBase *LUA, const std::shared_ptr<Query>& query, const std::shared_ptr<QueryData> &data);
 
     std::shared_ptr<IQueryData> buildQueryData(ILuaBase *LUA, int stackPosition) override;
 

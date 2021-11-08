@@ -65,12 +65,13 @@ void IQuery::wait(bool shouldSwap) {
     }
 }
 
-//Returns the error message produced by the mysql query or 0 if there is none
+//Returns the error message produced by the mysql query or "" if there is none
 std::string IQuery::error() const {
-    if (!hasCallbackData()) {
-        throw MySQLOOException("Query not started");
+    auto currentQueryData = callbackQueryData;
+    if (!currentQueryData) {
+        return "";
     }
-    return callbackQueryData->getError();
+    return currentQueryData->getError();
 }
 
 //Attempts to abort the query, returns true if it was able to stop at least one query in time, false otherwise
@@ -85,7 +86,7 @@ std::vector<std::shared_ptr<IQueryData>> IQuery::abort() {
         //aren't in the query queue
         bool wasRemoved = database->queryQueue.removeIf(
                 [&](std::pair<std::shared_ptr<IQuery>, std::shared_ptr<IQueryData>> const &p) {
-                    return p.second.get() == data.get();
+                    return p.second == data;
                 });
         if (wasRemoved) {
             data->setStatus(QUERY_ABORTED);

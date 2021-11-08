@@ -14,7 +14,7 @@ public:
 
     static int create(lua_State *L);
 
-    void think(ILuaBase *lua);
+    void think(ILuaBase *LUA);
 
     int m_tableReference = 0;
     std::shared_ptr<Database> m_database;

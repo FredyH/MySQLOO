@@ -50,7 +50,7 @@ bool Query::hasMoreResults() {
 	if (!hasCallbackData()) {
         throw MySQLOOException("Query not completed yet");
 	}
-	auto* data = (QueryData*) callbackQueryData.get();
+    auto data = std::dynamic_pointer_cast<QueryData>(this->callbackQueryData);
     return data->hasMoreResults();
 }
 
@@ -59,7 +59,7 @@ void Query::getNextResults() {
 	if (!hasCallbackData()) {
         throw MySQLOOException("Query not completed yet");
 	}
-    auto* data = (QueryData*) callbackQueryData.get();
+    auto data = std::dynamic_pointer_cast<QueryData>(this->callbackQueryData);
 	if (!data->getNextResults()) {
         throw MySQLOOException("Query doesn't have any more results");
 	}
@@ -70,7 +70,7 @@ my_ulonglong Query::lastInsert() {
 	if (!hasCallbackData()) {
         return 0;
 	}
-	auto* data = (QueryData*) this->callbackQueryData.get();
+	auto data = std::dynamic_pointer_cast<QueryData>(this->callbackQueryData);
 	//Calling lastInsert() after query was executed but before the callback is run can cause race conditions
     return data->getLastInsertID();
 }
@@ -81,7 +81,7 @@ my_ulonglong Query::affectedRows() {
     if (!hasCallbackData()) {
         return 0;
     }
-    auto* data = (QueryData*) this->callbackQueryData.get();
+    auto data = std::dynamic_pointer_cast<QueryData>(this->callbackQueryData);
 	//Calling affectedRows() after query was executed but before the callback is run can cause race conditions
     return data->getAffectedRows();
 }

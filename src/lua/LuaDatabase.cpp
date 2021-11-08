@@ -194,6 +194,7 @@ MYSQLOO_LUA_FUNCTION(abortAllQueries) {
     auto database = LuaObject::getLuaObject<LuaDatabase>(LUA);
     auto abortedQueries = database->m_database->abortAllQueries();
     for (const auto& pair: abortedQueries) {
+        LuaIQuery::runAbortedCallback(LUA, pair.second);
         LuaIQuery::finishQueryData(LUA, pair.first, pair.second);
     }
     LUA->PushNumber((double) abortedQueries.size());
@@ -215,6 +216,7 @@ MYSQLOO_LUA_FUNCTION(ping) {
 MYSQLOO_LUA_FUNCTION(wait) {
     auto database = LuaObject::getLuaObject<LuaDatabase>(LUA);
     database->m_database->wait();
+    database->think(LUA); //To set callback data, run callbacks
     return 0;
 }
 
@@ -284,7 +286,7 @@ void LuaDatabase::createMetaTable(ILuaBase *LUA) {
 
 void LuaDatabase::think(ILuaBase *LUA) {
     //Connection callbacks
-    auto database = this->m_database.get();
+    auto database = this->m_database;
     if (database->isConnectionDone() && !this->m_dbCallbackRan && this->m_tableReference != 0) {
         LUA->ReferencePush(this->m_tableReference);
         if (database->connectionSuccessful()) {
@@ -313,13 +315,7 @@ void LuaDatabase::think(ILuaBase *LUA) {
     //Run callbacks of finished queries
     auto finishedQueries = database->takeFinishedQueries();
     for (auto &pair: finishedQueries) {
-        auto data = pair.second;
-        if (data->m_tableReference != 0) {
-            LUA->ReferencePush(data->m_tableReference);
-            auto luaQuery = LuaIQuery::getLuaObject<LuaIQuery>(LUA, -1);
-            LUA->Pop();
-            luaQuery->runCallback(LUA, data);
-        }
+        LuaQuery::runCallback(LUA, pair.first, pair.second);
     }
 }
 

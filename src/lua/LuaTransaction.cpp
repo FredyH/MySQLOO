@@ -84,7 +84,8 @@ std::shared_ptr<IQueryData> LuaTransaction::buildQueryData(ILuaBase *LUA, int st
     return data;
 }
 
-void LuaTransaction::runSuccessCallback(ILuaBase *LUA, const std::shared_ptr<IQueryData> &data) {
+void LuaTransaction::runSuccessCallback(ILuaBase *LUA, const std::shared_ptr<Transaction> &transaction,
+                                        const std::shared_ptr<TransactionData> &data) {
     auto transactionData = std::dynamic_pointer_cast<TransactionData>(data);
     if (transactionData->m_tableReference == 0) return;
     transactionData->setStatus(QUERY_COMPLETE);
