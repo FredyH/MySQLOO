@@ -22,7 +22,7 @@ MYSQLOO_LUA_FUNCTION(addQuery) {
     LUA->Call(2, 0);
     LUA->Pop(4);
 
-    auto queryData = std::dynamic_pointer_cast<QueryData>(addedLuaQuery->buildQueryData(LUA, 2));
+    auto queryData = std::dynamic_pointer_cast<QueryData>(addedLuaQuery->buildQueryData(LUA, 2, false));
 
     luaTransaction->m_addedQueryData.push_back(queryData);
     return 0;
@@ -30,6 +30,10 @@ MYSQLOO_LUA_FUNCTION(addQuery) {
 
 MYSQLOO_LUA_FUNCTION(getQueries) {
     LUA->GetField(1, "__queries");
+    if (LUA->IsType(-1, GarrysMod::Lua::Type::Nil)) {
+        LUA->Pop();
+        LUA->CreateTable();
+    }
     return 1;
 }
 
@@ -59,7 +63,7 @@ void LuaTransaction::createMetaTable(ILuaBase *LUA) {
     LUA->Pop();
 }
 
-std::shared_ptr<IQueryData> LuaTransaction::buildQueryData(ILuaBase *LUA, int stackPosition) {
+std::shared_ptr<IQueryData> LuaTransaction::buildQueryData(ILuaBase *LUA, int stackPosition, bool shouldRef) {
     LUA->GetField(stackPosition, "__queries");
     std::deque<std::pair<std::shared_ptr<Query>, std::shared_ptr<IQueryData>>> queries;
     if (LUA->GetType(-1) != GarrysMod::Lua::Type::Nil) {
@@ -79,8 +83,11 @@ std::shared_ptr<IQueryData> LuaTransaction::buildQueryData(ILuaBase *LUA, int st
         }
     }
     LUA->Pop(); //Queries table
+
     auto data = Transaction::buildQueryData(queries);
-    LuaIQuery::referenceCallbacks(LUA, stackPosition, *data);
+    if (shouldRef) {
+        LuaIQuery::referenceCallbacks(LUA, stackPosition, *data);
+    }
     return data;
 }
 

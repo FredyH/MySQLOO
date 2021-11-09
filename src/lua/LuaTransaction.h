@@ -9,7 +9,7 @@ class LuaTransaction : public LuaIQuery {
 public:
     std::deque<std::shared_ptr<QueryData>> m_addedQueryData = {};
 
-    std::shared_ptr<IQueryData> buildQueryData(ILuaBase *LUA, int stackPosition) override;
+    std::shared_ptr<IQueryData> buildQueryData(ILuaBase *LUA, int stackPosition, bool shouldRef) override;
 
     static void createMetaTable(ILuaBase *LUA);
 

@@ -20,7 +20,7 @@ public:
     int m_databaseReference = 0;
 
     //The table is at the top
-    virtual std::shared_ptr<IQueryData> buildQueryData(ILuaBase *LUA, int stackPosition) = 0;
+    virtual std::shared_ptr<IQueryData> buildQueryData(ILuaBase *LUA, int stackPosition, bool shouldRef) = 0;
 
     static void referenceCallbacks(ILuaBase *LUA, int stackPosition, IQueryData &data);
 

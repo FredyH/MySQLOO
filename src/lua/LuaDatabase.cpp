@@ -142,6 +142,9 @@ MYSQLOO_LUA_FUNCTION(disconnect) {
         wait = LUA->GetBool(2);
     }
     database->m_database->disconnect(wait);
+    if (wait) {
+        database->think(LUA); //To set callback data, run callbacks
+    }
     return 0;
 }
 
@@ -288,6 +291,7 @@ void LuaDatabase::think(ILuaBase *LUA) {
     //Connection callbacks
     auto database = this->m_database;
     if (database->isConnectionDone() && !this->m_dbCallbackRan && this->m_tableReference != 0) {
+        this->m_dbCallbackRan = true;
         LUA->ReferencePush(this->m_tableReference);
         if (database->connectionSuccessful()) {
             LUA->GetField(-1, "onConnected");
@@ -308,7 +312,6 @@ void LuaDatabase::think(ILuaBase *LUA) {
         }
 
         LUA->ReferenceFree(this->m_tableReference);
-        this->m_dbCallbackRan = true;
         this->m_tableReference = 0;
     }
 

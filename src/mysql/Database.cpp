@@ -142,7 +142,7 @@ bool Database::setCharacterSet(const std::string &characterSet) {
     //This mutex makes sure we can safely use the connection to run the query
     std::unique_lock<std::mutex> lk2(m_queryMutex);
     if (mysql_set_character_set(m_sql, characterSet.c_str())) {
-        return false; //TODO: Also return error?
+        return false;
     } else {
         return true;
     }
@@ -368,22 +368,22 @@ void Database::run() {
     });
     while (true) {
         auto pair = this->queryQueue.take();
-        //This detects the poison pill that is supposed to shutdown the database
+        //This detects the poison pill that is supposed to shut down the database
         if (pair.first == nullptr) {
             return;
         }
-        auto curquery = pair.first;
+        auto curQuery = pair.first;
         auto data = pair.second;
         {
             //New scope so mutex will be released as soon as possible
             std::unique_lock<std::mutex> queryMutex(m_queryMutex);
-            curquery->executeStatement(*this, this->m_sql, data);
+            curQuery->executeStatement(*this, this->m_sql, data);
         }
         data->setFinished(true);
         finishedQueries.put(pair);
         {
-            std::unique_lock<std::mutex> queryMutex(curquery->m_waitMutex);
-            curquery->m_waitWakeupVariable.notify_one();
+            std::unique_lock<std::mutex> queryMutex(curQuery->m_waitMutex);
+            curQuery->m_waitWakeupVariable.notify_one();
         }
         //So that statements get eventually freed even if the queue is constantly full
         freeUnusedStatements();

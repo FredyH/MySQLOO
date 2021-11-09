@@ -17,7 +17,7 @@ public:
 
     static void runSuccessCallback(ILuaBase *LUA, const std::shared_ptr<Query>& query, const std::shared_ptr<QueryData> &data);
 
-    std::shared_ptr<IQueryData> buildQueryData(ILuaBase *LUA, int stackPosition) override;
+    std::shared_ptr<IQueryData> buildQueryData(ILuaBase *LUA, int stackPosition, bool shouldRef) override;
 
     void onDestroyedByLua(ILuaBase *LUA) override;
 

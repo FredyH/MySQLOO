@@ -180,11 +180,13 @@ void LuaQuery::createMetaTable(ILuaBase *LUA) {
     LUA->Pop(); //Metatable
 }
 
-std::shared_ptr<IQueryData> LuaQuery::buildQueryData(ILuaBase *LUA, int stackPosition) {
+std::shared_ptr<IQueryData> LuaQuery::buildQueryData(ILuaBase *LUA, int stackPosition, bool shouldRef) {
     auto query = std::dynamic_pointer_cast<Query>(this->m_query);
     auto data = query->buildQueryData();
     data->setStatus(QUERY_COMPLETE);
-    LuaIQuery::referenceCallbacks(LUA, stackPosition, *data);
+    if (shouldRef) {
+        LuaIQuery::referenceCallbacks(LUA, stackPosition, *data);
+    }
     return data;
 }
 

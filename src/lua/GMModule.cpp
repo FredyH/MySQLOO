@@ -72,7 +72,7 @@ static int printOutdatedVersion(lua_State *state) {
     printMessage(LUA, "Your server is using an outdated mysqloo9 version\n", 255, 0, 0);
     printMessage(LUA, "Download the latest version from here:\n", 255, 0, 0);
     printMessage(LUA, "https://github.com/FredyH/MySQLOO/releases\n", 86, 156, 214);
-    runInTimer(LUA, 300, printOutdatedVersion);
+    runInTimer(LUA, 3600, printOutdatedVersion);
     return 0;
 }
 

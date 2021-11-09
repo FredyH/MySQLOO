@@ -8,7 +8,7 @@
 
 class LuaPreparedQuery : public LuaQuery {
 public:
-    std::shared_ptr<IQueryData> buildQueryData(ILuaBase *LUA, int stackPosition) override;
+    std::shared_ptr<IQueryData> buildQueryData(ILuaBase *LUA, int stackPosition, bool shouldRef) override;
 
     static void createMetaTable(ILuaBase *LUA);
 

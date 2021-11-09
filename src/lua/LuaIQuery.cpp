@@ -7,7 +7,7 @@
 
 MYSQLOO_LUA_FUNCTION(start) {
     auto query = LuaIQuery::getLuaObject<LuaIQuery>(LUA);
-    auto queryData = query->buildQueryData(LUA, 1);
+    auto queryData = query->buildQueryData(LUA, 1, true);
     query->m_query->start(queryData);
     return 0;
 }
@@ -165,7 +165,7 @@ void LuaIQuery::runCallback(ILuaBase *LUA, const std::shared_ptr<IQuery> &iQuery
         case QUERY_SUCCESS:
             if (auto query = std::dynamic_pointer_cast<Query>(iQuery)) {
                 LuaQuery::runSuccessCallback(LUA, query, std::dynamic_pointer_cast<QueryData>(data));
-            } else if (auto transaction = std::dynamic_pointer_cast<Transaction>(query)) {
+            } else if (auto transaction = std::dynamic_pointer_cast<Transaction>(iQuery)) {
                 LuaTransaction::runSuccessCallback(LUA, transaction, std::dynamic_pointer_cast<TransactionData>(data));
             }
             break;
