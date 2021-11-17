@@ -4,8 +4,6 @@ This module is an almost entirely rewritten version of MySQLOO 8.1.
 It supports several new features such as multiple result sets, prepared queries and transactions.
 The module also fixed the memory leak issues the previous versions of MySQLOO had.
 
-For further information please [visit this forum thread](https://forum.facepunch.com/f/gmodaddon/jjdq/gmsv-mysqloo-v9-Rewritten-MySQL-Module-prepared-statements-transactions/1/).
-
 # Install instructions
 Download the latest module for your server's operating system and architecture using the links provided below, then place that file within the `garrysmod/lua/bin/` folder on your server. If the `bin` folder doesn't exist, please create it.
 
@@ -132,10 +130,16 @@ Database:ping()
 -- returns true if the connection is still up, false otherwise
 
 Database:setCharacterSet(charSetName)
--- Returns [Boolean, String]
+-- Returns [Boolean]
 -- Attempts to set the connection's character set to the one specified.
 -- Please note that this does block the main server thread if there is a query currently being ran
--- Returns true on success, false and an error message on failure
+-- Returns true on success, false on failure
+
+Database:setSSL(key, cert, ca, capath, cipher)
+-- Returns nothing
+-- Sets the SSL configuration of the database object. This allows you to enable secure connections over the internet using TLS.
+-- Every parameter is optional and can be omitted (set to nil) if not required.
+-- See https://dev.mysql.com/doc/c-api/8.0/en/mysql-ssl-set.html for the description of each parameter.
 
 -- Callbacks
 Database.onConnected( db )
@@ -164,15 +168,11 @@ Query:getData()
 Query:abort()
 -- Returns [Boolean]
 -- Attempts to abort the query if it is still in the state QUERY_WAITING
--- Returns true if aborting was successful, false otherwise
+-- Returns true if at least one running instance of the query was aborted successfully, false otherwise
 
 Query:lastInsert()
 -- Returns [Number]
 -- Gets the autoincrement index of the last inserted row of the current result set
-
-Query:status()
--- Returns [Number] (mysqloo.QUERY_* enums)
--- Gets the status of the query.
 
 Query:affectedRows()
 -- Returns [Number]
@@ -192,11 +192,15 @@ Query:wait(shouldSwap)
 
 Query:error()
 -- Returns [String]
--- Gets the error caused by the query (if any).
+-- Gets the error caused by the query, or "" if there was no error.
 
 Query:hasMoreResults()
 -- Returns [Boolean]
 -- Returns true if the query still has more data associated with it (which means getNextResults() can be called)
+-- Note: This function works unfortunately different that one would expect.
+-- hasMoreResults() returns true if there is currently a result that can be popped, rather than if there is an
+-- additional result that has data. However, this does make for a nicer code that handles multiple results.
+-- See Examples/multi_results.lua for an example how to use it.
 
 Query:getNextResults()
 -- Returns [Table]
@@ -252,7 +256,7 @@ PreparedQuery:clearParameters()
 
 PreparedQuery:putNewParameters()
 -- Returns nothing
--- This shouldn't be used anymore, just start the same prepared multiple times with different parameters
+-- Deprecated: Start the same prepared statement multiple times instead
 
 
 -- Transaction object
@@ -283,14 +287,50 @@ Transaction.onSuccess()
 
 # Build instructions:
 
-To build the project you first need to generate the appropriate solution for your system using [premake](https://premake.github.io/download.html).
+This project uses [CMake](https://cmake.org/) as a build system.
 
+## Windows
+
+### Visual Studio
+Visual Studio has support for CMake since Visual Studio 2017. To open the project, run Visual Studio and under `File > Open > CMake...`
+select the CMakeList.txt from this directory.
+
+The CMakeSettings.json in this project should already define both a 32 and 64 bit configuration.
+You can add new configurations in the combo box that contains the x64 config. Here you can change the build type to Release or RelWithDebInfo and duplicate the config
+for a 32 bit build.
+
+To build the project, you can then simply run `` from the toolbar. The output files are placed in the `out/build/{ConfigurationName}/` subfolder
+of this project.
+
+
+### CLion
+Simply open the project in CLion and import the CMake project. Assuming you have a [valid toolchain](https://www.jetbrains.com/help/clion/how-to-create-toolchain-in-clion.html) setup,
+you can simply build the project using `Build > Build Project` in the toolbar.
+
+To compile for 32 bit rather than 64 bit, you can select a 32 bit VS toolchain, rather than the 64 bit one.
+
+The output files are placed within the `cmake-build-debug/` directory of this project.
+
+
+## Linux
+
+
+### Prerequisites
+To compile the project, you will need CMake and a functioning c++ compiler. For example, under Ubuntu, the following packages
+can be used to compile the module.
+```bash
+sudo apt install build-essential gcc-multilib cmake
 ```
-premake5 --os=windows --file=BuildProjects.lua vs2017
-premake5 --os=macosx --file=BuildProjects.lua gmake
-premake5 --os=linux --file=BuildProjects.lua gmake
-```
-Then building MySQLOO should be as easy as either running make (linux) or pressing the build project button in Visual Studio (windows).
-**Note**: To build MySQLOO in 64-bit, run `make config=release_x86_64`
-**Note**: On Linux you might have to install some additional libraries required in the linking process, but I personally have not experienced any such issues.
-**Note:** Mac is currently not supported since the MariaDB connector is not available on mac (at least not precompiled).
+
+### Compiling
+To compile the module, follow the following steps:
+- enter the project directory and run `cmake .` in bash.
+- in the same directory run `make` in bash.
+- The module should be compiled and the resulting binary should be placed directly in the project directory.
+
+
+
+## Mac
+Mac is currently not supported since the MariaDB connector is not available on Mac (at least not precompiled).
+However, if you are able to compile the connector yourself, building for Mac should broadly follow the same instructions
+as for Linux.

@@ -8,3 +8,7 @@
 /premake5.exe
 /out
 .vscode
+*.zip
+cmake-build-debug
+.idea
+.vs
