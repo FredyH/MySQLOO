@@ -93,7 +93,10 @@ if (mysqloo.VERSION != "9" || !mysqloo.MINOR_VERSION || tonumber(mysqloo.MINOR_V
 end
 
 local db = {}
-local dbMetatable = {__index = db}
+local baseMeta = FindMetaTable("MySQLOO Database")
+local dbMetatable = {__index = function(tbl, key)
+	return (db[key] or baseMeta[key])
+end}
 
 //This converts an already existing database instance to be able to make use
 //of the easier functionality provided by mysqloo.CreateDatabase
