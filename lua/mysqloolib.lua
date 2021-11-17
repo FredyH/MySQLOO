@@ -88,12 +88,12 @@ require("mysqloo")
 if (mysqloo.VERSION != "9" || !mysqloo.MINOR_VERSION || tonumber(mysqloo.MINOR_VERSION) < 1) then
 	MsgC(Color(255, 0, 0), "You are using an outdated mysqloo version\n")
 	MsgC(Color(255, 0, 0), "Download the latest mysqloo9 from here\n")
-	MsgC(Color(86, 156, 214), "https://github.com/syl0r/MySQLOO/releases")
+	MsgC(Color(86, 156, 214), "https://github.com/FredyH/MySQLOO/releases")
 	return
 end
 
 local db = {}
-local baseMeta = FindMetaTable("MySQLOO Database")
+local baseMeta = FindMetaTable("MySQLOO Database") or {} -- this ensures backwards compatibility to <=9.6
 local dbMetatable = {__index = function(tbl, key)
 	return (db[key] or baseMeta[key])
 end}
