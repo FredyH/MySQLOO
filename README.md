@@ -135,7 +135,7 @@ Database:setCharacterSet(charSetName)
 -- Please note that this does block the main server thread if there is a query currently being ran
 -- Returns true on success, false on failure
 
-Database:setSSL(key, cert, ca, capath, cipher)
+Database:setSSLSettings(key, cert, ca, capath, cipher)
 -- Returns nothing
 -- Sets the SSL configuration of the database object. This allows you to enable secure connections over the internet using TLS.
 -- Every parameter is optional and can be omitted (set to nil) if not required.
