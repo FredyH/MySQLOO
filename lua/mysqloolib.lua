@@ -98,13 +98,13 @@ local dbMetatable = {__index = function(tbl, key)
 	return (db[key] or baseMeta[key])
 end}
 
-//This converts an already existing database instance to be able to make use
-//of the easier functionality provided by mysqloo.CreateDatabase
+--This converts an already existing database instance to be able to make use
+--of the easier functionality provided by mysqloo.CreateDatabase
 function mysqloo.ConvertDatabase(database)
 	return setmetatable(database, dbMetatable)
 end
 
-//The same as mysqloo.connect() but adds easier functionality
+--The same as mysqloo.connect() but adds easier functionality
 function mysqloo.CreateDatabase(...)
 	local db = mysqloo.connect(...)
 	db:connect()
@@ -158,8 +158,8 @@ local function setPreparedQueryArguments(query, values)
 		["number"] = function(query, index, value) query:setNumber(index, value) end,
 		["boolean"] = function(query, index, value) query:setBoolean(index, value) end,
 	}
-	//This has to be pairs instead of ipairs
-	//because nil is allowed as value
+	--This has to be pairs instead of ipairs
+	--because nil is allowed as value
 	for k, v in pairs(values) do
 		local varType = type(v)
 		if (typeFunctions[varType]) then
@@ -180,10 +180,13 @@ function db:PrepareQuery(str, values, callback, ...)
 end
 
 local transaction = {}
-local transactionMT = {__index = transaction}
+local baseTransactionMeta = FindMetaTable("MySQLOO Transaction") or {} -- this ensures backwards compatibility to <=9.6
+local transactionMT = {__index = function(tbl, key)
+	return (transaction[key] or baseTransactionMeta[key])
+end}
 
 function transaction:Prepare(str, values)
-	//TODO: Cache queries
+	--TODO: Cache queries
 	local preparedQuery = self._db:prepare(str)
 	setPreparedQueryArguments(preparedQuery, values)
 	self:addQuery(preparedQuery)
