@@ -35,6 +35,7 @@ if (WIN32)
 else ()
     find_package(Threads REQUIRED)
     target_link_libraries(mysqloo ${MARIADB_CLIENT_LIB} ${SSL_LIB} ${CRYPTO_LIB} Threads::Threads ${CMAKE_DL_LIBS})
+    target_link_libraries(mysqloo -static-libstdc++)
 endif ()
 
 set_gmod_suffix_prefix(mysqloo)
