@@ -255,7 +255,7 @@ void LuaDatabase::createMetaTable(ILuaBase *LUA) {
     LUA->SetField(-2, "hostInfo");
 
     LUA->PushCFunction(setAutoReconnect);
-    LUA->SetField(-2, "setSQLAutoReconnect");
+    LUA->SetField(-2, "setAutoReconnect");
 
     LUA->PushCFunction(setMultiStatements);
     LUA->SetField(-2, "setMultiStatements");
