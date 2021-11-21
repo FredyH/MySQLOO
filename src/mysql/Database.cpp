@@ -299,7 +299,7 @@ void Database::setSQLAutoReconnect(bool shouldReconnect) {
 }
 
 //Should only be called from the db thread
-bool Database::getAutoReconnect() {
+bool Database::getSQLAutoReconnect() {
     my_bool autoReconnect;
     mysql_get_optionv(m_sql, MYSQL_OPT_RECONNECT, &autoReconnect);
     return (bool) autoReconnect;

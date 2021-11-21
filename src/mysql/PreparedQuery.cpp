@@ -181,7 +181,7 @@ void PreparedQuery::generateMysqlBinds(MYSQL_BIND *binds,
 */
 void PreparedQuery::executeQuery(Database &database, MYSQL *connection, const std::shared_ptr<IQueryData> &ptr) {
     std::shared_ptr<PreparedQueryData> data = std::dynamic_pointer_cast<PreparedQueryData>(ptr);
-    bool shouldReconnect = database.getAutoReconnect();
+    bool shouldReconnect = database.getSQLAutoReconnect();
     //Autoreconnect has to be disabled for prepared statement since prepared statements
     //get reset on the server if the connection fails and auto reconnects
     try {
@@ -235,9 +235,20 @@ void PreparedQuery::executeQuery(Database &database, MYSQL *connection, const st
         }
     } catch (const MySQLException &error) {
         unsigned int errorCode = error.getErrorCode();
-        if (errorCode == CR_SERVER_LOST || errorCode == CR_SERVER_GONE_ERROR ||
-            errorCode == ER_MAX_PREPARED_STMT_COUNT_REACHED || errorCode == CR_NO_PREPARE_STMT ||
-            errorCode == ER_UNKNOWN_STMT_HANDLER) {
+        if (errorCode == ER_UNKNOWN_STMT_HANDLER || errorCode == CR_NO_PREPARE_STMT) {
+            //In this case, the statement is lost on the server (usually after a reconnect).
+            //Since the statement is unknown, nothing has been executed yet (i.e. no side effects),
+            //and we are perfectly fine to re-prepare the statement and try again, even if auto-reconnect
+            //is disabled.
+            database.freeStatement(this->cachedStatement);
+            this->cachedStatement = nullptr;
+            if (data->firstAttempt) {
+                data->firstAttempt = false;
+                executeQuery(database, connection, ptr);
+                return;
+            }
+        } else if (errorCode == CR_SERVER_LOST || errorCode == CR_SERVER_GONE_ERROR ||
+                   errorCode == ER_MAX_PREPARED_STMT_COUNT_REACHED) {
             database.freeStatement(this->cachedStatement);
             this->cachedStatement = nullptr;
             //Because autoreconnect is disabled we want to try and explicitly execute the prepared query once more

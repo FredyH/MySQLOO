@@ -3,7 +3,7 @@ project(mysqloo)
 add_subdirectory(GmodLUA)
 
 file(GLOB_RECURSE MYSQLOO_SRC "src/*.h" "src/*.cpp")
-set(SOURCE_FILES ${MYSQLOO_SRC} src/Main.cpp)
+set(SOURCE_FILES ${MYSQLOO_SRC})
 set(CMAKE_BUILD_TYPE RelWithDebInfo)
 set (CMAKE_CXX_STANDARD 14)
 

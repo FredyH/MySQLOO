@@ -55,8 +55,6 @@ public:
 
     void setShouldAutoReconnect(bool autoReconnect);
 
-    bool getAutoReconnect();
-
     bool shouldCachePreparedStatements() {
         return cachePreparedStatements;
     }
@@ -106,6 +104,8 @@ public:
     }
 
     void setSQLAutoReconnect(bool autoReconnect);
+
+    bool getSQLAutoReconnect();
 
 private:
     Database(std::string host, std::string username, std::string pw, std::string database, unsigned int port,
