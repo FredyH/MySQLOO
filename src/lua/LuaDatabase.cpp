@@ -4,8 +4,6 @@
 #include "LuaPreparedQuery.h"
 #include "LuaTransaction.h"
 
-std::unordered_set<LuaDatabase*>* LuaDatabase::luaDatabases = nullptr;
-
 static void pushLuaObjectTable(ILuaBase *LUA, void *data, int type) {
     LUA->CreateTable();
     LUA->PushUserType(data, LuaObject::TYPE_USERDATA);
@@ -35,6 +33,21 @@ LUA_CLASS_FUNCTION(LuaDatabase, create) {
     auto luaDatabase = new LuaDatabase(createdDatabase);
 
     pushLuaObjectTable(LUA, luaDatabase, LuaObject::TYPE_DATABASE);
+    int databaseTablePos = LUA->Top();
+
+    //Add database to weak database table
+    LUA->PushSpecial(GarrysMod::Lua::SPECIAL_GLOB);
+    LUA->GetField(-1, "mysqloo");
+    LUA->GetField(-1, "__weakDatabases");
+    if (LUA->IsType(-1, GarrysMod::Lua::Type::Nil)) {
+        LUA->Pop(3); //nil, mysqloo, Global
+        return 1;
+    }
+    LUA->Push(databaseTablePos);
+    LUA->PushBool(true);
+    LUA->RawSet(-3);
+    LUA->Pop(3); //__weakDatabases, mysqloo, Global
+
     return 1;
 }
 
@@ -196,7 +209,7 @@ MYSQLOO_LUA_FUNCTION(setCachePreparedStatements) {
 MYSQLOO_LUA_FUNCTION(abortAllQueries) {
     auto database = LuaObject::getLuaObject<LuaDatabase>(LUA);
     auto abortedQueries = database->m_database->abortAllQueries();
-    for (const auto& pair: abortedQueries) {
+    for (const auto &pair: abortedQueries) {
         LuaIQuery::runAbortedCallback(LUA, pair.second);
         LuaIQuery::finishQueryData(LUA, pair.first, pair.second);
     }
@@ -328,5 +341,67 @@ void LuaDatabase::onDestroyedByLua(ILuaBase *LUA) {
     //This needs to be cleared to avoid the queries leaking
     m_database->takeFinishedQueries();
     m_database->abortAllQueries();
+}
 
+/** Creates a weak table for all currently used databases.
+  * And stores it in the table at the top of the stack at key "__weakDatabases"
+  *
+  * Expects the mysqloo table to be at the top of the stack.
+  *
+  * See runAllThinkHooks for why this is used.
+  */
+void LuaDatabase::createWeakTable(ILuaBase *LUA) {
+    //Weak metatable
+    LUA->CreateTable();
+    LUA->PushString("k");
+    LUA->SetField(-2, "__mode");
+
+    //Weak table
+    LUA->CreateTable();
+    LUA->Push(-2); //Metatable
+    LUA->SetMetaTable(-2);
+
+    LUA->SetField(-3, "__weakDatabases");
+    LUA->Pop(); //Metatable
+}
+
+/**
+ * Runs the think hook for every database instance that is currently alive.
+ * Expects the mysqloo table to be at the top of the stack.
+ *
+ * The idea of this function is to store a weak reference to each database's lua table and then
+ * call the think function of each instance that is still alive.
+ * If the table of a database instance is still alive, then so is the UserData object (which is stored in the table).
+ *
+ * This method eliminates the need of storing a global list of all database instances that are currently alive.
+ */
+void LuaDatabase::runAllThinkHooks(ILuaBase *LUA) {
+    LUA->GetField(-1, "__weakDatabases");
+    if (!LUA->IsType(-1, GarrysMod::Lua::Type::Table)) {
+        LUA->Pop(); //Nil
+        return;
+    }
+    //We iterate all (alive) entries in the weak table and create references to them.
+    //This essentially creates a copy of the weak table that only contains strong references.
+    //We need the copy so that no elements of the weak table are collected while think hooks of the databases
+    //are executed, which might create new database instances, thus invalidating the iterator.
+    std::vector<int> databaseReferences;
+    LUA->PushNil(); //First key
+    while (LUA->Next(-2) != 0) {
+        //The key is the table of the database
+        LUA->Push(-2); //The key, i.e. the database table
+        databaseReferences.push_back(LUA->ReferenceCreate());
+
+        LUA->Pop(); //The value, keep key on stack for next()
+    }
+    LUA->Pop(); //__weakDatabases
+
+    //Call think function of each alive database instance
+    for (auto &ref: databaseReferences) {
+        LUA->ReferencePush(ref);
+        LUA->ReferenceFree(ref); //We can immediately free this, the variable on the stack keeps it alive.
+        auto database = LuaObject::getLuaObject<LuaDatabase>(LUA, -1);
+        database->think(LUA);
+        LUA->Pop(); //database
+    }
 }

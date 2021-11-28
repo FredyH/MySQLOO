@@ -22,16 +22,12 @@ public:
 
     void onDestroyedByLua(ILuaBase *LUA) override;
 
-    ~LuaDatabase() override {
-        luaDatabases->erase(this);
-    }
-
     explicit LuaDatabase(std::shared_ptr<Database> database) : LuaObject("Database"),
                                                                m_database(std::move(database)) {
-        luaDatabases->insert(this);
     }
 
-    static std::unordered_set<LuaDatabase*>* luaDatabases;
+    static void createWeakTable(ILuaBase *LUA);
+    static void runAllThinkHooks(ILuaBase *LUA);
 };
 
 

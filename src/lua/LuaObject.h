@@ -42,7 +42,6 @@ public:
     static void createUserDataMetaTable(ILuaBase *lua);
 
     //Lua functions
-    static int luaObjectThink(lua_State *L);
 
     static void pcallWithErrorReporter(ILuaBase *LUA, int nargs);
 
@@ -62,7 +61,7 @@ public:
         if (returnValue == nullptr) {
             LUA->ThrowError("[MySQLOO] Invalid CPP Object");
         }
-        LUA->Pop();
+        LUA->Pop(); //__CppObject
         return returnValue;
     }
 

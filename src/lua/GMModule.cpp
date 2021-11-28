@@ -18,10 +18,8 @@ GMOD_MODULE_CLOSE() {
     // Free the version check ConVar object reference
     if (versionCheckConVar != 0) {
         LUA->ReferenceFree(versionCheckConVar);
+        versionCheckConVar = 0;
     }
-
-    delete LuaDatabase::luaDatabases;
-    LuaDatabase::luaDatabases = nullptr;
     mysql_thread_end();
     mysql_library_end();
 
@@ -136,11 +134,22 @@ LUA_FUNCTION(deallocationCount) {
     return 1;
 }
 
+LUA_FUNCTION(mysqlooThink) {
+    LUA->PushSpecial(GarrysMod::Lua::SPECIAL_GLOB);
+    LUA->GetField(-1, "mysqloo");
+    if (LUA->IsType(-1, GarrysMod::Lua::Type::Nil)) {
+        LUA->Pop(2); //nil, Global
+        return 0;
+    }
+    LuaDatabase::runAllThinkHooks(LUA);
+    LUA->Pop(2); //nil, Global
+    return 0;
+}
+
 GMOD_MODULE_OPEN() {
     if (mysql_library_init(0, nullptr, nullptr)) {
         LUA->ThrowError("Could not initialize mysql library.");
     }
-    LuaDatabase::luaDatabases = new std::unordered_set<LuaDatabase *>();
 
     //Creating MetaTables
     LuaObject::createUserDataMetaTable(LUA);
@@ -154,12 +163,12 @@ GMOD_MODULE_OPEN() {
     LUA->GetField(-1, "Add");
     LUA->PushString("Think");
     LUA->PushString("__MySQLOOThinkHook");
-    LUA->PushCFunction(LuaObject::luaObjectThink);
+    LUA->PushCFunction(mysqlooThink);
     LUA->Call(3, 0);
     LUA->Pop();
     LUA->Pop();
     LUA->PushSpecial(GarrysMod::Lua::SPECIAL_GLOB);
-    LUA->CreateTable();
+    LUA->CreateTable(); //mysqloo
 
     LUA->PushString(MYSQLOO_VERSION);
     LUA->SetField(-2, "VERSION");
@@ -205,6 +214,8 @@ GMOD_MODULE_OPEN() {
     LUA->SetField(-2, "allocationCount");
     LUA->PushCFunction(deallocationCount);
     LUA->SetField(-2, "deallocationCount");
+
+    LuaDatabase::createWeakTable(LUA);
 
     LUA->SetField(-2, "mysqloo");
     LUA->Pop();
