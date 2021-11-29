@@ -184,7 +184,7 @@ void Database::setSSLSettings(const SSLSettings &settings) {
     if (m_status != DATABASE_NOT_CONNECTED) {
         throw MySQLOOException("Cannot set SSL settings after connecting!");
     }
-    settings.applySSLSettings(this->m_sql);
+    this->customSSLSettings = settings;
 }
 
 
