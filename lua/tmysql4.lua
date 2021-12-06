@@ -14,7 +14,10 @@ end
 tmysql = tmysql or {}
 tmysql.Connections = tmysql.Connections or {}
 local database = {}
-local databaseMT = {__index = database}
+local baseMeta = FindMetaTable("MySQLOO Database") or {} -- this ensures backwards compatibility to <=9.6
+local databaseMT = {__index = function(tbl, key)
+	return database[key] or baseMeta[key]
+end}
 
 function database:Escape(...)
 	if (self.Disconnected) then error("database already disconnected") end
