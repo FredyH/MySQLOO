@@ -49,7 +49,7 @@ class IQuery : public std::enable_shared_from_this<IQuery> {
     friend class Database;
 
 public:
-    explicit IQuery(const std::shared_ptr<Database>& database);
+    explicit IQuery(std::shared_ptr<Database>  database);
 
     virtual ~IQuery();
 
@@ -102,6 +102,10 @@ protected:
     int m_options = 0;
     std::deque<std::shared_ptr<IQueryData>> runningQueryData;
     bool hasBeenStarted = false;
+private:
+    //Wakes up any waiting thread
+    void notify();
+    void waitForNotify(const std::shared_ptr<IQueryData> &data);
 };
 
 class IQueryData {

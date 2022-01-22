@@ -96,7 +96,9 @@ public:
     void setSSLSettings(const SSLSettings &settings);
 
     bool isConnectionDone() { return m_connectionDone; }
+
     bool connectionSuccessful() { return m_success; }
+
     std::string connectionError() { return m_connection_err; }
 
     std::deque<std::pair<std::shared_ptr<IQuery>, std::shared_ptr<IQueryData>>> takeFinishedQueries() {
@@ -106,6 +108,7 @@ public:
     void setSQLAutoReconnect(bool autoReconnect);
 
     bool getSQLAutoReconnect();
+
 
 private:
     Database(std::string host, std::string username, std::string pw, std::string database, unsigned int port,
@@ -121,15 +124,23 @@ private:
 
     void connectRun();
 
+    void abortWaitingQuery();
+
+    void
+    failWaitingQuery(const std::shared_ptr<IQuery> &query, const std::shared_ptr<IQueryData> &data, std::string reason);
+
+    void waitForQuery(const std::shared_ptr<IQuery> &query, const std::shared_ptr<IQueryData> &data);
+
     BlockingQueue<std::pair<std::shared_ptr<IQuery>, std::shared_ptr<IQueryData>>> finishedQueries{};
     BlockingQueue<std::pair<std::shared_ptr<IQuery>, std::shared_ptr<IQueryData>>> queryQueue{};
-    std::unordered_set<MYSQL_STMT*> cachedStatements{};
-    std::unordered_set<MYSQL_STMT*> freedStatements{};
+    std::unordered_set<MYSQL_STMT *> cachedStatements{};
+    std::unordered_set<MYSQL_STMT *> freedStatements{};
     MYSQL *m_sql = nullptr;
     std::thread m_thread;
     std::mutex m_connectMutex; //Mutex used during connection
     std::mutex m_queryMutex; //Mutex that is locked while query thread operates on m_sql object
     std::mutex m_statementMutex; //Mutex that protects cached prepared statements
+    std::mutex m_queryWaitMutex; //Mutex that prevents deadlocks when calling :wait()
     std::condition_variable m_connectWakeupVariable;
     unsigned int m_serverVersion = 0;
     std::string m_serverInfo;
@@ -139,10 +150,12 @@ private:
     bool useMultiStatements = true;
     bool startedConnecting = false;
     bool disconnected = false;
+    bool m_canWait = false;
+    std::pair<std::shared_ptr<IQuery>, std::shared_ptr<IQueryData>> m_waitingQuery = {nullptr, nullptr};
     std::atomic<bool> m_success{true};
     std::atomic<bool> m_connectionDone{false};
     std::atomic<bool> cachePreparedStatements{true};
-    std::condition_variable m_queryWakupVariable;
+    std::condition_variable m_queryWakeupVariable{};
     std::string database;
     std::string host;
     std::string username;

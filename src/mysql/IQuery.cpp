@@ -10,7 +10,7 @@
 //before the callback is called can result in race conditions.
 //Always check for QUERY_COMPLETE!!!
 
-IQuery::IQuery(const std::shared_ptr<Database> &database) : m_database(database) {
+IQuery::IQuery(std::shared_ptr<Database> database) : m_database(std::move(database)) {
     m_options = OPTION_NAMED_FIELDS | OPTION_INTERPRET_DATA | OPTION_CACHE;
     LuaObject::allocationCount++;
 }
@@ -44,7 +44,7 @@ bool IQuery::isRunning() {
 }
 
 //Blocks the current Thread until the query has finished processing
-//Possibly dangerous (dead lock when database goes down while waiting)
+//Possibly dangerous (deadlock when database goes down while waiting)
 //If the second argument is set to true, the query is going to be swapped to the front of the query queue
 void IQuery::wait(bool shouldSwap) {
     if (!isRunning()) {
@@ -59,10 +59,7 @@ void IQuery::wait(bool shouldSwap) {
                     return p.second.get() == lastInsertedQuery.get();
                 });
     }
-    {
-        std::unique_lock<std::mutex> lck(m_waitMutex);
-        while (!lastInsertedQuery->isFinished()) m_waitWakeupVariable.wait(lck);
-    }
+    database->waitForQuery(this->shared_from_this(), lastInsertedQuery);
 }
 
 //Returns the error message produced by the mysql query or "" if there is none
@@ -90,6 +87,7 @@ std::vector<std::shared_ptr<IQueryData>> IQuery::abort() {
                 });
         if (wasRemoved) {
             data->setStatus(QUERY_ABORTED);
+            data->setFinished(true);
             abortedQueries.push_back(data);
         }
     }
@@ -172,6 +170,24 @@ void IQuery::finishQueryData(const std::shared_ptr<IQueryData> &data) {
         runningQueryData.pop_front();
     } else {
         //Slow path, O(n), should only happen in very rare circumstances.
-        runningQueryData.erase(std::remove(runningQueryData.begin(), runningQueryData.end(), data), runningQueryData.end());
+        runningQueryData.erase(std::remove(runningQueryData.begin(), runningQueryData.end(), data),
+                               runningQueryData.end());
     }
+}
+
+/*
+ * Waits for the query to be notified of the completion of the query data.
+ * This should not be called directly, but only from the database.
+ */
+void IQuery::waitForNotify(const std::shared_ptr<IQueryData> &data) {
+    std::unique_lock<std::mutex> lck(m_waitMutex);
+    while (!data->isFinished()) m_waitWakeupVariable.wait(lck);
+}
+
+/*
+ * Notifies a waiting query and wakes it up.
+ */
+void IQuery::notify() {
+    std::unique_lock<std::mutex> queryMutex(m_waitMutex);
+    m_waitWakeupVariable.notify_all();
 }

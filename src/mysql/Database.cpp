@@ -76,11 +76,11 @@ void Database::freeUnusedStatements() {
 void Database::enqueueQuery(const std::shared_ptr<IQuery> &query, const std::shared_ptr<IQueryData> &queryData) {
     queryQueue.put(std::make_pair(query, queryData));
     queryData->setStatus(QUERY_WAITING);
-    this->m_queryWakupVariable.notify_one();
+    this->m_queryWakeupVariable.notify_one();
 }
 
 
-/* Returns the amount of queued querys in the database instance
+/* Returns the amount of queued queries in the database instance
  * If a query is currently being processed, it does not count towards the queue size
  */
 size_t Database::queueSize() {
@@ -97,6 +97,7 @@ std::deque<std::pair<std::shared_ptr<IQuery>, std::shared_ptr<IQueryData>>> Data
         if (!pair.first || !pair.second) continue;
         auto data = pair.second;
         data->setStatus(QUERY_ABORTED);
+        data->setFinished(true);
     }
     return canceledQueries;
 }
@@ -154,6 +155,7 @@ void Database::connect() {
     if (m_status != DATABASE_NOT_CONNECTED || startedConnecting) {
         throw MySQLOOException("Database already connected.");
     }
+    m_canWait = true;
     startedConnecting = true;
     m_status = DATABASE_CONNECTING;
     m_thread = std::thread(&Database::connectRun, this);
@@ -305,6 +307,49 @@ bool Database::getSQLAutoReconnect() {
     return (bool) autoReconnect;
 }
 
+void Database::failWaitingQuery(const std::shared_ptr<IQuery> &query, const std::shared_ptr<IQueryData> &data,
+                                std::string reason) {
+    data->setError(std::move(reason));
+    data->setResultStatus(QUERY_ERROR);
+    data->setStatus(QUERY_COMPLETE);
+    finishedQueries.put(std::make_pair(query, data));
+}
+
+/* Called when the database finishes running queries.
+ * Aborts any waiting query. This prevents deadlocks if someone is waiting for a query to finish
+ * after/while the database is shutting down
+ *
+ * Called from the database thread
+ */
+void Database::abortWaitingQuery() {
+    std::unique_lock<std::mutex> lock(this->m_queryWaitMutex);
+    m_canWait = false;
+    auto query = this->m_waitingQuery.first;
+    auto data = this->m_waitingQuery.second;
+    if (query == nullptr || data == nullptr) {
+        return;
+    }
+    failWaitingQuery(query, data, "The database of the query you were waiting on was disconnected.");
+    this->m_waitingQuery = std::make_pair(nullptr, nullptr);
+    query->notify();
+}
+
+//Called from the main thread when calling query:wait()
+//There can always only be at most one waiting query per database (since waiting blocks the main thread here!)
+void Database::waitForQuery(const std::shared_ptr<IQuery>& query, const std::shared_ptr<IQueryData>& data) {
+    {
+        std::unique_lock<std::mutex> lock(this->m_queryWaitMutex);
+        if (!this->m_canWait) {
+            failWaitingQuery(query, data, "Can not wait on query, database is not connected or connection failed.");
+            return;
+        }
+        if (data->isFinished()) {
+            return; //No need to wait
+        }
+        this->m_waitingQuery = std::make_pair(query, data);
+    }
+    query->waitForNotify(data);
+}
 
 /* Thread that connects to the database, on success it continues to handle queries in the run method.
  */
@@ -317,7 +362,7 @@ void Database::connectRun() {
         }
     });
     {
-        auto connectionSignaliser = finally([&] { m_connectWakeupVariable.notify_one(); });
+        auto connectionSignaler = finally([&] { m_connectWakeupVariable.notify_one(); });
         std::lock_guard<std::mutex> lock(this->m_connectMutex);
         this->m_sql = mysql_init(nullptr);
         if (this->m_sql == nullptr) {
@@ -340,6 +385,7 @@ void Database::connectRun() {
             m_connection_err = mysql_error(this->m_sql);
             m_connectionDone = true;
             m_status = DATABASE_CONNECTION_FAILED;
+            this->abortWaitingQuery();
             return;
         }
         m_success = true;
@@ -354,6 +400,7 @@ void Database::connectRun() {
         std::unique_lock<std::mutex> queryMutex(m_queryMutex);
         mysql_close(this->m_sql);
         this->m_sql = nullptr;
+        this->abortWaitingQuery();
     });
     if (m_success) {
         run();
@@ -379,12 +426,18 @@ void Database::run() {
             std::unique_lock<std::mutex> queryMutex(m_queryMutex);
             curQuery->executeStatement(*this, this->m_sql, data);
         }
-        data->setFinished(true);
         finishedQueries.put(pair);
         {
-            std::unique_lock<std::mutex> queryMutex(curQuery->m_waitMutex);
-            curQuery->m_waitWakeupVariable.notify_one();
+            //Notify waiting query
+            std::unique_lock<std::mutex> lock(this->m_queryWaitMutex);
+            data->setFinished(true);
+            auto waitingQuery = this->m_waitingQuery.first;
+            auto waitingData = this->m_waitingQuery.second;
+            if (waitingQuery == curQuery && waitingData == data) {
+                this->m_waitingQuery = std::make_pair(nullptr, nullptr);
+            }
         }
+        curQuery->notify();
         //So that statements get eventually freed even if the queue is constantly full
         freeUnusedStatements();
     }
