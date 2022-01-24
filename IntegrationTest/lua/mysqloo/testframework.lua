@@ -68,6 +68,17 @@ function TestFramework:OnCompleted()
 		else
 			MsgC(Color(255, 255, 255), "All allocated objects were freed\n")
 		end
+
+
+		diffBefore = TestFramework.ReferenceCreatedCount - TestFramework.ReferenceFreedCount
+		diffAfter = mysqloo.referenceCreatedCount() - mysqloo.referenceFreedCount()
+		if (diffAfter > diffBefore) then
+			MsgC(Color(255, 255, 255), "Found potential memory leak with ", diffAfter - diffBefore, " new references created that were not freed\n")
+		else
+			MsgC(Color(255, 255, 255), "All created references were freed\n")
+		end
+
+
 		MsgC(Color(255, 255, 255), "Lua Heap Before: ", TestFramework.LuaMemory, " After: ", collectgarbage("count"), "\n")
 	end)
 end
@@ -79,6 +90,8 @@ function TestFramework:Start()
 	TestFramework.CurrentIndex = 0
 	TestFramework.SuccessCount = 0
 	TestFramework.FailureCount = 0
+	TestFramework.ReferenceCreatedCount = mysqloo.referenceCreatedCount()
+	TestFramework.ReferenceFreedCount = mysqloo.referenceFreedCount()
 	TestFramework.AllocationCount = mysqloo.allocationCount()
 	TestFramework.DeallocationCount = mysqloo.deallocationCount()
 	TestFramework.LuaMemory = collectgarbage("count")
