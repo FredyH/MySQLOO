@@ -156,6 +156,7 @@ private:
     std::atomic<bool> m_connectionDone{false};
     std::atomic<bool> cachePreparedStatements{true};
     std::condition_variable m_queryWakeupVariable{};
+    std::condition_variable m_queryWaitWakeupVariable{};
     std::string database;
     std::string host;
     std::string username;

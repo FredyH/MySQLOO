@@ -10,8 +10,10 @@ template<typename T>
 class BlockingQueue {
 public:
     void put(T elem) {
-        std::lock_guard<std::recursive_mutex> lock(mutex);
-        backingQueue.push_back(elem);
+        {
+            std::lock_guard<std::recursive_mutex> lock(mutex);
+            backingQueue.push_back(elem);
+        }
         waitObj.notify_all();
     }
 
@@ -49,7 +51,7 @@ public:
 
     T take() {
         std::unique_lock<std::recursive_mutex> lock(mutex);
-        while (size() == 0) waitObj.wait(lock);
+        waitObj.wait(lock, [this] { return this->size() > 0; });
         auto front = backingQueue.front();
         backingQueue.pop_front();
         return front;

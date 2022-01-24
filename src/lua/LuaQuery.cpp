@@ -65,7 +65,7 @@ int LuaQuery::createDataReference(GarrysMod::Lua::ILuaBase *LUA, Query &query, Q
             LUA->Pop(2); //data + row
         }
     }
-    query.m_dataReference = LUA->ReferenceCreate();
+    query.m_dataReference = LuaReferenceCreate(LUA);
     return query.m_dataReference;
 }
 
@@ -197,7 +197,7 @@ void LuaQuery::onDestroyedByLua(ILuaBase *LUA) {
 
 void LuaQuery::freeDataReference(ILuaBase *LUA, Query &query) {
     if (query.m_dataReference != 0) {
-        LUA->ReferenceFree(query.m_dataReference);
+        LuaReferenceFree(LUA, query.m_dataReference);
         query.m_dataReference = 0;
     }
 }

@@ -174,20 +174,3 @@ void IQuery::finishQueryData(const std::shared_ptr<IQueryData> &data) {
                                runningQueryData.end());
     }
 }
-
-/*
- * Waits for the query to be notified of the completion of the query data.
- * This should not be called directly, but only from the database.
- */
-void IQuery::waitForNotify(const std::shared_ptr<IQueryData> &data) {
-    std::unique_lock<std::mutex> lck(m_waitMutex);
-    while (!data->isFinished()) m_waitWakeupVariable.wait(lck);
-}
-
-/*
- * Notifies a waiting query and wakes it up.
- */
-void IQuery::notify() {
-    std::unique_lock<std::mutex> queryMutex(m_waitMutex);
-    m_waitWakeupVariable.notify_all();
-}

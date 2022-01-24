@@ -97,15 +97,9 @@ protected:
 
     //fields
     std::shared_ptr<Database> m_database{};
-    std::condition_variable m_waitWakeupVariable;
-    std::mutex m_waitMutex;
     int m_options = 0;
     std::deque<std::shared_ptr<IQueryData>> runningQueryData;
     bool hasBeenStarted = false;
-private:
-    //Wakes up any waiting thread
-    void notify();
-    void waitForNotify(const std::shared_ptr<IQueryData> &data);
 };
 
 class IQueryData {

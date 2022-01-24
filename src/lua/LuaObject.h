@@ -10,6 +10,8 @@
 #include <atomic>
 #include "GarrysMod/Lua/Interface.h"
 #include "../mysql/MySQLOOException.h"
+#include "GarrysMod/Lua/LuaBase.h"
+
 
 #include <iostream>
 
@@ -68,9 +70,15 @@ public:
     static int getFunctionReference(ILuaBase *LUA, int stackPosition, const char *fieldName);
     static std::atomic_long allocationCount;
     static std::atomic_long deallocationCount;
+    static uint64_t referenceCreatedCount;
+    static uint64_t referenceFreedCount;
 protected:
     std::string m_className;
 };
+
+int LuaReferenceCreate(GarrysMod::Lua::ILuaBase *LUA);
+
+void LuaReferenceFree(GarrysMod::Lua::ILuaBase *LUA, int ref);
 
 
 #define MYSQLOO_LUA_FUNCTION(FUNC)                          \

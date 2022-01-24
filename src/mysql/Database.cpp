@@ -280,6 +280,13 @@ bool Database::ping() {
     auto queryData = query->buildQueryData();
     query->start(queryData);
     query->wait(true);
+    //Ping queries do not have a lua correspondence, so they need to be removed from finished queries
+    //(they are essentially just a hack)
+    this->finishedQueries.removeIf(
+            [queryData](std::pair<std::shared_ptr<IQuery>, std::shared_ptr<IQueryData>> const &p) {
+                return p.second == queryData;
+            });
+    query->finishQueryData(queryData);
     return query->pingSuccess;
 }
 
@@ -312,6 +319,7 @@ void Database::failWaitingQuery(const std::shared_ptr<IQuery> &query, const std:
     data->setError(std::move(reason));
     data->setResultStatus(QUERY_ERROR);
     data->setStatus(QUERY_COMPLETE);
+    data->setFinished(true);
     finishedQueries.put(std::make_pair(query, data));
 }
 
@@ -331,12 +339,12 @@ void Database::abortWaitingQuery() {
     }
     failWaitingQuery(query, data, "The database of the query you were waiting on was disconnected.");
     this->m_waitingQuery = std::make_pair(nullptr, nullptr);
-    query->notify();
+    this->m_queryWaitWakeupVariable.notify_all();
 }
 
 //Called from the main thread when calling query:wait()
 //There can always only be at most one waiting query per database (since waiting blocks the main thread here!)
-void Database::waitForQuery(const std::shared_ptr<IQuery>& query, const std::shared_ptr<IQueryData>& data) {
+void Database::waitForQuery(const std::shared_ptr<IQuery> &query, const std::shared_ptr<IQueryData> &data) {
     {
         std::unique_lock<std::mutex> lock(this->m_queryWaitMutex);
         if (!this->m_canWait) {
@@ -347,8 +355,8 @@ void Database::waitForQuery(const std::shared_ptr<IQuery>& query, const std::sha
             return; //No need to wait
         }
         this->m_waitingQuery = std::make_pair(query, data);
+        this->m_queryWaitWakeupVariable.wait(lock, [data] { return data->isFinished(); });
     }
-    query->waitForNotify(data);
 }
 
 /* Thread that connects to the database, on success it continues to handle queries in the run method.
@@ -437,7 +445,7 @@ void Database::run() {
                 this->m_waitingQuery = std::make_pair(nullptr, nullptr);
             }
         }
-        curQuery->notify();
+        this->m_queryWaitWakeupVariable.notify_all();
         //So that statements get eventually freed even if the queue is constantly full
         freeUnusedStatements();
     }

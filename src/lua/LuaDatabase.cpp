@@ -60,7 +60,7 @@ MYSQLOO_LUA_FUNCTION(query) {
     auto query = Query::create(database->m_database, std::string(queryStr, outLen));
 
     LUA->Push(1);
-    int databaseRef = LUA->ReferenceCreate();
+    int databaseRef = LuaReferenceCreate(LUA);
 
     auto luaQuery = new LuaQuery(query, databaseRef);
 
@@ -76,7 +76,7 @@ MYSQLOO_LUA_FUNCTION(prepare) {
     auto query = PreparedQuery::create(database->m_database, std::string(queryStr, outLen));
 
     LUA->Push(1);
-    int databaseRef = LUA->ReferenceCreate();
+    int databaseRef = LuaReferenceCreate(LUA);
 
     auto luaQuery = new LuaPreparedQuery(query, databaseRef);
 
@@ -89,7 +89,7 @@ MYSQLOO_LUA_FUNCTION(createTransaction) {
     auto transaction = Transaction::create(database->m_database);
 
     LUA->Push(1);
-    int databaseRef = LUA->ReferenceCreate();
+    int databaseRef = LuaReferenceCreate(LUA);
 
     auto luaTransaction = new LuaTransaction(transaction, databaseRef);
 
@@ -101,7 +101,7 @@ MYSQLOO_LUA_FUNCTION(connect) {
     auto database = LuaObject::getLuaObject<LuaDatabase>(LUA);
     if (database->m_tableReference == 0) {
         LUA->Push(1);
-        database->m_tableReference = LUA->ReferenceCreate();
+        database->m_tableReference = LuaReferenceCreate(LUA);
     }
     database->m_database->connect();
     return 0;
@@ -324,7 +324,7 @@ void LuaDatabase::think(ILuaBase *LUA) {
             LUA->Pop(); //Callback function
         }
 
-        LUA->ReferenceFree(this->m_tableReference);
+        LuaReferenceFree(LUA, this->m_tableReference);
         this->m_tableReference = 0;
     }
 
@@ -390,7 +390,7 @@ void LuaDatabase::runAllThinkHooks(ILuaBase *LUA) {
     while (LUA->Next(-2) != 0) {
         //The key is the table of the database
         LUA->Push(-2); //The key, i.e. the database table
-        databaseReferences.push_back(LUA->ReferenceCreate());
+        databaseReferences.push_back(LuaReferenceCreate(LUA));
 
         LUA->Pop(); //The value, keep key on stack for next()
     }
@@ -399,7 +399,7 @@ void LuaDatabase::runAllThinkHooks(ILuaBase *LUA) {
     //Call think function of each alive database instance
     for (auto &ref: databaseReferences) {
         LUA->ReferencePush(ref);
-        LUA->ReferenceFree(ref); //We can immediately free this, the variable on the stack keeps it alive.
+        LuaReferenceFree(LUA, ref); //We can immediately free this, the variable on the stack keeps it alive.
         auto database = LuaObject::getLuaObject<LuaDatabase>(LUA, -1);
         database->think(LUA);
         LUA->Pop(); //database

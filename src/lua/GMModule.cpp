@@ -17,7 +17,7 @@ static int versionCheckConVar = 0;
 GMOD_MODULE_CLOSE() {
     // Free the version check ConVar object reference
     if (versionCheckConVar != 0) {
-        LUA->ReferenceFree(versionCheckConVar);
+        LuaReferenceFree(LUA, versionCheckConVar);
         versionCheckConVar = 0;
     }
     mysql_thread_end();
@@ -55,13 +55,13 @@ static void printMessage(GarrysMod::Lua::ILuaBase *LUA, const char *str, int r, 
     LUA->PushNumber(g);
     LUA->PushNumber(b);
     LUA->Call(3, 1);
-    int ref = LUA->ReferenceCreate();
+    int ref = LuaReferenceCreate(LUA);
     LUA->GetField(-1, "MsgC");
     LUA->ReferencePush(ref);
     LUA->PushString(str);
     LUA->Call(2, 0);
     LUA->Pop();
-    LUA->ReferenceFree(ref);
+    LuaReferenceFree(LUA, ref);
 }
 
 static int printOutdatedVersion(lua_State *state) {
@@ -131,6 +131,16 @@ LUA_FUNCTION(allocationCount) {
 
 LUA_FUNCTION(deallocationCount) {
     LUA->PushNumber(LuaObject::deallocationCount);
+    return 1;
+}
+
+LUA_FUNCTION(referenceCreatedCount) {
+    LUA->PushNumber((double) LuaObject::referenceCreatedCount);
+    return 1;
+}
+
+LUA_FUNCTION(referenceFreedCount) {
+    LUA->PushNumber((double) LuaObject::referenceFreedCount);
     return 1;
 }
 
@@ -214,6 +224,11 @@ GMOD_MODULE_OPEN() {
     LUA->SetField(-2, "allocationCount");
     LUA->PushCFunction(deallocationCount);
     LUA->SetField(-2, "deallocationCount");
+    LUA->PushCFunction(referenceFreedCount);
+    LUA->SetField(-2, "referenceFreedCount");
+    LUA->PushCFunction(referenceCreatedCount);
+    LUA->SetField(-2, "referenceCreatedCount");
+
 
     LuaDatabase::createWeakTable(LUA);
 
@@ -230,7 +245,7 @@ GMOD_MODULE_OPEN() {
     LUA->PushNumber(0); // Min value
     LUA->PushNumber(1); // Max value
     LUA->Call(6, 1); // Call with 6 arguments and 1 result
-    versionCheckConVar = LUA->ReferenceCreate(); // Store the created ConVar object as a global variable
+    versionCheckConVar = LuaReferenceCreate(LUA); // Store the created ConVar object as a global variable
     LUA->Pop(); // Pop the global table
 
     runInTimer(LUA, 5, doVersionCheck);

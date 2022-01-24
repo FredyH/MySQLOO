@@ -109,7 +109,7 @@ void LuaIQuery::addMetaTableFunctions(ILuaBase *LUA) {
 
 void LuaIQuery::referenceCallbacks(ILuaBase *LUA, int stackPosition, IQueryData &data) {
     LUA->Push(stackPosition);
-    data.m_tableReference = LUA->ReferenceCreate();
+    data.m_tableReference = LuaReferenceCreate(LUA);
 
     if (data.m_successReference == 0) {
         data.m_successReference = getFunctionReference(LUA, stackPosition, "onSuccess");
@@ -131,19 +131,19 @@ void LuaIQuery::referenceCallbacks(ILuaBase *LUA, int stackPosition, IQueryData 
 void LuaIQuery::finishQueryData(GarrysMod::Lua::ILuaBase *LUA, const std::shared_ptr<IQuery> &query, const std::shared_ptr<IQueryData> &data) {
     query->finishQueryData(data);
     if (data->m_tableReference) {
-        LUA->ReferenceFree(data->m_tableReference);
+        LuaReferenceFree(LUA, data->m_tableReference);
     }
     if (data->m_onDataReference) {
-        LUA->ReferenceFree(data->m_onDataReference);
+        LuaReferenceFree(LUA, data->m_onDataReference);
     }
     if (data->m_errorReference) {
-        LUA->ReferenceFree(data->m_errorReference);
+        LuaReferenceFree(LUA, data->m_errorReference);
     }
     if (data->m_abortReference) {
-        LUA->ReferenceFree(data->m_abortReference);
+        LuaReferenceFree(LUA, data->m_abortReference);
     }
     if (data->m_successReference) {
-        LUA->ReferenceFree(data->m_successReference);
+        LuaReferenceFree(LUA, data->m_successReference);
     }
     data->m_onDataReference = 0;
     data->m_errorReference = 0;
@@ -176,7 +176,7 @@ void LuaIQuery::runCallback(ILuaBase *LUA, const std::shared_ptr<IQuery> &iQuery
 
 void LuaIQuery::onDestroyedByLua(ILuaBase *LUA) {
     if (m_databaseReference != 0) {
-        LUA->ReferenceFree(m_databaseReference);
+        LuaReferenceFree(LUA, m_databaseReference);
         m_databaseReference = 0;
     }
 }

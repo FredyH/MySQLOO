@@ -113,9 +113,22 @@ int LuaObject::getFunctionReference(ILuaBase *LUA, int stackPosition, const char
     LUA->GetField(stackPosition, fieldName);
     int reference = 0;
     if (LUA->IsType(-1, GarrysMod::Lua::Type::Function)) {
-        reference = LUA->ReferenceCreate();
+        reference = LuaReferenceCreate(LUA);
     } else {
         LUA->Pop();
     }
     return reference;
+}
+
+uint64_t LuaObject::referenceCreatedCount = 0;
+uint64_t LuaObject::referenceFreedCount = 0;
+
+int LuaReferenceCreate(GarrysMod::Lua::ILuaBase *LUA) {
+    LuaObject::referenceCreatedCount++;
+    return LUA->ReferenceCreate();
+}
+
+void LuaReferenceFree(GarrysMod::Lua::ILuaBase *LUA, int ref) {
+    LuaObject::referenceFreedCount++;
+    LUA->ReferenceFree(ref);
 }
