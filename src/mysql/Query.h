@@ -18,9 +18,7 @@ class Query : public IQuery {
 public:
     ~Query() override;
 
-    bool executeStatement(Database &database, MYSQL *m_sql, std::shared_ptr<IQueryData> data) override;
-
-    virtual void executeQuery(Database &database, MYSQL *m_sql, const std::shared_ptr<IQueryData> &data);
+    void executeStatement(Database &database, MYSQL *m_sql, const std::shared_ptr<IQueryData>& data) override;
 
     my_ulonglong lastInsert();
 

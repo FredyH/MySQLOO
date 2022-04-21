@@ -1,73 +1,73 @@
 #include "Transaction.h"
 
 #include <utility>
-#include "errmsg.h"
 #include "Database.h"
 #include "mysqld_error.h"
 
-bool Transaction::executeStatement(Database &database, MYSQL *connection, std::shared_ptr<IQueryData> ptr) {
+
+void Transaction::executeStatement(Database &database, MYSQL *connection, const std::shared_ptr<IQueryData>& ptr) {
     std::shared_ptr<TransactionData> data = std::dynamic_pointer_cast<TransactionData>(ptr);
     data->setStatus(QUERY_RUNNING);
-    //This temporarily disables reconnect, since a reconnect
-    //would rollback (and cancel) a transaction
-    //Which could lead to parts of the transaction being executed outside of a transaction
-    //If they are being executed after the reconnect
-    bool oldReconnectStatus = database.getSQLAutoReconnect();
-    database.setSQLAutoReconnect(false);
-    auto resetReconnectStatus = finally([&] { database.setSQLAutoReconnect(oldReconnectStatus); });
     try {
-        Transaction::mysqlAutocommit(connection, false);
-        {
-            for (auto &query: data->m_queries) {
-                try {
-                    //Errors are cleared in case this is retrying after losing connection
-                    query.second->setResultStatus(QUERY_NONE);
-                    query.second->setError("");
-                    query.first->executeQuery(database, connection, query.second);
-                } catch (const MySQLException &error) {
-                    query.second->setError(error.what());
-                    query.second->setResultStatus(QUERY_ERROR);
-                    throw error;
-                }
+        for (auto &query: data->m_queries) {
+            //Errors are cleared in case this is retrying after losing connection
+            query.second->setStatus(QUERY_RUNNING);
+            query.second->setResultStatus(QUERY_NONE);
+            query.second->setError("");
+        }
+
+        mysqlAutocommit(connection, false);
+
+        for (auto &query: data->m_queries) {
+            try {
+                query.first->executeStatement(database, connection, query.second);
+            } catch (const MySQLException &error) {
+                query.second->setError(error.what());
+                query.second->setResultStatus(QUERY_ERROR);
+                throw error;
             }
         }
-        mysql_commit(connection);
+
+        mysqlCommit(connection);
         data->setResultStatus(QUERY_SUCCESS);
-        Transaction::mysqlAutocommit(connection, true);
-    } catch (const MySQLException &error) {
-        //This check makes sure that setting mysqlAutocommit back to true doesn't cause the transaction to fail
-        //Even though the transaction was executed successfully
-        if (data->getResultStatus() != QUERY_SUCCESS) {
-            unsigned int errorCode = error.getErrorCode();
-            if (oldReconnectStatus && !data->retried &&
-                (errorCode == CR_SERVER_LOST || errorCode == CR_SERVER_GONE_ERROR)) {
-                //Because autoreconnect is disabled we want to try and explicitly execute the transaction once more
-                //if we can get the client to reconnect (reconnect is caused by mysql_ping)
-                //If this fails we just go ahead and error
-                database.setSQLAutoReconnect(true);
-                if (mysql_ping(connection) == 0) {
-                    data->retried = true;
-                    return executeStatement(database, connection, ptr);
-                }
-            }
-            //If this call fails it means that the connection was (probably) lost
-            //In that case the mysql server rolls back any transaction anyways so it doesn't
-            //matter if it fails
-            mysql_rollback(connection);
-            data->setResultStatus(QUERY_ERROR);
-        }
-        //If this fails it probably means that the connection was lost
-        //In that case autocommit is turned back on anyways (once the connection is reestablished)
-        //See: https://dev.mysql.com/doc/refman/5.7/en/auto-reconnect.html
+        //If this fails the connection was lost but the transaction was already executed fully
+        //We do not want to throw an error here so the result is ignored.
         mysql_autocommit(connection, true);
-        data->setError(error.what());
+        applyChildResultStatus(data);
+    } catch (const MySQLException &error) {
+        data->setResultStatus(QUERY_ERROR);
+        mysql_rollback(connection);
+        //If this fails it probably means that the connection was lost
+        //In that case autocommit is turned back on anyway (once the connection is reestablished)
+        mysql_autocommit(connection, true);
+        //In case of reconnect this might get called twice, but this should not affect anything
+        applyChildResultStatus(data);
+        throw error;
     }
+}
+
+void Transaction::applyChildResultStatus(const std::shared_ptr<TransactionData>& data) {
     for (auto &pair: data->m_queries) {
         pair.second->setResultStatus(data->getResultStatus());
         pair.second->setStatus(QUERY_COMPLETE);
     }
-    data->setStatus(QUERY_COMPLETE);
-    return true;
+}
+
+void Transaction::mysqlAutocommit(MYSQL *sql, bool auto_mode) {
+    my_bool result = mysql_autocommit(sql, (my_bool) auto_mode);
+    if (result) {
+        const char *errorMessage = mysql_error(sql);
+        unsigned int errorCode = mysql_errno(sql);
+        throw MySQLException(errorCode, errorMessage);
+    }
+}
+
+void Transaction::mysqlCommit(MYSQL *sql) {
+    if (mysql_commit(sql)) {
+        const char *errorMessage = mysql_error(sql);
+        unsigned int errorCode = mysql_errno(sql);
+        throw MySQLException(errorCode, errorMessage);
+    }
 }
 
 

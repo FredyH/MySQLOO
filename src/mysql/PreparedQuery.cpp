@@ -173,17 +173,13 @@ void PreparedQuery::generateMysqlBinds(MYSQL_BIND *binds,
     }
 }
 
-
 /* Executes the prepared query
 * This function can only ever return one result set
 * Note: If an error occurs at the nth query all the actions done before
 * that nth query won't be reverted even though this query results in an error
 */
-void PreparedQuery::executeQuery(Database &database, MYSQL *connection, const std::shared_ptr<IQueryData> &ptr) {
+void PreparedQuery::executeStatement(Database &database, MYSQL *connection, const std::shared_ptr<IQueryData>& ptr) {
     std::shared_ptr<PreparedQueryData> data = std::dynamic_pointer_cast<PreparedQueryData>(ptr);
-    bool shouldReconnect = database.getSQLAutoReconnect();
-    //Autoreconnect has to be disabled for prepared statement since prepared statements
-    //get reset on the server if the connection fails and auto reconnects
     try {
         MYSQL_STMT *stmt = nullptr;
         auto stmtClose = finally([&] {
@@ -191,16 +187,15 @@ void PreparedQuery::executeQuery(Database &database, MYSQL *connection, const st
                 mysql_stmt_close(stmt);
             }
         });
-        if (this->cachedStatement.load() != nullptr) {
-            stmt = this->cachedStatement;
+        if (this->cachedStatement != nullptr && this->cachedStatement->isValid()) {
+            stmt = this->cachedStatement->stmt;
         } else {
             stmt = mysqlStmtInit(connection);
             my_bool attrMaxLength = 1;
             mysql_stmt_attr_set(stmt, STMT_ATTR_UPDATE_MAX_LENGTH, &attrMaxLength);
             mysqlStmtPrepare(stmt, this->m_query.c_str());
             if (database.shouldCachePreparedStatements()) {
-                this->cachedStatement = stmt;
-                database.cacheStatement(stmt);
+                this->cachedStatement = database.cacheStatement(stmt);
             }
         }
         unsigned int parameterCount = mysql_stmt_param_count(stmt);
@@ -235,49 +230,14 @@ void PreparedQuery::executeQuery(Database &database, MYSQL *connection, const st
         }
     } catch (const MySQLException &error) {
         unsigned int errorCode = error.getErrorCode();
-        if (errorCode == ER_UNKNOWN_STMT_HANDLER || errorCode == CR_NO_PREPARE_STMT) {
-            //In this case, the statement is lost on the server (usually after a reconnect).
-            //Since the statement is unknown, nothing has been executed yet (i.e. no side effects),
-            //and we are perfectly fine to re-prepare the statement and try again, even if auto-reconnect
-            //is disabled.
+        if (errorCode == CR_SERVER_LOST || errorCode == CR_SERVER_GONE_ERROR ||
+            errorCode == ER_MAX_PREPARED_STMT_COUNT_REACHED || errorCode == ER_UNKNOWN_STMT_HANDLER ||
+            errorCode == CR_NO_PREPARE_STMT) {
+            //In these cases the statement will no longer be valid, free it.
             database.freeStatement(this->cachedStatement);
-            this->cachedStatement = nullptr;
-            if (data->firstAttempt) {
-                data->firstAttempt = false;
-                executeQuery(database, connection, ptr);
-                return;
-            }
-        } else if (errorCode == CR_SERVER_LOST || errorCode == CR_SERVER_GONE_ERROR ||
-                   errorCode == ER_MAX_PREPARED_STMT_COUNT_REACHED) {
-            database.freeStatement(this->cachedStatement);
-            this->cachedStatement = nullptr;
-            //Because autoreconnect is disabled we want to try and explicitly execute the prepared query once more
-            //if we can get the client to reconnect (reconnect is caused by mysql_ping)
-            //If this fails we just go ahead and error
-            if (shouldReconnect && data->firstAttempt) {
-                if (mysql_ping(connection) == 0) {
-                    data->firstAttempt = false;
-                    executeQuery(database, connection, ptr);
-                    return;
-                }
-            }
         }
-        //Rethrow error to be handled by executeStatement()
         throw error;
     }
-}
-
-bool PreparedQuery::executeStatement(Database &database, MYSQL *connection, std::shared_ptr<IQueryData> ptr) {
-    std::shared_ptr<PreparedQueryData> data = std::dynamic_pointer_cast<PreparedQueryData>(ptr);
-    data->setStatus(QUERY_RUNNING);
-    try {
-        this->executeQuery(database, connection, ptr);
-        data->setResultStatus(QUERY_SUCCESS);
-    } catch (const MySQLException &error) {
-        data->setResultStatus(QUERY_ERROR);
-        data->setError(error.what());
-    }
-    return true;
 }
 
 std::shared_ptr<QueryData> PreparedQuery::buildQueryData() {

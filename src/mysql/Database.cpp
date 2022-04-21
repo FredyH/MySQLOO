@@ -4,7 +4,9 @@
 #include <cstring>
 #include <iostream>
 #include <utility>
+#include "mysqld_error.h"
 #include "../lua/LuaObject.h"
+#include "errmsg.h"
 
 Database::Database(std::string host, std::string username, std::string pw, std::string database, unsigned int port,
                    std::string unixSocket) :
@@ -30,32 +32,38 @@ Database::~Database() {
 
 
 //This makes sure that all stmts always get freed
-void Database::cacheStatement(MYSQL_STMT *stmt) {
-    if (stmt == nullptr) return;
+std::shared_ptr<StatementHandle> Database::cacheStatement(MYSQL_STMT *stmt) {
+    if (stmt == nullptr) return std::make_shared<StatementHandle>(nullptr, false);
     std::unique_lock<std::mutex> lock(m_statementMutex);
-    cachedStatements.insert(stmt);
+    auto handle = std::make_shared<StatementHandle>(stmt, true);
+    cachedStatements.insert(handle);
+    return handle;
 }
 
 //This notifies the database thread to free this statement some time in the future
-void Database::freeStatement(MYSQL_STMT *stmt) {
-    if (stmt == nullptr) return;
+void Database::freeStatement(const std::shared_ptr<StatementHandle> &handle) {
+    if (handle == nullptr || !handle->isValid()) return;
     std::unique_lock<std::mutex> lock(m_statementMutex);
-    if (cachedStatements.find(stmt) != cachedStatements.end()) {
+    if (cachedStatements.find(handle) != cachedStatements.end()) {
         //Otherwise, the statement was already freed
-        cachedStatements.erase(stmt);
-        freedStatements.insert(stmt);
+        cachedStatements.erase(handle);
+        freedStatements.insert(handle->stmt);
     }
+    handle->invalidate();
 }
 
 //Frees all statements that were allocated by the database
-//This is called when the database shuts down
+//This is called when the database shuts down or a reconnect happens
 void Database::freeCachedStatements() {
     std::unique_lock<std::mutex> lock(m_statementMutex);
-    for (auto &stmt: cachedStatements) {
-        mysql_stmt_close(stmt);
+    for (auto &handle: cachedStatements) {
+        if (handle == nullptr || !handle->isValid()) continue;
+        mysql_stmt_close(handle->stmt);
+        handle->invalidate();
     }
     cachedStatements.clear();
     for (auto &stmt: freedStatements) {
+        if (stmt == nullptr) continue;
         mysql_stmt_close(stmt);
     }
     freedStatements.clear();
@@ -66,6 +74,7 @@ void Database::freeCachedStatements() {
 void Database::freeUnusedStatements() {
     std::unique_lock<std::mutex> lock(m_statementMutex);
     for (auto &stmt: freedStatements) {
+        //Even if this returns an error, the handle will be freed
         mysql_stmt_close(stmt);
     }
     freedStatements.clear();
@@ -299,21 +308,6 @@ void Database::setCachePreparedStatements(bool shouldCache) {
     cachePreparedStatements = shouldCache;
 }
 
-//Should only be called from the db thread
-//While the mysql documentation says that mysql_options should only be called
-//before the connection is done it appears to work after just fine (at least for reconnect)
-void Database::setSQLAutoReconnect(bool shouldReconnect) {
-    auto myAutoReconnectBool = (my_bool) shouldReconnect;
-    mysql_optionsv(m_sql, MYSQL_OPT_RECONNECT, &myAutoReconnectBool);
-}
-
-//Should only be called from the db thread
-bool Database::getSQLAutoReconnect() {
-    my_bool autoReconnect;
-    mysql_get_optionv(m_sql, MYSQL_OPT_RECONNECT, &autoReconnect);
-    return (bool) autoReconnect;
-}
-
 void Database::failWaitingQuery(const std::shared_ptr<IQuery> &query, const std::shared_ptr<IQueryData> &data,
                                 std::string reason) {
     data->setError(std::move(reason));
@@ -381,9 +375,6 @@ void Database::connectRun() {
             return;
         }
         this->customSSLSettings.applySSLSettings(this->m_sql);
-        if (this->shouldAutoReconnect) {
-            setSQLAutoReconnect(true);
-        }
         const char *socketStr = (this->socket.length() == 0) ? nullptr : this->socket.c_str();
         unsigned long clientFlag = (this->useMultiStatements) ? CLIENT_MULTI_STATEMENTS : 0;
         clientFlag |= CLIENT_MULTI_RESULTS;
@@ -415,6 +406,27 @@ void Database::connectRun() {
     }
 }
 
+void Database::runQuery(const std::shared_ptr<IQuery>& query, const std::shared_ptr<IQueryData>& data, bool retry) {
+    try {
+        query->executeStatement(*this, this->m_sql, data);
+        data->setResultStatus(QUERY_SUCCESS);
+    } catch (const MySQLException &error) {
+        unsigned int errorCode = error.getErrorCode();
+        bool retryableError = errorCode == CR_SERVER_LOST || errorCode == CR_SERVER_GONE_ERROR ||
+                              errorCode == ER_MAX_PREPARED_STMT_COUNT_REACHED || errorCode == ER_UNKNOWN_STMT_HANDLER ||
+                              errorCode == CR_NO_PREPARE_STMT;
+        if (retry && retryableError && attemptReconnect()) {
+            //Need to free statements before retrying in case the connection was lost
+            //and prepared statement handles have become invalid
+            freeCachedStatements();
+            runQuery(query, data, false);
+        } else {
+            data->setResultStatus(QUERY_ERROR);
+            data->setError(error.what());
+        }
+    }
+}
+
 /* The run method of the thread of the database instance.
  */
 void Database::run() {
@@ -432,7 +444,9 @@ void Database::run() {
         {
             //New scope so mutex will be released as soon as possible
             std::unique_lock<std::mutex> queryMutex(m_queryMutex);
-            curQuery->executeStatement(*this, this->m_sql, data);
+            data->setStatus(QUERY_RUNNING);
+            runQuery(curQuery, data, this->shouldAutoReconnect);
+            data->setStatus(QUERY_COMPLETE);
         }
         finishedQueries.put(pair);
         {
@@ -450,3 +464,15 @@ void Database::run() {
         freeUnusedStatements();
     }
 }
+
+bool Database::attemptReconnect() {
+    bool success;
+    my_bool reconnect = '1';
+    mysql_optionsv(this->m_sql, MYSQL_OPT_RECONNECT, &reconnect);
+    success = mariadb_reconnect(this->m_sql) == 0;
+    reconnect = '0';
+    mysql_optionsv(this->m_sql, MYSQL_OPT_RECONNECT, &reconnect);
+    return success;
+}
+
+StatementHandle::StatementHandle(MYSQL_STMT *stmt, bool valid) : stmt(stmt), valid(valid) {}

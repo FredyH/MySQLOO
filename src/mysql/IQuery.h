@@ -84,12 +84,10 @@ public:
     std::shared_ptr<IQueryData> callbackQueryData;
 protected:
 
-    virtual bool executeStatement(Database &database, MYSQL *m_sql, std::shared_ptr<IQueryData> data) = 0;
+    virtual void executeStatement(Database &database, MYSQL *m_sql, const std::shared_ptr<IQueryData>& data) = 0;
 
     //Wrapper functions for c api that throw exceptions
     static void mysqlQuery(MYSQL *sql, std::string &query);
-
-    static void mysqlAutocommit(MYSQL *sql, bool auto_mode);
 
     static MYSQL_RES *mysqlStoreResults(MYSQL *sql);
 

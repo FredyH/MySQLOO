@@ -4,8 +4,8 @@
 #include <unordered_map>
 #include "Query.h"
 #include "MySQLHeader.h"
+#include "StatementHandle.h"
 #include <sstream>
-
 
 class PreparedQueryField {
     friend class PreparedQuery;
@@ -42,6 +42,7 @@ class PreparedQueryData : public QueryData {
 protected:
     std::deque<std::unordered_map<unsigned int, std::shared_ptr<PreparedQueryField>>> m_parameters;
     bool firstAttempt = true;
+
     PreparedQueryData() = default;
 };
 
@@ -51,7 +52,7 @@ class PreparedQuery : public Query {
 public:
     ~PreparedQuery() override;
 
-    bool executeStatement(Database &database, MYSQL *connection, std::shared_ptr<IQueryData> data) override;
+    void executeStatement(Database &database, MYSQL *connection, const std::shared_ptr<IQueryData> &data) override;
 
     void clearParameters();
 
@@ -68,8 +69,6 @@ public:
     std::shared_ptr<QueryData> buildQueryData() override;
 
     static std::shared_ptr<PreparedQuery> create(const std::shared_ptr<Database> &dbase, std::string query);
-protected:
-    void executeQuery(Database &database, MYSQL *m_sql, const std::shared_ptr<IQueryData> &data) override;
 
 private:
     PreparedQuery(const std::shared_ptr<Database> &dbase, std::string query);
@@ -92,8 +91,7 @@ private:
 
     static bool mysqlStmtNextResult(MYSQL_STMT *sql);
 
-    //This is atomic to prevent visibility issues
-    std::atomic<MYSQL_STMT *> cachedStatement{nullptr};
+    std::shared_ptr<StatementHandle> cachedStatement{nullptr};
 };
 
 #endif

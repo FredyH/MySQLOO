@@ -9,6 +9,7 @@
 #include <memory>
 #include <mutex>
 #include <sstream>
+#include "StatementHandle.h"
 #include <unordered_set>
 #include <condition_variable>
 #include "GarrysMod/Lua/Interface.h"
@@ -36,6 +37,7 @@ enum DatabaseStatus {
     DATABASE_CONNECTION_FAILED = 3
 };
 
+
 class Database : public std::enable_shared_from_this<Database> {
     friend class IQuery;
 
@@ -47,9 +49,9 @@ public:
 
     ~Database();
 
-    void cacheStatement(MYSQL_STMT *stmt);
+    std::shared_ptr<StatementHandle> cacheStatement(MYSQL_STMT *stmt);
 
-    void freeStatement(MYSQL_STMT *stmt);
+    void freeStatement(const std::shared_ptr<StatementHandle> &handle);
 
     void enqueueQuery(const std::shared_ptr<IQuery> &query, const std::shared_ptr<IQueryData> &data);
 
@@ -99,16 +101,13 @@ public:
 
     bool connectionSuccessful() { return m_success; }
 
+    bool attemptReconnect();
+
     std::string connectionError() { return m_connection_err; }
 
     std::deque<std::pair<std::shared_ptr<IQuery>, std::shared_ptr<IQueryData>>> takeFinishedQueries() {
         return finishedQueries.clear();
     }
-
-    void setSQLAutoReconnect(bool autoReconnect);
-
-    bool getSQLAutoReconnect();
-
 
 private:
     Database(std::string host, std::string username, std::string pw, std::string database, unsigned int port,
@@ -122,6 +121,8 @@ private:
 
     void run();
 
+    void runQuery(const std::shared_ptr<IQuery> &query, const std::shared_ptr<IQueryData> &data, bool retry);
+
     void connectRun();
 
     void abortWaitingQuery();
@@ -133,7 +134,7 @@ private:
 
     BlockingQueue<std::pair<std::shared_ptr<IQuery>, std::shared_ptr<IQueryData>>> finishedQueries{};
     BlockingQueue<std::pair<std::shared_ptr<IQuery>, std::shared_ptr<IQueryData>>> queryQueue{};
-    std::unordered_set<MYSQL_STMT *> cachedStatements{};
+    std::unordered_set<std::shared_ptr<StatementHandle>> cachedStatements{};
     std::unordered_set<MYSQL_STMT *> freedStatements{};
     MYSQL *m_sql = nullptr;
     std::thread m_thread;

@@ -19,8 +19,6 @@ protected:
     explicit TransactionData(std::deque<std::pair<std::shared_ptr<Query>, std::shared_ptr<IQueryData>>> queries) :
             m_queries(std::move(queries)) {
     };
-
-    bool retried = false;
 };
 
 class Transaction : public IQuery {
@@ -33,11 +31,17 @@ public:
     static std::shared_ptr<Transaction> create(const std::shared_ptr<Database> &database);
 
 protected:
-    bool executeStatement(Database &database, MYSQL *connection, std::shared_ptr<IQueryData> data) override;
+    void executeStatement(Database &database, MYSQL *connection, const std::shared_ptr<IQueryData>& data) override;
 
     explicit Transaction(const std::shared_ptr<Database> &database) : IQuery(database) {
 
     }
+private:
+    static void applyChildResultStatus(const std::shared_ptr<TransactionData>& data);
+
+    static void mysqlAutocommit(MYSQL *sql, bool auto_mode);
+
+    static void mysqlCommit(MYSQL *sql);
 };
 
 #endif

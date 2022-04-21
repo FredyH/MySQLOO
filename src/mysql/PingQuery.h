@@ -14,7 +14,7 @@ public:
 	~PingQuery() override;
 protected:
     explicit PingQuery(const std::shared_ptr<Database>& dbase);
-	void executeQuery(Database &database, MYSQL* m_sql, const std::shared_ptr<IQueryData> &data) override;
+	void executeStatement(Database &database, MYSQL* m_sql, const std::shared_ptr<IQueryData> &data) override;
 	bool pingSuccess = false;
 };
 #endif

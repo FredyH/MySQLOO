@@ -12,36 +12,23 @@ Query::Query(const std::shared_ptr<Database>& dbase, std::string query) : IQuery
 
 Query::~Query() = default;
 
-void Query::executeQuery(Database &database, MYSQL* connection, const std::shared_ptr<IQueryData> &data) {
-    auto queryData = std::dynamic_pointer_cast<QueryData>(data);
-	Query::mysqlQuery(connection, this->m_query);
-	//Stores all result sets
-	//MySQL result sets shouldn't be accessed from different threads!
-	do {
-		MYSQL_RES * results = Query::mysqlStoreResults(connection);
-		auto resultFree = finally([&] { mysql_free_result(results); });
-		if (results != nullptr) {
-			queryData->m_results.emplace_back(results);
-		} else {
-			queryData->m_results.emplace_back();
-		}
-		queryData->m_insertIds.push_back(mysql_insert_id(connection));
-		queryData->m_affectedRows.push_back(mysql_affected_rows(connection));
-	} while (Query::mysqlNextResult(connection));
-}
-
 //Executes the raw query
-bool Query::executeStatement(Database &database, MYSQL* connection, std::shared_ptr<IQueryData> data) {
+void Query::executeStatement(Database &database, MYSQL* connection, const std::shared_ptr<IQueryData>& data) {
     auto queryData = std::dynamic_pointer_cast<QueryData>(data);
-    data->setStatus(QUERY_RUNNING);
-	try {
-		this->executeQuery(database, connection, data);
-        queryData->m_resultStatus = QUERY_SUCCESS;
-	} catch (const MySQLException& error) {
-        data->setError(error.what());
-        data->setResultStatus(QUERY_ERROR);
-	}
-	return true;
+    Query::mysqlQuery(connection, this->m_query);
+    //Stores all result sets
+    //MySQL result sets shouldn't be accessed from different threads!
+    do {
+        MYSQL_RES * results = Query::mysqlStoreResults(connection);
+        auto resultFree = finally([&] { mysql_free_result(results); });
+        if (results != nullptr) {
+            queryData->m_results.emplace_back(results);
+        } else {
+            queryData->m_results.emplace_back();
+        }
+        queryData->m_insertIds.push_back(mysql_insert_id(connection));
+        queryData->m_affectedRows.push_back(mysql_affected_rows(connection));
+    } while (Query::mysqlNextResult(connection));
 }
 
 

@@ -29,15 +29,6 @@ QueryResultStatus IQuery::getResultStatus() const {
 //Wrapper for c api calls
 //Just throws an exception if anything goes wrong for ease of use
 
-void IQuery::mysqlAutocommit(MYSQL *sql, bool auto_mode) {
-    my_bool result = mysql_autocommit(sql, (my_bool) auto_mode);
-    if (result) {
-        const char *errorMessage = mysql_error(sql);
-        unsigned int errorCode = mysql_errno(sql);
-        throw MySQLException(errorCode, errorMessage);
-    }
-}
-
 //Returns if the query has been queued with the database instance
 bool IQuery::isRunning() {
     return !runningQueryData.empty();
