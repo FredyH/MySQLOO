@@ -88,12 +88,12 @@ Database:status()
 Database:setAutoReconnect(shouldReconnect)
 -- Returns nothing
 -- The autoreconnect feature of mysqloo can be disabled if this function is called with shouldReconnect = false
--- This has to be called before Database:connect() to work
+-- This may only be called before Database:connect()
 
 Database:setMultiStatements(useMultiStatemets)
 -- Returns nothing
 -- Multi statements ("SELECT 1; SELECT 2;") can be disabled if this function is called with useMultiStatemets = false
--- This has to be called before Database:connect() to work
+-- This may only be called before Database:connect()
 
 Database:setCachePreparedStatements(cachePreparedStatements)
 -- Returns nothing
@@ -104,7 +104,7 @@ Database:setCachePreparedStatements(cachePreparedStatements)
 Database:wait()
 -- Returns nothing
 -- Forces the server to wait for the connection to finish. (might cause deadlocks)
--- This has to be called after Database:connect()
+-- This may only be called after Database:connect()
 
 Database:serverVersion()
 -- Returns [Number]
