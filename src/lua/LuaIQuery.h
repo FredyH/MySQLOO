@@ -26,7 +26,7 @@ public:
 
     static void runAbortedCallback(ILuaBase *LUA, const std::shared_ptr<IQueryData> &data);
 
-    static void runErrorCallback(ILuaBase *LUA, const std::shared_ptr<IQueryData> &data);
+    static void runErrorCallback(ILuaBase *LUA, const std::shared_ptr<IQuery> &iQuery, const std::shared_ptr<IQueryData> &data);
 
     static void runCallback(ILuaBase *LUA, const std::shared_ptr<IQuery> &query, const std::shared_ptr<IQueryData> &data);
 

@@ -75,6 +75,8 @@ public:
 
     std::vector<std::shared_ptr<IQueryData>> abort();
 
+    virtual std::string getSQLString() = 0;
+
     void wait(bool shouldSwap);
 
     bool hasCallbackData() const {

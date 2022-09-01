@@ -18,7 +18,7 @@ class Query : public IQuery {
 public:
     ~Query() override;
 
-    void executeStatement(Database &database, MYSQL *m_sql, const std::shared_ptr<IQueryData>& data) override;
+    void executeStatement(Database &database, MYSQL *m_sql, const std::shared_ptr<IQueryData> &data) override;
 
     my_ulonglong lastInsert();
 
@@ -32,7 +32,10 @@ public:
 
     int m_dataReference = 0;
 
-    static std::shared_ptr<Query> create(const std::shared_ptr<Database> &dbase, const std::string& query);
+    std::string getSQLString() override { return m_query; };
+
+    static std::shared_ptr<Query> create(const std::shared_ptr<Database> &dbase, const std::string &query);
+
 protected:
     Query(const std::shared_ptr<Database> &dbase, std::string query);
 
@@ -75,6 +78,7 @@ protected:
     std::deque<my_ulonglong> m_affectedRows;
     std::deque<my_ulonglong> m_insertIds;
     std::deque<ResultData> m_results;
+
     QueryData() = default;
 };
 

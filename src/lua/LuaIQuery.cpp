@@ -77,7 +77,7 @@ void LuaIQuery::runAbortedCallback(ILuaBase *LUA, const std::shared_ptr<IQueryDa
     LuaObject::pcallWithErrorReporter(LUA, 1);
 }
 
-void LuaIQuery::runErrorCallback(ILuaBase *LUA, const std::shared_ptr<IQueryData> &data) {
+void LuaIQuery::runErrorCallback(ILuaBase *LUA, const std::shared_ptr<IQuery> &iQuery, const std::shared_ptr<IQueryData> &data) {
     if (data->m_tableReference == 0) return;
 
     if (!LuaIQuery::pushCallbackReference(LUA, data->m_errorReference, data->m_tableReference,
@@ -87,7 +87,8 @@ void LuaIQuery::runErrorCallback(ILuaBase *LUA, const std::shared_ptr<IQueryData
     LUA->ReferencePush(data->m_tableReference);
     auto error = data->getError();
     LUA->PushString(error.c_str());
-    LuaObject::pcallWithErrorReporter(LUA, 2);
+    LUA->PushString(iQuery->getSQLString().c_str());
+    LuaObject::pcallWithErrorReporter(LUA, 3);
 }
 
 void LuaIQuery::addMetaTableFunctions(ILuaBase *LUA) {
@@ -160,7 +161,7 @@ void LuaIQuery::runCallback(ILuaBase *LUA, const std::shared_ptr<IQuery> &iQuery
         case QUERY_NONE:
             break; //Should not happen
         case QUERY_ERROR:
-            runErrorCallback(LUA, data);
+            runErrorCallback(LUA, iQuery, data);
             break;
         case QUERY_SUCCESS:
             if (auto query = std::dynamic_pointer_cast<Query>(iQuery)) {
