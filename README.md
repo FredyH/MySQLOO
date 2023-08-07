@@ -13,8 +13,9 @@ Download the latest module for your server's operating system and architecture u
 * [Linux (64-bit)](https://github.com/FredyH/MySQLOO/releases/latest/download/gmsv_mysqloo_linux64.dll)
 
 ### Notes
+* **If your server is using Windows**, you will need to install vcredist 2019, 2015, possibly 2008 and others for the module to load correctly. You can download them [here](https://support.microsoft.com/en-us/help/2977003/the-latest-supported-visual-c-downloads).
+For the 32-bit version of the module you will need the x86 redistributable, and for the 64 bit version the x64 redistributable.
 * If you're unsure of your server's operating system and architecture, type `lua_run print(jit.os, jit.arch)` into the server's console to find out. The output will be something similar to `Windows x86` (x86 is 32-bit, x64 is 64-bit).
-* If your server is using Windows, you will need to install vcredist 2019, 2015, possibly 2008 and others for the module to load correctly.
 * Previously you were required to place libmysqlclient.dll besides your srcds executable. This is not required anymore since MySQLOO now links statically against libmysqlclient.
 
 # Documentation
