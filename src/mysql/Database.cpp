@@ -1,7 +1,6 @@
 #include "Database.h"
 #include "MySQLOOException.h"
 #include <string>
-#include <cstring>
 #include <iostream>
 #include <utility>
 #include "mysqld_error.h"
@@ -374,6 +373,7 @@ void Database::connectRun() {
             m_status = DATABASE_CONNECTION_FAILED;
             return;
         }
+        this->applyTimeoutSettings();
         this->customSSLSettings.applySSLSettings(this->m_sql);
         const char *socketStr = (this->socket.length() == 0) ? nullptr : this->socket.c_str();
         unsigned long clientFlag = (this->useMultiStatements) ? CLIENT_MULTI_STATEMENTS : 0;
@@ -406,6 +406,8 @@ void Database::connectRun() {
     }
 }
 
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "misc-no-recursion"
 void Database::runQuery(const std::shared_ptr<IQuery>& query, const std::shared_ptr<IQueryData>& data, bool retry) {
     try {
         query->executeStatement(*this, this->m_sql, data);
@@ -427,6 +429,7 @@ void Database::runQuery(const std::shared_ptr<IQuery>& query, const std::shared_
         }
     }
 }
+#pragma clang diagnostic pop
 
 /* The run method of the thread of the database instance.
  */
@@ -469,11 +472,34 @@ void Database::run() {
 bool Database::attemptReconnect() {
     bool success;
     my_bool reconnect = '1';
-    mysql_optionsv(this->m_sql, MYSQL_OPT_RECONNECT, &reconnect);
     success = mariadb_reconnect(this->m_sql) == 0;
     reconnect = '0';
     mysql_optionsv(this->m_sql, MYSQL_OPT_RECONNECT, &reconnect);
     return success;
+}
+
+void Database::setConnectTimeout(unsigned int timeout) {
+    this->connectTimeout = timeout;
+}
+
+void Database::setReadTimeout(unsigned int timeout) {
+    this->readTimeout = timeout;
+}
+
+void Database::setWriteTimeout(unsigned int timeout) {
+    this->writeTimeout = timeout;
+}
+
+void Database::applyTimeoutSettings() {
+    if (this->connectTimeout > 0) {
+        mysql_optionsv(this->m_sql, MYSQL_OPT_CONNECT_TIMEOUT, &this->connectTimeout);
+    }
+    if (this->readTimeout > 0) {
+        mysql_optionsv(this->m_sql, MYSQL_OPT_READ_TIMEOUT, &this->readTimeout);
+    }
+    if (this->writeTimeout > 0) {
+        mysql_optionsv(this->m_sql, MYSQL_OPT_WRITE_TIMEOUT, &this->writeTimeout);
+    }
 }
 
 StatementHandle::StatementHandle(MYSQL_STMT *stmt, bool valid) : stmt(stmt), valid(valid) {}

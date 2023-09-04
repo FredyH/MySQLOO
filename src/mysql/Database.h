@@ -95,6 +95,12 @@ public:
 
     void disconnect(bool wait);
 
+    void setConnectTimeout(unsigned int timeout);
+
+    void setReadTimeout(unsigned int timeout);
+
+    void setWriteTimeout(unsigned int timeout);
+
     void setSSLSettings(const SSLSettings &settings);
 
     bool isConnectionDone() { return m_connectionDone; }
@@ -132,6 +138,8 @@ private:
 
     void waitForQuery(const std::shared_ptr<IQuery> &query, const std::shared_ptr<IQueryData> &data);
 
+    void applyTimeoutSettings();
+
     BlockingQueue<std::pair<std::shared_ptr<IQuery>, std::shared_ptr<IQueryData>>> finishedQueries{};
     BlockingQueue<std::pair<std::shared_ptr<IQuery>, std::shared_ptr<IQueryData>>> queryQueue{};
     std::unordered_set<std::shared_ptr<StatementHandle>> cachedStatements{};
@@ -165,6 +173,9 @@ private:
     std::string socket;
     unsigned int port;
     SSLSettings customSSLSettings{};
+    unsigned int readTimeout = 0;
+    unsigned int writeTimeout = 0;
+    unsigned int connectTimeout = 0;
     std::atomic<DatabaseStatus> m_status{DATABASE_NOT_CONNECTED};
 };
 

@@ -148,6 +148,36 @@ MYSQLOO_LUA_FUNCTION(setSSLSettings) {
     return 0;
 }
 
+MYSQLOO_LUA_FUNCTION(setReadTimeout) {
+    auto database = LuaObject::getLuaObject<LuaDatabase>(LUA);
+    unsigned int timeout = (int) LUA->GetNumber(2);
+    if (timeout == 0) {
+        LUA->ThrowError("Timeout must be at least 1");
+    }
+    database->m_database->setReadTimeout(timeout);
+    return 0;
+}
+
+MYSQLOO_LUA_FUNCTION(setWriteTimeout) {
+    auto database = LuaObject::getLuaObject<LuaDatabase>(LUA);
+    unsigned int timeout = (int) LUA->GetNumber(2);
+    if (timeout == 0) {
+        LUA->ThrowError("Timeout must be at least 1");
+    }
+    database->m_database->setWriteTimeout(timeout);
+    return 0;
+}
+
+MYSQLOO_LUA_FUNCTION(setConnectTimeout) {
+    auto database = LuaObject::getLuaObject<LuaDatabase>(LUA);
+    unsigned int timeout = (int) LUA->GetNumber(2);
+    if (timeout == 0) {
+        LUA->ThrowError("Timeout must be at least 1");
+    }
+    database->m_database->setConnectTimeout(timeout);
+    return 0;
+}
+
 MYSQLOO_LUA_FUNCTION(disconnect) {
     auto database = LuaObject::getLuaObject<LuaDatabase>(LUA);
     bool wait = false;
@@ -251,6 +281,15 @@ void LuaDatabase::createMetaTable(ILuaBase *LUA) {
 
     LUA->PushCFunction(setSSLSettings);
     LUA->SetField(-2, "setSSLSettings");
+
+    LUA->PushCFunction(setReadTimeout);
+    LUA->SetField(-2, "setReadTimeout");
+
+    LUA->PushCFunction(setWriteTimeout);
+    LUA->SetField(-2, "setWriteTimeout");
+
+    LUA->PushCFunction(setConnectTimeout);
+    LUA->SetField(-2, "setConnectTimeout");
 
     LUA->PushCFunction(disconnect);
     LUA->SetField(-2, "disconnect");
