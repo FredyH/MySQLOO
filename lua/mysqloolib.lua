@@ -173,6 +173,7 @@ end
 function db:PrepareQuery(str, values, callback, ...)
 	self.CachedStatements = self.CachedStatements or {}
 	local preparedQuery = self.CachedStatements[str] or self:prepare(str)
+	self.CachedStatements[str] = preparedQuery
 	addQueryFunctions(preparedQuery, callback, ...)
 	setPreparedQueryArguments(preparedQuery, values)
 	preparedQuery:start()
