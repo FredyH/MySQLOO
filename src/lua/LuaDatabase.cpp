@@ -103,6 +103,12 @@ MYSQLOO_LUA_FUNCTION(connect) {
         LUA->Push(1);
         database->m_tableReference = LuaReferenceCreate(LUA);
     }
+
+    LUA->ReferencePush(database->m_tableReference);
+    LUA->GetField(-1, "onDisconnected");
+    database->m_hasOnDisconnected = LUA->IsType(-1, GarrysMod::Lua::Type::Function);
+    LUA->Pop(2); // callback, table
+
     database->m_database->connect();
     return 0;
 }
@@ -351,7 +357,6 @@ void LuaDatabase::think(ILuaBase *LUA) {
                 LUA->ReferencePush(this->m_tableReference);
                 pcallWithErrorReporter(LUA, 1);
             }
-            LUA->Pop(); //Callback function
         } else {
             LUA->GetField(-1, "onConnectionFailed");
             if (LUA->GetType(-1) == GarrysMod::Lua::Type::Function) {
@@ -360,17 +365,36 @@ void LuaDatabase::think(ILuaBase *LUA) {
                 LUA->PushString(error.c_str());
                 pcallWithErrorReporter(LUA, 2);
             }
-            LUA->Pop(); //Callback function
         }
+        LUA->Pop(); // DB Table
 
-        LuaReferenceFree(LUA, this->m_tableReference);
-        this->m_tableReference = 0;
+        if (!this->m_hasOnDisconnected) {
+            // Only free the table reference if we do not have an onDisconnected callback.
+            // Otherwise, it will be freed after the onDisconnected callback was called.
+            LuaReferenceFree(LUA, this->m_tableReference);
+            this->m_tableReference = 0;
+        }
     }
 
     //Run callbacks of finished queries
     auto finishedQueries = database->takeFinishedQueries();
     for (auto &pair: finishedQueries) {
         LuaQuery::runCallback(LUA, pair.first, pair.second);
+    }
+
+    if (database->wasDisconnected() && this->m_hasOnDisconnected && this->m_tableReference != 0) {
+        this->m_hasOnDisconnected = false;
+
+        LUA->ReferencePush(this->m_tableReference);
+
+        LUA->GetField(-1, "onDisconnected");
+        if (LUA->GetType(-1) == GarrysMod::Lua::Type::Function) {
+            LUA->ReferencePush(this->m_tableReference);
+            pcallWithErrorReporter(LUA, 1);
+        }
+        LUA->Pop(1); // DB Table
+
+        LuaReferenceFree(LUA, this->m_tableReference);
     }
 }
 

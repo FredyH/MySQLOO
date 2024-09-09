@@ -115,6 +115,7 @@ public:
         return finishedQueries.clear();
     }
 
+    bool wasDisconnected();
 private:
     Database(std::string host, std::string username, std::string pw, std::string database, unsigned int port,
              std::string unixSocket);
@@ -158,10 +159,10 @@ private:
     bool shouldAutoReconnect = true;
     bool useMultiStatements = true;
     bool startedConnecting = false;
-    bool disconnected = false;
     bool m_canWait = false;
     std::pair<std::shared_ptr<IQuery>, std::shared_ptr<IQueryData>> m_waitingQuery = {nullptr, nullptr};
     std::atomic<bool> m_success{true};
+    std::atomic<bool> disconnected { false };
     std::atomic<bool> m_connectionDone{false};
     std::atomic<bool> cachePreparedStatements{true};
     std::condition_variable m_queryWakeupVariable{};

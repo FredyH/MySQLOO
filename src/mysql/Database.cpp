@@ -215,7 +215,13 @@ void Database::disconnect(bool wait) {
     if (wait && m_thread.joinable()) {
         m_thread.join();
     }
-    disconnected = true;
+}
+
+/*
+ * Returns true after the database has been fully disconnected and no more queries are in the queue.
+ */
+bool Database::wasDisconnected() {
+    return disconnected;
 }
 
 /* Returns the status of the database, constants can be found in GMModule
@@ -361,6 +367,7 @@ void Database::connectRun() {
         if (m_status == DATABASE_CONNECTED) {
             m_status = DATABASE_NOT_CONNECTED;
         }
+        disconnected = true;
     });
     {
         auto connectionSignaler = finally([&] { m_connectWakeupVariable.notify_one(); });

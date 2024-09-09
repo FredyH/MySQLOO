@@ -17,6 +17,7 @@ public:
     void think(ILuaBase *LUA);
 
     int m_tableReference = 0;
+    bool m_hasOnDisconnected = false;
     std::shared_ptr<Database> m_database;
     bool m_dbCallbackRan = false;
 

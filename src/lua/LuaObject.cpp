@@ -68,6 +68,11 @@ LUA_FUNCTION(errorReporter) {
     return 1;
 }
 
+/**
+ * Similar to LUA->PCall but also uses an error reporter and prints the
+ * error to the console using ErrorNoHalt (if it exists).
+ * Consumes the function and all nargs arguments on the stack, does not return any values.
+ */
 void LuaObject::pcallWithErrorReporter(ILuaBase *LUA, int nargs) {
     LUA->PushCFunction(errorReporter);
     int errorHandlerIndex = LUA->Top() - nargs - 1;

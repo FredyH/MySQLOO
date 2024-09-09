@@ -58,6 +58,7 @@ Database:connect()
 Database:disconnect(shouldWait)
 -- Returns nothing
 -- disconnects from the database and waits for all queries to finish if shouldWait is true
+-- This function calls the onDisconnected callback if it existed on the database before the database was connected.
 
 Database:query( sql )
 -- Returns [Query]
@@ -148,6 +149,11 @@ Database.onConnected( db )
 
 Database.onConnectionFailed( db, err )
 -- Called when the connection to the MySQL server fails, [String] err is why.
+
+Database.onDisconnected( db )
+-- Called after Database.disconnect has been called and all queries have finished executing
+-- Note: You have to set this callback before calling Database:connect() or it will not be called.
+
 
 -- Query/PreparedQuery object (transactions also inherit all functions, some have no effect though)
 
