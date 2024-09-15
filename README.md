@@ -143,6 +143,15 @@ Database:setSSLSettings(key, cert, ca, capath, cipher)
 -- Every parameter is optional and can be omitted (set to nil) if not required.
 -- See https://dev.mysql.com/doc/c-api/8.0/en/mysql-ssl-set.html for the description of each parameter.
 
+Database:setReadTimeout(timeout)
+Database:setWriteTimeout(timeout)
+Database:setConnectTimeout(timeout)
+-- Returns nothing
+-- Sets the corresponding timeout value in seconds for any queries operations started by this database instance.
+-- The timeout value needs to be at least 1. If this is not called, the default value is used.
+-- For information about the timeout values read the documentation here:
+-- https://dev.mysql.com/doc/c-api/8.0/en/mysql-options.html
+
 -- Callbacks
 Database.onConnected( db )
 -- Called when the connection to the MySQL server is successful
