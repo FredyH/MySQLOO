@@ -150,6 +150,8 @@ function db:RunQuery(str, callback, ...)
 end
 
 local function setPreparedQueryArguments(query, values)
+	query:clearParameters()
+
 	if (type(values) != "table") then
 		values = { values }
 	end
