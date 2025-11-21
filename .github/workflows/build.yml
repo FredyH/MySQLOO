@@ -46,7 +46,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v6
 
     - name: Install Linux dependencies (32-bit)
       if: matrix.os == 'linux' && matrix.arch == 'x86'
@@ -85,7 +85,7 @@ jobs:
         Get-ChildItem -Recurse -Filter "gmsv_mysqloo_*.dll" | Select-Object FullName
 
     - name: Upload artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v5
       with:
         name: ${{ matrix.artifact_name }}
         path: |
@@ -100,7 +100,7 @@ jobs:
 
     steps:
     - name: Download all artifacts
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v5
       with:
         path: artifacts
 
