@@ -1,0 +1,119 @@
+name: Build MySQLOO
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  release:
+    types: [ created ]
+
+jobs:
+  build:
+    name: Build ${{ matrix.os }} ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux 32-bit
+          - os: linux
+            arch: x86
+            runner: ubuntu-22.04
+            cmake_arch: -m32
+            artifact_name: gmsv_mysqloo_linux.dll
+
+          # Linux 64-bit
+          - os: linux
+            arch: x64
+            runner: ubuntu-22.04
+            cmake_arch: -m64
+            artifact_name: gmsv_mysqloo_linux64.dll
+
+          # Windows 32-bit
+          - os: windows
+            arch: x86
+            runner: windows-latest
+            cmake_arch: Win32
+            artifact_name: gmsv_mysqloo_win32.dll
+
+          # Windows 64-bit
+          - os: windows
+            arch: x64
+            runner: windows-latest
+            cmake_arch: x64
+            artifact_name: gmsv_mysqloo_win64.dll
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Install Linux dependencies (32-bit)
+      if: matrix.os == 'linux' && matrix.arch == 'x86'
+      run: |
+        sudo dpkg --add-architecture i386
+        sudo apt-get update
+        sudo apt-get install -y build-essential gcc-multilib g++-multilib cmake
+
+    - name: Install Linux dependencies (64-bit)
+      if: matrix.os == 'linux' && matrix.arch == 'x64'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake
+
+    - name: Configure CMake (Linux)
+      if: matrix.os == 'linux'
+      run: |
+        cmake . -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_FLAGS="${{ matrix.cmake_arch }}" -DCMAKE_C_FLAGS="${{ matrix.cmake_arch }}"
+
+    - name: Configure CMake (Windows)
+      if: matrix.os == 'windows'
+      run: |
+        cmake . -A ${{ matrix.cmake_arch }} -DCMAKE_BUILD_TYPE=RelWithDebInfo
+
+    - name: Build
+      run: cmake --build . --config RelWithDebInfo
+
+    - name: Find artifact (Linux)
+      if: matrix.os == 'linux'
+      run: |
+        find . -name "gmsv_mysqloo_*.dll" -type f
+
+    - name: Find artifact (Windows)
+      if: matrix.os == 'windows'
+      run: |
+        Get-ChildItem -Recurse -Filter "gmsv_mysqloo_*.dll" | Select-Object FullName
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ matrix.artifact_name }}
+        path: |
+          **/gmsv_mysqloo_*.dll
+        if-no-files-found: error
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v3
+      with:
+        path: artifacts
+
+    - name: List artifacts
+      run: ls -R artifacts/
+
+    - name: Upload Release Assets
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          artifacts/gmsv_mysqloo_win32.dll/gmsv_mysqloo_win32.dll
+          artifacts/gmsv_mysqloo_win64.dll/gmsv_mysqloo_win64.dll
+          artifacts/gmsv_mysqloo_linux.dll/gmsv_mysqloo_linux.dll
+          artifacts/gmsv_mysqloo_linux64.dll/gmsv_mysqloo_linux64.dll
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
