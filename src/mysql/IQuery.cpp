@@ -165,3 +165,27 @@ void IQuery::finishQueryData(const std::shared_ptr<IQueryData> &data) {
                                runningQueryData.end());
     }
 }
+
+void IQueryData::finishLuaQueryData(ILuaBase *LUA, const std::shared_ptr <IQuery> &query) {
+    query->finishQueryData(shared_from_this());
+    if (m_tableReference) {
+        LuaReferenceFree(LUA, m_tableReference);
+    }
+    if (m_onDataReference) {
+        LuaReferenceFree(LUA, m_onDataReference);
+    }
+    if (m_errorReference) {
+        LuaReferenceFree(LUA, m_errorReference);
+    }
+    if (m_abortReference) {
+        LuaReferenceFree(LUA, m_abortReference);
+    }
+    if (m_successReference) {
+        LuaReferenceFree(LUA, m_successReference);
+    }
+    m_onDataReference = 0;
+    m_errorReference = 0;
+    m_abortReference = 0;
+    m_successReference = 0;
+    m_tableReference = 0;
+}

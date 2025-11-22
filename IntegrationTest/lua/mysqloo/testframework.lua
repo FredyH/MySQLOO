@@ -1,7 +1,7 @@
 
 
 TestFramework = TestFramework or {}
-TestFramework.RegisteredTests = {}
+TestFramework.RegisteredTests = TestFramework.RegisteredTests or {}
 
 local TestMT = {}
 TestMT.__index = TestMT
@@ -10,6 +10,14 @@ function TestFramework:RegisterTest(name, f)
 	local tbl = setmetatable({}, {__index = TestMT})
 	tbl.TestFunction = f
 	tbl.Name = name
+	for k,v in pairs(TestFramework.RegisteredTests) do
+		if (v.Name == name) then
+			-- Replacing the old test instead of adding it
+			TestFramework.RegisteredTests[k] = tbl
+			print("Replacing previously registered test ", name)
+			return
+		end
+	end
 	table.insert(TestFramework.RegisteredTests, tbl)
 	print("Registered test ", name)
 end

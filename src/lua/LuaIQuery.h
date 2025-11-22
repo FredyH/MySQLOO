@@ -30,8 +30,6 @@ public:
 
     static void runCallback(ILuaBase *LUA, const std::shared_ptr<IQuery> &query, const std::shared_ptr<IQueryData> &data);
 
-    static void finishQueryData(ILuaBase *LUA, const std::shared_ptr<IQuery> &query, const std::shared_ptr<IQueryData> &data);
-
     void onDestroyedByLua(ILuaBase *LUA) override;
 
     explicit LuaIQuery(std::shared_ptr<IQuery> query, std::string className, int databaseRef) : LuaObject(

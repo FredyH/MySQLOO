@@ -118,7 +118,7 @@ TestFramework:RegisterTest("[Query] should return correct data if numeric is ena
 	qu:start()
 end)
 
-TestFramework:RegisterTest("[Query] should return correct error", function(test)
+TestFramework:RegisterTest("[Query] should return correct error 1", function(test)
 	local db = TestFramework:ConnectToDatabase()
 	local qu = db:query("SEsdg")
 	function qu:onError(err, sql)
@@ -130,7 +130,7 @@ TestFramework:RegisterTest("[Query] should return correct error", function(test)
 	qu:start()
 end)
 
-TestFramework:RegisterTest("[Query] should return correct error", function(test)
+TestFramework:RegisterTest("[Query] should return correct error 2", function(test)
 	local db = TestFramework:ConnectToDatabase()
 	local qu = db:query("SEsdg")
 	function qu:onError(err)

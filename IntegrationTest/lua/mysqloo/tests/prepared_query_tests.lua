@@ -178,7 +178,7 @@ TestFramework:RegisterTest("[Prepared Query] should return correct data if numer
 	qu:start()
 end)
 
-TestFramework:RegisterTest("[Prepared Query] should return correct error", function(test)
+TestFramework:RegisterTest("[Prepared Query] should return correct error 1", function(test)
 	local db = TestFramework:ConnectToDatabase()
 	local qu = db:prepare("SEsdg")
 	function qu:onError(err, sql)
@@ -190,7 +190,7 @@ TestFramework:RegisterTest("[Prepared Query] should return correct error", funct
 	qu:start()
 end)
 
-TestFramework:RegisterTest("[Prepared Query] should return correct error", function(test)
+TestFramework:RegisterTest("[Prepared Query] should return correct error 2", function(test)
 	local db = TestFramework:ConnectToDatabase()
 	local qu = db:prepare("SEsdg")
 	function qu:onError(err)

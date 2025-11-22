@@ -246,8 +246,12 @@ MYSQLOO_LUA_FUNCTION(abortAllQueries) {
     auto database = LuaObject::getLuaObject<LuaDatabase>(LUA);
     auto abortedQueries = database->m_database->abortAllQueries();
     for (const auto &pair: abortedQueries) {
-        LuaIQuery::runAbortedCallback(LUA, pair.second);
-        LuaIQuery::finishQueryData(LUA, pair.first, pair.second);
+        if (auto transaction = std::dynamic_pointer_cast<Transaction>(pair.first)) {
+            LuaTransaction::runAbortedCallback(LUA, transaction, std::dynamic_pointer_cast<TransactionData>(pair.second));
+        } else {
+            LuaIQuery::runAbortedCallback(LUA, pair.second);
+        }
+        pair.second->finishLuaQueryData(LUA, pair.first);
     }
     LUA->PushNumber((double) abortedQueries.size());
     return 1;

@@ -40,6 +40,10 @@ protected:
     Query(const std::shared_ptr<Database> &dbase, std::string query);
 
     std::string m_query;
+
+    static void emplaceEmptyResultData(const std::shared_ptr<IQueryData> &data);
+
+    static void clearResultData(const std::shared_ptr<IQueryData> &data);
 };
 
 class QueryData : public IQueryData {

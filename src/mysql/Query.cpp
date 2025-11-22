@@ -31,6 +31,20 @@ void Query::executeStatement(Database &database, MYSQL* connection, const std::s
     } while (Query::mysqlNextResult(connection));
 }
 
+void Query::clearResultData(const std::shared_ptr<IQueryData>& data) {
+    auto queryData = std::dynamic_pointer_cast<QueryData>(data);
+    queryData->m_results.clear();
+    queryData->m_insertIds.clear();
+    queryData->m_affectedRows.clear();
+}
+
+void Query::emplaceEmptyResultData(const std::shared_ptr<IQueryData>& data) {
+    auto queryData = std::dynamic_pointer_cast<QueryData>(data);
+    queryData->m_results.emplace_back();
+    queryData->m_insertIds.push_back(0);
+    queryData->m_affectedRows.push_back(0);
+}
+
 
 //Returns true if a query has at least one additional ResultSet left
 bool Query::hasMoreResults() {
@@ -80,4 +94,3 @@ std::shared_ptr<QueryData> Query::buildQueryData() {
 std::shared_ptr<Query> Query::create(const std::shared_ptr<Database> &dbase, const std::string& query) {
     return std::shared_ptr<Query>(new Query(dbase, query));
 }
-

@@ -2,6 +2,7 @@
 #define IQUERY_
 
 #include "MySQLHeader.h"
+#include "GarrysMod/Lua/LuaBase.h"
 #include <string>
 #include <mutex>
 #include <atomic>
@@ -84,6 +85,12 @@ public:
     }
     QueryResultStatus getResultStatus() const;
     std::shared_ptr<IQueryData> callbackQueryData;
+
+    virtual void runSuccessCallback(GarrysMod::Lua::ILuaBase *LUA, const std::shared_ptr<IQueryData> &data) {};
+
+    virtual void runErrorCallback(GarrysMod::Lua::ILuaBase *LUA, const std::shared_ptr<IQueryData> &data) {};
+
+    virtual void runAbortedCallback(GarrysMod::Lua::ILuaBase *LUA, const std::shared_ptr<IQueryData> &data) {};
 protected:
 
     virtual void executeStatement(Database &database, MYSQL *m_sql, const std::shared_ptr<IQueryData>& data) = 0;
@@ -102,7 +109,7 @@ protected:
     bool hasBeenStarted = false;
 };
 
-class IQueryData {
+class IQueryData : public std::enable_shared_from_this<IQueryData> {
     friend class IQuery;
 
 public:
@@ -164,6 +171,8 @@ public:
     int m_abortReference = 0;
     int m_onDataReference = 0;
     int m_tableReference = 0;
+
+    virtual void finishLuaQueryData(GarrysMod::Lua::ILuaBase *LUA, const std::shared_ptr<IQuery> &query);
 protected:
     std::string m_errorText;
     std::atomic<bool> finished{false};
