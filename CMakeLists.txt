@@ -15,6 +15,7 @@ set(SOURCE_FILES ${MYSQLOO_SRC})
 set(CMAKE_BUILD_TYPE RelWithDebInfo)
 set (CMAKE_CXX_STANDARD 14)
 
+find_package(OpenSSL REQUIRED)
 find_package(unofficial-libmariadb CONFIG REQUIRED)
 
 add_library(mysqloo SHARED ${SOURCE_FILES})
