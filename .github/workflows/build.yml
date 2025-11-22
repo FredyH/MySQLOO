@@ -45,52 +45,82 @@ jobs:
             artifact_name: gmsv_mysqloo_win64.dll
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v6
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-    - name: Install Linux dependencies (32-bit)
-      if: matrix.os == 'linux' && matrix.arch == 'x86'
-      run: |
-        sudo dpkg --add-architecture i386
-        sudo apt-get update
-        sudo apt-get install -y build-essential gcc-multilib g++-multilib cmake
+      - name: Install Linux dependencies (32-bit)
+        if: matrix.os == 'linux' && matrix.arch == 'x86'
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+          sudo apt-get install -y build-essential gcc-multilib g++-multilib cmake ninja-build
 
-    - name: Install Linux dependencies (64-bit)
-      if: matrix.os == 'linux' && matrix.arch == 'x64'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential cmake
+      - name: Install Linux dependencies (64-bit)
+        if: matrix.os == 'linux' && matrix.arch == 'x64'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build
 
-    - name: Configure CMake (Linux)
-      if: matrix.os == 'linux'
-      run: |
-        cmake . -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_FLAGS="${{ matrix.cmake_arch }}" -DCMAKE_C_FLAGS="${{ matrix.cmake_arch }}"
+      - name: Setup vcpkg cache (Linux)
+        if: matrix.os == 'linux'
+        uses: actions/cache@v4
+        with:
+          path: ~/.vcpkg
+          key: vcpkg-${{ matrix.os }}-${{ matrix.arch }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            vcpkg-${{ matrix.os }}-${{ matrix.arch }}-
 
-    - name: Configure CMake (Windows)
-      if: matrix.os == 'windows'
-      run: |
-        cmake . -A ${{ matrix.cmake_arch }} -DCMAKE_BUILD_TYPE=RelWithDebInfo
+      - name: Setup MSVC (Windows)
+        if: matrix.os == 'windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.arch }}
 
-    - name: Build
-      run: cmake --build . --config RelWithDebInfo
+      - name: Setup vcpkg cache (Windows)
+        if: matrix.os == 'windows'
+        uses: actions/cache@v4
+        with:
+          path: ~\vcpkg
+          key: vcpkg-${{ matrix.os }}-${{ matrix.arch }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            vcpkg-${{ matrix.os }}-${{ matrix.arch }}-
 
-    - name: Find artifact (Linux)
-      if: matrix.os == 'linux'
-      run: |
-        find . -name "gmsv_mysqloo_*.dll" -type f
+      - name: Build (Linux x86)
+        if: matrix.os == 'linux' && matrix.arch == 'x86'
+        run: chmod +x build.sh && ./build.sh linux-x86-release
 
-    - name: Find artifact (Windows)
-      if: matrix.os == 'windows'
-      run: |
-        Get-ChildItem -Recurse -Filter "gmsv_mysqloo_*.dll" | Select-Object FullName
+      - name: Build (Linux x64)
+        if: matrix.os == 'linux' && matrix.arch == 'x64'
+        run: chmod +x build.sh && ./build.sh linux-x64-release
 
-    - name: Upload artifact
-      uses: actions/upload-artifact@v5
-      with:
-        name: ${{ matrix.artifact_name }}
-        path: |
-          **/gmsv_mysqloo_*.dll
-        if-no-files-found: error
+      - name: Build (Windows x86)
+        if: matrix.os == 'windows' && matrix.arch == 'x86'
+        run: .\build.ps1 windows-x86-release
+
+      - name: Build (Windows x64)
+        if: matrix.os == 'windows' && matrix.arch == 'x64'
+        run: .\build.ps1 windows-x64-release
+
+      - name: Prepare artifact (Linux)
+        if: matrix.os == 'linux'
+        run: |
+          mkdir -p artifact
+          find . -name "gmsv_mysqloo_*.dll" -type f -exec cp {} artifact/${{ matrix.artifact_name }} \;
+
+      - name: Prepare artifact (Windows)
+        if: matrix.os == 'windows'
+        run: |
+          New-Item -ItemType Directory -Force -Path artifact
+          Get-ChildItem -Recurse -Filter "gmsv_mysqloo_*.dll" | Copy-Item -Destination "artifact\${{ matrix.artifact_name }}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: artifact/${{ matrix.artifact_name }}
+          if-no-files-found: error
 
   release:
     name: Create Release
@@ -99,21 +129,21 @@ jobs:
     if: github.event_name == 'release'
 
     steps:
-    - name: Download all artifacts
-      uses: actions/download-artifact@v5
-      with:
-        path: artifacts
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
 
-    - name: List artifacts
-      run: ls -R artifacts/
+      - name: List artifacts
+        run: ls -R artifacts/
 
-    - name: Upload Release Assets
-      uses: softprops/action-gh-release@v1
-      with:
-        files: |
-          artifacts/gmsv_mysqloo_win32.dll/gmsv_mysqloo_win32.dll
-          artifacts/gmsv_mysqloo_win64.dll/gmsv_mysqloo_win64.dll
-          artifacts/gmsv_mysqloo_linux.dll/gmsv_mysqloo_linux.dll
-          artifacts/gmsv_mysqloo_linux64.dll/gmsv_mysqloo_linux64.dll
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload Release Assets
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            artifacts/gmsv_mysqloo_win32.dll/gmsv_mysqloo_win32.dll
+            artifacts/gmsv_mysqloo_win64.dll/gmsv_mysqloo_win64.dll
+            artifacts/gmsv_mysqloo_linux.dll/gmsv_mysqloo_linux.dll
+            artifacts/gmsv_mysqloo_linux64.dll/gmsv_mysqloo_linux64.dll
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

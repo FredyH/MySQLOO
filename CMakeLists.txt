@@ -1,4 +1,12 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.10)
+
+if(VCPKG_TARGET_TRIPLET MATCHES "^x86-" AND UNIX)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32" CACHE STRING "" FORCE)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m32" CACHE STRING "" FORCE)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -m32" CACHE STRING "" FORCE)
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -m32" CACHE STRING "" FORCE)
+endif()
+
 project(mysqloo)
 add_subdirectory(GmodLUA)
 
@@ -7,35 +15,19 @@ set(SOURCE_FILES ${MYSQLOO_SRC})
 set(CMAKE_BUILD_TYPE RelWithDebInfo)
 set (CMAKE_CXX_STANDARD 14)
 
+find_package(unofficial-libmariadb CONFIG REQUIRED)
+
 add_library(mysqloo SHARED ${SOURCE_FILES})
-target_link_libraries(mysqloo gmod-module-base)
 
-target_include_directories(mysqloo PRIVATE MySQL/include)
+target_link_libraries(mysqloo gmod-module-base unofficial::libmariadb)
 
-if (CMAKE_SIZEOF_VOID_P EQUAL 8)
-    if (WIN32)
-        find_library(MARIADB_CLIENT_LIB mariadbclient HINTS "${PROJECT_SOURCE_DIR}/MySQL/lib64/windows")
-    else ()
-        find_library(MARIADB_CLIENT_LIB mariadbclient HINTS "${PROJECT_SOURCE_DIR}/MySQL/lib64/linux")
-        find_library(CRYPTO_LIB crypto HINTS "${PROJECT_SOURCE_DIR}/MySQL/lib64/linux")
-        find_library(SSL_LIB ssl HINTS "${PROJECT_SOURCE_DIR}/MySQL/lib64/linux")
-    endif ()
-elseif (CMAKE_SIZEOF_VOID_P EQUAL 4)
-    if (WIN32)
-        find_library(MARIADB_CLIENT_LIB mariadbclient HINTS "${PROJECT_SOURCE_DIR}/MySQL/lib/windows")
-    else ()
-        find_library(MARIADB_CLIENT_LIB mariadbclient HINTS "${PROJECT_SOURCE_DIR}/MySQL/lib/linux")
-        find_library(CRYPTO_LIB crypto HINTS "${PROJECT_SOURCE_DIR}/MySQL/lib/linux")
-        find_library(SSL_LIB ssl HINTS "${PROJECT_SOURCE_DIR}/MySQL/lib/linux")
-    endif ()
-endif ()
-
-if (WIN32)
-    target_link_libraries(mysqloo ${MARIADB_CLIENT_LIB} crypt32 ws2_32 shlwapi bcrypt secur32)
+if(WIN32)
+    target_link_libraries(mysqloo ws2_32 shlwapi bcrypt secur32 crypt32)
 else ()
     find_package(Threads REQUIRED)
-    target_link_libraries(mysqloo ${MARIADB_CLIENT_LIB} ${SSL_LIB} ${CRYPTO_LIB} Threads::Threads ${CMAKE_DL_LIBS})
+    target_link_libraries(mysqloo OpenSSL::SSL OpenSSL::Crypto Threads::Threads ${CMAKE_DL_LIBS})
     target_link_libraries(mysqloo -static-libstdc++)
-endif ()
+endif()
+
 
 set_gmod_suffix_prefix(mysqloo)

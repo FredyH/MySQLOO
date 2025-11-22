@@ -1,0 +1,95 @@
+{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "vcpkg-base",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": {
+          "type": "FILEPATH",
+          "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+        }
+      }
+    },
+    {
+      "name": "windows-x86-release",
+      "displayName": "Windows x86 Release",
+      "inherits": "vcpkg-base",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/cmake-build-x86-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "VCPKG_TARGET_TRIPLET": "x86-windows-static"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
+      "name": "windows-x64-release",
+      "displayName": "Windows x64 Release",
+      "inherits": "vcpkg-base",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/cmake-build-x64-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "VCPKG_TARGET_TRIPLET": "x64-windows-static"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      }
+    },
+    {
+      "name": "linux-x86-release",
+      "displayName": "Linux x86 Release",
+      "inherits": "vcpkg-base",
+      "binaryDir": "${sourceDir}/cmake-build-x86-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "VCPKG_TARGET_TRIPLET": "x86-linux"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
+      "name": "linux-x64-release",
+      "displayName": "Linux x64 Release",
+      "inherits": "vcpkg-base",
+      "binaryDir": "${sourceDir}/cmake-build-x64-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "VCPKG_TARGET_TRIPLET": "x64-linux"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "windows-x86-release",
+      "configurePreset": "windows-x86-release"
+    },
+    {
+      "name": "windows-x64-release",
+      "configurePreset": "windows-x64-release"
+    },
+    {
+      "name": "linux-x86-release",
+      "configurePreset": "linux-x86-release"
+    },
+    {
+      "name": "linux-x64-release",
+      "configurePreset": "linux-x64-release"
+    }
+  ]
+}

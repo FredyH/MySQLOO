@@ -9,7 +9,10 @@
 /out
 .vscode
 *.zip
-cmake-build-debug
+cmake-build-debug/
+cmake-build-release/
+cmake-build-x64-release/
+cmake-build-x86-release/
 .idea
 .vs
 .cache
