@@ -16,6 +16,10 @@
       "displayName": "Windows x86 Release",
       "inherits": "vcpkg-base",
       "generator": "Ninja",
+      "architecture": {
+        "value": "x86",
+        "strategy": "external"
+      },
       "binaryDir": "${sourceDir}/cmake-build-x86-release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
@@ -32,6 +36,10 @@
       "displayName": "Windows x64 Release",
       "inherits": "vcpkg-base",
       "generator": "Ninja",
+      "architecture": {
+        "value": "x64",
+        "strategy": "external"
+      },
       "binaryDir": "${sourceDir}/cmake-build-x64-release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
