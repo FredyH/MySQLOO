@@ -44,7 +44,15 @@ jobs:
             cmake_arch: x64
             artifact_name: gmsv_mysqloo_win64.dll
 
+    container: ${{ matrix.os == 'linux' && 'debian:11' || null }}
+
     steps:
+      - name: Install git
+        if: matrix.os == 'linux'
+        run: |
+          apt-get update
+          apt-get install -y git
+
       - name: Checkout code
         uses: actions/checkout@v4
         with:
@@ -53,24 +61,32 @@ jobs:
       - name: Install Linux dependencies (32-bit)
         if: matrix.os == 'linux' && matrix.arch == 'x86'
         run: |
-          sudo dpkg --add-architecture i386
-          sudo apt-get update
-          sudo apt-get install -y build-essential gcc-multilib g++-multilib cmake ninja-build
+          dpkg --add-architecture i386
+          apt-get update
+          apt-get install -y build-essential gcc-multilib g++-multilib ninja-build curl zip unzip tar pkg-config wget
 
       - name: Install Linux dependencies (64-bit)
         if: matrix.os == 'linux' && matrix.arch == 'x64'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential cmake ninja-build
+          apt-get update
+          apt-get install -y build-essential ninja-build curl zip unzip tar pkg-config wget
+
+      - name: Install modern CMake (Linux)
+        if: matrix.os == 'linux'
+        run: |
+          wget -q https://github.com/Kitware/CMake/releases/download/v3.27.9/cmake-3.27.9-linux-x86_64.sh
+          chmod +x cmake-3.27.9-linux-x86_64.sh
+          ./cmake-3.27.9-linux-x86_64.sh --skip-license --prefix=/usr/local
+          cmake --version
 
       - name: Setup vcpkg cache (Linux)
         if: matrix.os == 'linux'
         uses: actions/cache@v4
         with:
           path: ~/.vcpkg
-          key: vcpkg-${{ matrix.os }}-${{ matrix.arch }}-${{ hashFiles('vcpkg.json') }}
+          key: vcpkg-debian11-${{ matrix.arch }}-${{ hashFiles('vcpkg.json') }}
           restore-keys: |
-            vcpkg-${{ matrix.os }}-${{ matrix.arch }}-
+            vcpkg-debian11-${{ matrix.arch }}-
 
       - name: Setup MSVC (Windows)
         if: matrix.os == 'windows'
