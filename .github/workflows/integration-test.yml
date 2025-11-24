@@ -32,11 +32,9 @@ jobs:
         include:
           - arch: x86
             artifact_name: gmsv_mysqloo_linux.dll
-            steam_beta: public
             srcds_binary: srcds_run
           - arch: x64
             artifact_name: gmsv_mysqloo_linux64.dll
-            steam_beta: x86-64
             srcds_binary: srcds_run_x64
 
     services:
@@ -88,11 +86,17 @@ jobs:
           echo steam steam/license note '' | sudo debconf-set-selections
           sudo apt-get install -y lib32gcc-s1 steamcmd
 
-      - name: Install Garry's Mod Dedicated Server
-        if: steps.should_run.outputs.run == 'true'
+      - name: Install Garry's Mod Dedicated Server (32-bit)
+        if: steps.should_run.outputs.run == 'true' && matrix.arch == 'x86'
         run: |
           mkdir -p ~/gmod
-          steamcmd +force_install_dir ~/gmod +login anonymous +app_update 4020 -beta ${{ matrix.steam_beta }} validate +quit
+          steamcmd +force_install_dir ~/gmod +login anonymous +app_update 4020 validate +quit
+
+      - name: Install Garry's Mod Dedicated Server (64-bit)
+        if: steps.should_run.outputs.run == 'true' && matrix.arch == 'x64'
+        run: |
+          mkdir -p ~/gmod
+          steamcmd +force_install_dir ~/gmod +login anonymous +app_update 4020 -beta x86-64 validate +quit
 
       - name: Setup test environment
         if: steps.should_run.outputs.run == 'true'
