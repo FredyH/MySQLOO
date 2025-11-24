@@ -71,8 +71,10 @@ function TestFramework:OnCompleted()
 		end
 		local diffBefore = TestFramework.AllocationCount - TestFramework.DeallocationCount
 		local diffAfter = mysqloo.allocationCount() - mysqloo.deallocationCount()
+		local success = TestFramework.FailureCount == 0
 		if (diffAfter > diffBefore) then
 			MsgC(Color(255, 255, 255), "Found potential memory leak with ", diffAfter - diffBefore, " new allocations that were not freed\n")
+			success = false
 		else
 			MsgC(Color(255, 255, 255), "All allocated objects were freed\n")
 		end
@@ -82,12 +84,14 @@ function TestFramework:OnCompleted()
 		diffAfter = mysqloo.referenceCreatedCount() - mysqloo.referenceFreedCount()
 		if (diffAfter > diffBefore) then
 			MsgC(Color(255, 255, 255), "Found potential memory leak with ", diffAfter - diffBefore, " new references created that were not freed\n")
+			success = false
 		else
 			MsgC(Color(255, 255, 255), "All created references were freed\n")
 		end
 
 
 		MsgC(Color(255, 255, 255), "Lua Heap Before: ", TestFramework.LuaMemory, " After: ", collectgarbage("count"), "\n")
+		hook.Run("IntegrationTestsCompleted", success)
 	end)
 end
 

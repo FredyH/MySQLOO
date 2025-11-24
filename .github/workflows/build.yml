@@ -7,6 +7,18 @@ on:
     branches: [ master ]
   release:
     types: [ created ]
+  workflow_call:
+    inputs:
+      os_filter:
+        description: 'Filter builds by OS (linux, windows, or empty for all)'
+        type: string
+        required: false
+        default: ''
+      arch_filter:
+        description: 'Filter builds by architecture (x86, x64, or empty for all)'
+        type: string
+        required: false
+        default: ''
 
 jobs:
   build:
