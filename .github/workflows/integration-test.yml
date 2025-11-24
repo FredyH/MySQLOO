@@ -140,7 +140,7 @@ jobs:
         timeout-minutes: 5
         run: |
           cd ~/gmod
-          timeout 120s ./srcds_run -game garrysmod -console -norestart -allowquit +map gm_flatgrass +maxplayers 1 || true
+          timeout 180s ./srcds_run -game garrysmod -console -condebug -norestart -allowquit +map gm_flatgrass +sv_hibernate_think 1 +maxplayers 1 || true
 
       - name: Check test results
         if: steps.should_run.outputs.run == 'true'
