@@ -32,8 +32,12 @@ jobs:
         include:
           - arch: x86
             artifact_name: gmsv_mysqloo_linux.dll
+            steam_beta: public
+            srcds_binary: srcds_run
           - arch: x64
             artifact_name: gmsv_mysqloo_linux64.dll
+            steam_beta: x86-64
+            srcds_binary: srcds_run_x64
 
     services:
       mysql:
@@ -88,7 +92,7 @@ jobs:
         if: steps.should_run.outputs.run == 'true'
         run: |
           mkdir -p ~/gmod
-          steamcmd +force_install_dir ~/gmod +login anonymous +app_update 4020 validate +quit
+          steamcmd +force_install_dir ~/gmod +login anonymous +app_update 4020 -beta ${{ matrix.steam_beta }} validate +quit
 
       - name: Setup test environment
         if: steps.should_run.outputs.run == 'true'
@@ -140,7 +144,7 @@ jobs:
         timeout-minutes: 5
         run: |
           cd ~/gmod
-          timeout 180s ./srcds_run -game garrysmod -console -condebug -norestart -allowquit +map gm_flatgrass +sv_hibernate_think 1 +maxplayers 1 || true
+          timeout 180s ./${{ matrix.srcds_binary }} -game garrysmod -console -condebug -norestart -allowquit +map gm_flatgrass +sv_hibernate_think 1 +maxplayers 1 || true
 
       - name: Check test results
         if: steps.should_run.outputs.run == 'true'
