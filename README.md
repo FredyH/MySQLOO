@@ -308,45 +308,53 @@ This project uses [CMake](https://cmake.org/) as a build system.
 ## Windows
 
 ### Visual Studio
-Visual Studio has support for CMake since Visual Studio 2017. To open the project, run Visual Studio and under `File > Open > CMake...`
-select the CMakeList.txt from this directory.
+Visual Studio has built-in support for CMake projects. After opening the project, you should be able to select from the presets
+defined in the `CMakePresets.json` file.
 
-The CMakeSettings.json in this project should already define both a 32 and 64 bit configuration.
-You can add new configurations in the combo box that contains the x64 config. Here you can change the build type to Release or RelWithDebInfo and duplicate the config
-for a 32 bit build.
+After selecting a preset, Visual Studio should automatically download the required dependencies using vcpkg.
 
-To build the project, you can then simply run `` from the toolbar. The output files are placed in the `out/build/{ConfigurationName}/` subfolder
+To build the project, you can then run `Build > Build All` from the toolbar. The output files are placed in the `out/build/{ConfigurationName}/` subfolder
 of this project.
 
+The CMakeSettings.json in this project should already define both a 32- and 64-bit configuration.
+You can add new configurations in the combo box that contains the x64 config. Here you can change the build type to Release or RelWithDebInfo and duplicate the config
+for a 32-bit build.
+
+To build the project, you can then simply run `Build > Build All` from the toolbar. The output files are placed in the `out/build/{ConfigurationName}/` subfolder
+of this project.
 
 ### CLion
-Simply open the project in CLion and import the CMake project. Assuming you have a [valid toolchain](https://www.jetbrains.com/help/clion/how-to-create-toolchain-in-clion.html) setup,
-you can simply build the project using `Build > Build Project` in the toolbar.
+Before opening the project in CLion, ensure that you have a [valid toolchain](https://www.jetbrains.com/help/clion/how-to-create-toolchain-in-clion.html) set up.
 
-To compile for 32 bit rather than 64 bit, you can select a 32 bit VS toolchain, rather than the 64 bit one.
+After opening the project in CLion, you should get a dialog showing you the available presets.
+Select the preset for 32- or 64-bit (depending on which you want to build) and press the duplicate button.
+Then, in the options for your new preset, select the correct toolchain (again, either 32- or 64-bit) and select to
+explicitly use `Ninja` as the generator.
+After applying and setting it as the active preset, you can build the project using `Build > Build Project` in the toolbar.
 
-The output files are placed within the `cmake-build-debug/` directory of this project.
-
+The output files are placed within the `cmake-build-*-release/` directory of this project.
 
 ## Linux
 
-
 ### Prerequisites
-To compile the project, you will need CMake and a functioning c++ compiler. For example, under Ubuntu, the following packages
+To compile the project, you will need CMake and a functioning C++ compiler. For example, under Ubuntu, the following packages
 can be used to compile the module.
 ```bash
-sudo apt install build-essential gcc-multilib cmake
+sudo apt install build-essential gcc-multilib g++-multilib cmake zip pkg-config
 ```
 
 ### Compiling
-To compile the module, follow the following steps:
-- enter the project directory and run `cmake .` in bash.
-- in the same directory run `make` in bash.
-- The module should be compiled and the resulting binary should be placed directly in the project directory.
+The easiest way to compile this module is to use the convenience script `build.sh` located in this folder.
+> [!NOTE]
+> The script downloads vcpkg for you into your user's home directory. If this is unwanted, you can adjust the script to change
+> the target directory.
+- Enter the folder in bash
+- Run `./build.sh <target>` with the target depending on 32- or 64-bit
+    - `./build.sh linux-x86-release` for 32-bit
+    - `./build.sh linux-x64-release` for 64-bit
+- The module should be compiled and the resulting binary should be placed in the `cmake-build-*-release/` directory
 
 
 
 ## Mac
-Mac is currently not supported since the MariaDB connector is not available on Mac (at least not precompiled).
-However, if you are able to compile the connector yourself, building for Mac should broadly follow the same instructions
-as for Linux.
+Mac is currently not supported but you might be able to get it to work using the same instructions as for Linux.
