@@ -137,6 +137,30 @@ bool IQuery::mysqlNextResult(MYSQL *sql) {
     return false;
 }
 
+bool IQueryData::isFinished() {
+    return finished;
+}
+
+void IQueryData::setFinished(bool isFinished) {
+    finished = isFinished;
+}
+
+QueryStatus IQueryData::getStatus() {
+    return m_status;
+}
+
+void IQueryData::setStatus(QueryStatus status) {
+    this->m_status = status;
+}
+
+QueryResultStatus IQueryData::getResultStatus() {
+    return m_resultStatus;
+}
+
+void IQueryData::setResultStatus(QueryResultStatus status) {
+    m_resultStatus = status;
+}
+
 //Queues the query into the queue of the database instance associated with it
 void IQuery::start(const std::shared_ptr<IQueryData> &queryData) {
     auto db = m_database;

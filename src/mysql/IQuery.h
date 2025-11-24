@@ -123,29 +123,17 @@ public:
         m_errorText = std::move(err);
     }
 
-    bool isFinished() {
-        return finished;
-    }
+    bool isFinished();
 
-    void setFinished(bool isFinished) {
-        finished = isFinished;
-    }
+    void setFinished(bool isFinished);
 
-    QueryStatus getStatus() {
-        return m_status;
-    }
+    QueryStatus getStatus();
 
-    void setStatus(QueryStatus status) {
-        this->m_status = status;
-    }
+    void setStatus(QueryStatus status);
 
-    QueryResultStatus getResultStatus() {
-        return m_resultStatus;
-    }
+    QueryResultStatus getResultStatus();
 
-    void setResultStatus(QueryResultStatus status) {
-        m_resultStatus = status;
-    }
+    void setResultStatus(QueryResultStatus status);
 
     int getErrorReference() const {
         return m_errorReference;
