@@ -4,12 +4,12 @@
 #include "MySQLHeader.h"
 #include "GarrysMod/Lua/LuaBase.h"
 #include <string>
-#include <mutex>
 #include <atomic>
 #include <utility>
 #include <deque>
 #include <vector>
 #include <condition_variable>
+#include <stdexcept>
 
 class Database;
 
