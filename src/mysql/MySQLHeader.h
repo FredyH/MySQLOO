@@ -20,6 +20,6 @@ FinalAction<F> finally(F f) {
 #include <winsock2.h>
 #include <windows.h>
 #endif
-#include <mysql.h>
+#include <mysql/mysql.h>
 
 #endif

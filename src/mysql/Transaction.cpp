@@ -2,7 +2,6 @@
 
 #include <utility>
 #include "Database.h"
-#include "mysqld_error.h"
 
 
 void Transaction::executeStatement(Database &database, MYSQL *connection, const std::shared_ptr<IQueryData>& ptr) {
@@ -69,10 +68,10 @@ void Transaction::executeStatement(Database &database, MYSQL *connection, const 
 }
 
 void Transaction::mysqlAutocommit(MYSQL *sql, bool auto_mode) {
-    my_bool result = mysql_autocommit(sql, (my_bool) auto_mode);
+    const bool result = mysql_autocommit(sql, auto_mode);
     if (result) {
         const char *errorMessage = mysql_error(sql);
-        unsigned int errorCode = mysql_errno(sql);
+        const unsigned int errorCode = mysql_errno(sql);
         throw MySQLException(errorCode, errorMessage);
     }
 }

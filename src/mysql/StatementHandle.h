@@ -1,7 +1,7 @@
 #ifndef MYSQLOO_STATEMENTHANDLE_H
 #define MYSQLOO_STATEMENTHANDLE_H
 
-#include "mysql.h"
+#include "mysql/mysql.h"
 
 class StatementHandle {
 public:

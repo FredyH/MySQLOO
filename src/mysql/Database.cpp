@@ -3,9 +3,9 @@
 #include <string>
 #include <iostream>
 #include <utility>
-#include "mysqld_error.h"
+#include "mysql/mysqld_error.h"
 #include "../lua/LuaObject.h"
-#include "errmsg.h"
+#include "mysql/errmsg.h"
 
 Database::Database(std::string host, std::string username, std::string pw, std::string database, unsigned int port,
                    std::string unixSocket) :
@@ -358,6 +358,16 @@ void Database::waitForQuery(const std::shared_ptr<IQuery> &query, const std::sha
     }
 }
 
+bool Database::attemptConnection() {
+    this->applyTimeoutSettings();
+    this->customSSLSettings.applySSLSettings(this->m_sql);
+    const char *socketStr = this->socket.empty() ? nullptr : this->socket.c_str();
+    unsigned long clientFlag = (this->useMultiStatements) ? CLIENT_MULTI_STATEMENTS : 0;
+    clientFlag |= CLIENT_MULTI_RESULTS;
+    const auto result = mysql_real_connect(this->m_sql, this->host.c_str(), this->username.c_str(), this->pw.c_str(),this->database.c_str(), this->port, socketStr, clientFlag);
+    return result != nullptr;
+}
+
 /* Thread that connects to the database, on success it continues to handle queries in the run method.
  */
 void Database::connectRun() {
@@ -380,13 +390,7 @@ void Database::connectRun() {
             m_status = DATABASE_CONNECTION_FAILED;
             return;
         }
-        this->applyTimeoutSettings();
-        this->customSSLSettings.applySSLSettings(this->m_sql);
-        const char *socketStr = (this->socket.length() == 0) ? nullptr : this->socket.c_str();
-        unsigned long clientFlag = (this->useMultiStatements) ? CLIENT_MULTI_STATEMENTS : 0;
-        clientFlag |= CLIENT_MULTI_RESULTS;
-        if (mysql_real_connect(this->m_sql, this->host.c_str(), this->username.c_str(), this->pw.c_str(),
-                               this->database.c_str(), this->port, socketStr, clientFlag) != this->m_sql) {
+        if (!attemptConnection()) {
             m_success = false;
             m_connection_err = mysql_error(this->m_sql);
             m_connectionDone = true;
@@ -421,7 +425,7 @@ void Database::runQuery(const std::shared_ptr<IQuery>& query, const std::shared_
         data->setResultStatus(QUERY_SUCCESS);
     } catch (const MySQLException &error) {
         unsigned int errorCode = error.getErrorCode();
-        bool retryableError = errorCode == CR_SERVER_LOST || errorCode == CR_SERVER_GONE_ERROR ||
+        const bool retryableError = errorCode == CR_SERVER_LOST || errorCode == CR_SERVER_GONE_ERROR ||
                               errorCode == ER_MAX_PREPARED_STMT_COUNT_REACHED || errorCode == ER_UNKNOWN_STMT_HANDLER ||
                               errorCode == ER_CLIENT_INTERACTION_TIMEOUT ||
                               errorCode == CR_NO_PREPARE_STMT;
@@ -477,12 +481,12 @@ void Database::run() {
 }
 
 bool Database::attemptReconnect() {
-    bool success;
-    my_bool reconnect = '1';
-    success = mariadb_reconnect(this->m_sql) == 0;
-    reconnect = '0';
-    mysql_optionsv(this->m_sql, MYSQL_OPT_RECONNECT, &reconnect);
-    return success;
+    mysql_close(this->m_sql);
+    this->m_sql = mysql_init(nullptr);
+    if (this->m_sql == nullptr) {
+        return false;
+    }
+    return attemptConnection();
 }
 
 void Database::setConnectTimeout(unsigned int timeout) {
@@ -499,13 +503,13 @@ void Database::setWriteTimeout(unsigned int timeout) {
 
 void Database::applyTimeoutSettings() {
     if (this->connectTimeout > 0) {
-        mysql_optionsv(this->m_sql, MYSQL_OPT_CONNECT_TIMEOUT, &this->connectTimeout);
+        mysql_options(this->m_sql, MYSQL_OPT_CONNECT_TIMEOUT, &this->connectTimeout);
     }
     if (this->readTimeout > 0) {
-        mysql_optionsv(this->m_sql, MYSQL_OPT_READ_TIMEOUT, &this->readTimeout);
+        mysql_options(this->m_sql, MYSQL_OPT_READ_TIMEOUT, &this->readTimeout);
     }
     if (this->writeTimeout > 0) {
-        mysql_optionsv(this->m_sql, MYSQL_OPT_WRITE_TIMEOUT, &this->writeTimeout);
+        mysql_options(this->m_sql, MYSQL_OPT_WRITE_TIMEOUT, &this->writeTimeout);
     }
 }
 

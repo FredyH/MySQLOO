@@ -3,9 +3,7 @@
 
 #include <unordered_map>
 #include "Query.h"
-#include "MySQLHeader.h"
 #include "StatementHandle.h"
-#include <sstream>
 
 class PreparedQueryField {
     friend class PreparedQuery;

@@ -10,7 +10,7 @@
 #include "Query.h"
 
 
-class TransactionData : public IQueryData {
+class TransactionData final : public IQueryData {
     friend class Transaction;
 
 public:

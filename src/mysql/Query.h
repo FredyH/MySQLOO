@@ -1,10 +1,7 @@
 #ifndef QUERY_
 #define QUERY_
 
-#include <mutex>
-#include <atomic>
 #include <deque>
-#include <condition_variable>
 #include "IQuery.h"
 #include "ResultData.h"
 
@@ -50,15 +47,15 @@ class QueryData : public IQueryData {
     friend class Query;
 
 public:
-    my_ulonglong getLastInsertID() {
+    my_ulonglong getLastInsertID() const {
         return (m_insertIds.empty()) ? 0 : m_insertIds.front();
     }
 
-    my_ulonglong getAffectedRows() {
+    my_ulonglong getAffectedRows() const {
         return (m_affectedRows.empty()) ? 0 : m_affectedRows.front();
     }
 
-    bool hasMoreResults() {
+    bool hasMoreResults() const {
         return !m_insertIds.empty() && !m_affectedRows.empty() && !m_results.empty();
     }
 

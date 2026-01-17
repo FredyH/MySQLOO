@@ -141,6 +141,8 @@ private:
 
     void applyTimeoutSettings();
 
+    bool attemptConnection();
+
     BlockingQueue<std::pair<std::shared_ptr<IQuery>, std::shared_ptr<IQueryData>>> finishedQueries{};
     BlockingQueue<std::pair<std::shared_ptr<IQuery>, std::shared_ptr<IQueryData>>> queryQueue{};
     std::unordered_set<std::shared_ptr<StatementHandle>> cachedStatements{};

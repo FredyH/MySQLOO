@@ -7,6 +7,7 @@ if(VCPKG_TARGET_TRIPLET MATCHES "^x86-" AND UNIX)
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -m32" CACHE STRING "" FORCE)
 endif()
 
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
 project(mysqloo)
 add_subdirectory(GmodLUA)
 
@@ -15,12 +16,12 @@ set(SOURCE_FILES ${MYSQLOO_SRC})
 set(CMAKE_BUILD_TYPE RelWithDebInfo)
 set (CMAKE_CXX_STANDARD 14)
 
-find_package(OpenSSL REQUIRED)
-find_package(unofficial-libmariadb CONFIG REQUIRED)
+find_package(OpenSSL CONFIG REQUIRED)
+find_package(unofficial-libmysql CONFIG REQUIRED)
 
 add_library(mysqloo SHARED ${SOURCE_FILES})
 
-target_link_libraries(mysqloo gmod-module-base unofficial::libmariadb)
+target_link_libraries(mysqloo gmod-module-base unofficial::libmysql::libmysql)
 
 if(WIN32)
     target_link_libraries(mysqloo ws2_32 shlwapi bcrypt secur32 crypt32)

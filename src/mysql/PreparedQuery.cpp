@@ -2,8 +2,8 @@
 
 #include <memory>
 #include "Database.h"
-#include "errmsg.h"
-#include "mysqld_error.h"
+#include "mysql/errmsg.h"
+#include "mysql/mysqld_error.h"
 #include "MySQLOOException.h"
 
 #ifdef LINUX
@@ -75,8 +75,7 @@ MYSQL_STMT *PreparedQuery::mysqlStmtInit(MYSQL *sql) {
 }
 
 void PreparedQuery::mysqlStmtBindParameter(MYSQL_STMT *stmt, MYSQL_BIND *bind) {
-    my_bool result = mysql_stmt_bind_param(stmt, bind);
-    if (result != 0) {
+    if (mysql_stmt_bind_param(stmt, bind)) {
         const char *errorMessage = mysql_stmt_error(stmt);
         unsigned int errorCode = mysql_stmt_errno(stmt);
         throw MySQLException(errorCode, errorMessage);
@@ -112,18 +111,18 @@ void PreparedQuery::mysqlStmtStoreResult(MYSQL_STMT *stmt) {
 }
 
 bool PreparedQuery::mysqlStmtNextResult(MYSQL_STMT *stmt) {
-    int result = mysql_stmt_next_result(stmt);
+    const int result = mysql_stmt_next_result(stmt);
     if (result > 0) {
         const char *errorMessage = mysql_stmt_error(stmt);
-        unsigned int errorCode = mysql_stmt_errno(stmt);
+        const unsigned int errorCode = mysql_stmt_errno(stmt);
         throw MySQLException(errorCode, errorMessage);
     }
     return result == 0;
 }
 
-static my_bool nullBool = 1;
-static int trueValue = 1;
-static int falseValue = 0;
+static bool nullBool = true;
+static bool trueValue = true;
+static bool falseValue = false;
 
 //Generates binds for a prepared query. In this case the binds are used to send the parameters to the server
 void PreparedQuery::generateMysqlBinds(MYSQL_BIND *binds,
@@ -191,7 +190,7 @@ void PreparedQuery::executeStatement(Database &database, MYSQL *connection, cons
             stmt = this->cachedStatement->stmt;
         } else {
             stmt = mysqlStmtInit(connection);
-            my_bool attrMaxLength = 1;
+            const bool attrMaxLength = true;
             mysql_stmt_attr_set(stmt, STMT_ATTR_UPDATE_MAX_LENGTH, &attrMaxLength);
             mysqlStmtPrepare(stmt, this->m_query.c_str());
             if (database.shouldCachePreparedStatements()) {

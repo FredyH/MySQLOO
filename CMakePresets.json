@@ -23,7 +23,7 @@
       "binaryDir": "${sourceDir}/cmake-build-x86-release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-        "VCPKG_TARGET_TRIPLET": "x86-windows-static"
+        "VCPKG_TARGET_TRIPLET": "x86-windows-static-md"
       },
       "condition": {
         "type": "equals",
@@ -43,7 +43,7 @@
       "binaryDir": "${sourceDir}/cmake-build-x64-release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-        "VCPKG_TARGET_TRIPLET": "x64-windows-static"
+        "VCPKG_TARGET_TRIPLET": "x64-windows-static-md"
       },
       "condition": {
         "type": "equals",

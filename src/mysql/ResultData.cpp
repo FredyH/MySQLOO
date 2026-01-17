@@ -3,22 +3,22 @@
 #include "Database.h"
 #include <iostream>
 
-ResultData::ResultData(unsigned int columnCount, unsigned int rows) {
+ResultData::ResultData(const unsigned int columnCount, const unsigned int rows) {
 	this->columnCount = columnCount;
 	this->columns.resize(columnCount);
 	this->columnTypes.resize(columnCount);
 	this->rows.reserve(rows);
 }
 
-ResultData::ResultData() : ResultData((unsigned int) 0, (unsigned int) 0) {} //Avoids conflict with pointers
+ResultData::ResultData() : ResultData(static_cast<unsigned int>(0), static_cast<unsigned int>(0)) {} //Avoids conflict with pointers
 
 //Stores all of the rows of a result set
 //This is used so the result set can be free'd and doesn't have to be used in
 //another thread (which is not safe)
-ResultData::ResultData(MYSQL_RES* result) : ResultData((unsigned int)mysql_num_fields(result), (unsigned int)mysql_num_rows(result)) {
+ResultData::ResultData(MYSQL_RES* result) : ResultData(mysql_num_fields(result), static_cast<unsigned int>(mysql_num_rows(result))) {
 	if (columnCount == 0) return;
 	for (unsigned int i = 0; i < columnCount; i++) {
-		MYSQL_FIELD *field = mysql_fetch_field_direct(result, i);
+		const MYSQL_FIELD *field = mysql_fetch_field_direct(result, i);
 		columnTypes[i] = field->type;
 		columns[i] = field->name;
 	}
@@ -42,8 +42,7 @@ static bool mysqlStmtFetch(MYSQL_STMT* stmt) {
 	}
 }
 static void mysqlStmtBindResult(MYSQL_STMT* stmt, MYSQL_BIND* bind) {
-	my_bool result = mysql_stmt_bind_result(stmt, bind);
-	if (result) {
+	if (mysql_stmt_bind_result(stmt, bind)) {
 		const char* errorMessage = mysql_stmt_error(stmt);
 		unsigned int errorCode = mysql_stmt_errno(stmt);
 		throw MySQLException(errorCode, errorMessage);
@@ -59,7 +58,7 @@ ResultData::ResultData(MYSQL_STMT* result, MYSQL_RES* metaData) : ResultData((un
 	std::vector<std::vector<char>> buffers;
 	std::vector<unsigned long> lengths(columnCount);
 	//This is needed because C++ is stupid and std::vector<bool> is using bit encoding....
-	auto* isFieldNullArr = new my_bool[columnCount];
+	auto* isFieldNullArr = new bool[columnCount];
 	auto fieldNullArrFree = finally([&] {
 		delete[] isFieldNullArr;
 	});
@@ -73,7 +72,7 @@ ResultData::ResultData(MYSQL_STMT* result, MYSQL_RES* metaData) : ResultData((un
 		bind.buffer_length = fields[i].max_length + 1;
 		bind.length = &lengths[i];
 		bind.is_null = &isFieldNullArr[i];
-		bind.is_unsigned = 0;
+		bind.is_unsigned = false;
 	}
 	mysqlStmtBindResult(result, binds.data());
 	while (mysqlStmtFetch(result)) {
