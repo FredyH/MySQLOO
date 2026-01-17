@@ -424,12 +424,7 @@ void Database::runQuery(const std::shared_ptr<IQuery>& query, const std::shared_
         query->executeStatement(*this, this->m_sql, data);
         data->setResultStatus(QUERY_SUCCESS);
     } catch (const MySQLException &error) {
-        unsigned int errorCode = error.getErrorCode();
-        const bool retryableError = errorCode == CR_SERVER_LOST || errorCode == CR_SERVER_GONE_ERROR ||
-                              errorCode == ER_MAX_PREPARED_STMT_COUNT_REACHED || errorCode == ER_UNKNOWN_STMT_HANDLER ||
-                              errorCode == ER_CLIENT_INTERACTION_TIMEOUT ||
-                              errorCode == CR_NO_PREPARE_STMT;
-        if (retry && retryableError && attemptReconnect()) {
+        if (retry && isRetriableError(error.getErrorCode()) && attemptReconnect()) {
             //Need to free statements before retrying in case the connection was lost
             //and prepared statement handles have become invalid
             freeCachedStatements();
@@ -487,6 +482,21 @@ bool Database::attemptReconnect() {
         return false;
     }
     return attemptConnection();
+}
+
+bool Database::isRetriableError(const unsigned int errorCode) {
+    switch (errorCode) {
+        case CR_SERVER_LOST:
+        case CR_SERVER_GONE_ERROR:
+        case ER_MAX_PREPARED_STMT_COUNT_REACHED:
+        case ER_SERVER_SHUTDOWN:
+        case ER_UNKNOWN_STMT_HANDLER:
+        case ER_CLIENT_INTERACTION_TIMEOUT:
+        case CR_NO_PREPARE_STMT:
+            return true;
+        default:
+            return false;
+    }
 }
 
 void Database::setConnectTimeout(unsigned int timeout) {

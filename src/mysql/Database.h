@@ -109,6 +109,8 @@ public:
 
     bool attemptReconnect();
 
+    static bool isRetriableError(unsigned int errorCode);
+
     std::string connectionError() { return m_connection_err; }
 
     std::deque<std::pair<std::shared_ptr<IQuery>, std::shared_ptr<IQueryData>>> takeFinishedQueries() {

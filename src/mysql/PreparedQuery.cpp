@@ -228,12 +228,9 @@ void PreparedQuery::executeStatement(Database &database, MYSQL *connection, cons
             } while (mysqlStmtNextResult(stmt));
         }
     } catch (const MySQLException &error) {
-        unsigned int errorCode = error.getErrorCode();
-        if (errorCode == CR_SERVER_LOST || errorCode == CR_SERVER_GONE_ERROR ||
-            errorCode == ER_MAX_PREPARED_STMT_COUNT_REACHED || errorCode == ER_UNKNOWN_STMT_HANDLER ||
-            errorCode == ER_CLIENT_INTERACTION_TIMEOUT ||
-            errorCode == CR_NO_PREPARE_STMT) {
-            //In these cases the statement will no longer be valid, free it.
+        const unsigned int errorCode = error.getErrorCode();
+        if (Database::isRetriableError(errorCode)) {
+            //In this case the statement will no longer be valid, free it.
             database.freeStatement(this->cachedStatement);
         }
         throw error;
