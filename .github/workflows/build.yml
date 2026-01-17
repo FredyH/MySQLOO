@@ -75,7 +75,7 @@ jobs:
         run: |
           dpkg --add-architecture i386
           apt-get update
-          apt-get install -y build-essential gcc-multilib g++-multilib ninja-build curl zip unzip tar pkg-config wget libncurses-dev libtirpc-dev libssl-dev
+          apt-get install -y build-essential gcc-multilib g++-multilib ninja-build curl zip unzip tar pkg-config wget libssl-dev libncurses-dev libncurses-dev:i386 libtirpc-dev:i386 libssl-dev:i386
 
       - name: Install Linux dependencies (64-bit)
         if: matrix.os == 'linux' && matrix.arch == 'x64'
