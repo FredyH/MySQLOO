@@ -263,3 +263,20 @@ TestFramework:RegisterTest("[Query] not crash if waiting on query of a failed da
 	end
 	qu:wait()
 end)
+
+TestFramework:RegisterTest("[Query] Return correct values for bit fields", function(test)
+	local db = TestFramework:ConnectToDatabase()
+	local qu1 = db:query("CREATE TEMPORARY TABLE test_bits(pattern BIT(32))")
+	local qu2 = db:query("INSERT INTO test_bits VALUES(b'1010110101101010110101111010101')")
+	local qu3 = db:query("SELECT pattern FROM test_bits")
+	local qu4 = db:query("DROP TEMPORARY TABLE test_bits")
+	function qu3:onSuccess(data)
+		test:shouldHaveLength(data, 1)
+		test:shouldBeEqual(data[1].pattern, 1454730197)
+		test:Complete()
+	end
+	qu1:start()
+	qu2:start()
+	qu3:start()
+	qu4:start()
+end)

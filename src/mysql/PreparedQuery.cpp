@@ -122,8 +122,8 @@ bool PreparedQuery::mysqlStmtNextResult(MYSQL_STMT *stmt) {
 }
 
 static bool nullBool = true;
-static bool trueValue = true;
-static bool falseValue = false;
+static unsigned int trueValue = 1;
+static unsigned int falseValue = 0;
 
 //Generates binds for a prepared query. In this case the binds are used to send the parameters to the server
 void PreparedQuery::generateMysqlBinds(MYSQL_BIND *binds,

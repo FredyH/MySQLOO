@@ -23,9 +23,16 @@ static void dataToLua(Query &query,
             case MYSQL_TYPE_SHORT:
                 LUA->PushNumber(atof(columnValue.c_str()));
                 break;
-            case MYSQL_TYPE_BIT:
-                LUA->PushNumber(static_cast<int>(columnValue[0]));
+            case MYSQL_TYPE_BIT: {
+                // BIT fields are returned as binary data
+                // Convert bytes to unsigned integer (big-endian)
+                unsigned long long bitValue = 0;
+                for (size_t i = 0; i < columnValue.length() && i < 8; i++) {
+                    bitValue = bitValue << 8 | static_cast<unsigned char>(columnValue[i]);
+                }
+                LUA->PushNumber(static_cast<double>(bitValue));
                 break;
+            }
             case MYSQL_TYPE_NULL:
                 LUA->PushNil();
                 break;
