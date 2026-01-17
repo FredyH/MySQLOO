@@ -3,6 +3,7 @@
 #include <memory>
 #include <sstream>
 #include "Database.h"
+#include <cstring>
 #include "mysql/errmsg.h"
 #include "mysql/mysqld_error.h"
 #include "MySQLOOException.h"

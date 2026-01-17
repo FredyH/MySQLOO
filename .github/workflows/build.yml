@@ -75,13 +75,13 @@ jobs:
         run: |
           dpkg --add-architecture i386
           apt-get update
-          apt-get install -y build-essential gcc-multilib g++-multilib ninja-build curl zip unzip tar pkg-config wget
+          apt-get install -y build-essential gcc-multilib g++-multilib ninja-build curl zip unzip tar pkg-config wget libncurses-dev libtirpc-dev libssl-dev
 
       - name: Install Linux dependencies (64-bit)
         if: matrix.os == 'linux' && matrix.arch == 'x64'
         run: |
           apt-get update
-          apt-get install -y build-essential ninja-build curl zip unzip tar pkg-config wget
+          apt-get install -y build-essential ninja-build curl zip unzip tar pkg-config wget libncurses-dev libtirpc-dev libssl-dev
 
       - name: Install modern CMake (Linux)
         if: matrix.os == 'linux'
