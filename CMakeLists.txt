@@ -14,7 +14,7 @@ add_subdirectory(GmodLUA)
 file(GLOB_RECURSE MYSQLOO_SRC "src/*.h" "src/*.cpp")
 set(SOURCE_FILES ${MYSQLOO_SRC})
 set(CMAKE_BUILD_TYPE RelWithDebInfo)
-set (CMAKE_CXX_STANDARD 14)
+set (CMAKE_CXX_STANDARD 17)
 
 find_package(OpenSSL CONFIG REQUIRED)
 find_package(unofficial-libmysql CONFIG REQUIRED)

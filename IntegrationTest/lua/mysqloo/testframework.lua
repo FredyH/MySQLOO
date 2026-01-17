@@ -115,6 +115,16 @@ function TestMT:Fail(reason)
 	self.Completed = true
 	MsgC(Color(230, 30, 30), "FAILED\n")
 	MsgC(Color(230, 30, 30), "Error: ", reason, "\n")
+
+	for level = 2, 5 do
+        local info = debug.getinfo(level, "Sln")
+        local functionName = info.name or ""
+        if (functionName:find("assert") || functionName:find("should")) then continue end
+        local location = string.format("%s:%d", info.short_src, info.currentline)
+        MsgC(Color(230, 30, 30), "Location: ", location, "\n")
+        break
+    end
+
 	TestFramework:ReportResult(false)
 	TestFramework:RunNextTest()
 end

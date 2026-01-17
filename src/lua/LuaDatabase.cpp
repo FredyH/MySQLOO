@@ -132,6 +132,18 @@ MYSQLOO_LUA_FUNCTION(setCharacterSet) {
     return 2;
 }
 
+MYSQLOO_LUA_FUNCTION(setSSLMode) {
+    const auto database = LuaObject::getLuaObject<LuaDatabase>(LUA);
+    LUA->CheckType(2, GarrysMod::Lua::Type::Number);
+    const int mode = static_cast<int>(LUA->GetNumber(2));
+    if (mode < SSL_MODE_DISABLED || mode > SSL_MODE_VERIFY_IDENTITY) {
+        LUA->ThrowError("Invalid SSL mode");
+        return 0;
+    }
+    database->m_database->setSSLMode(static_cast<mysql_ssl_mode>(mode));
+    return 0;
+}
+
 MYSQLOO_LUA_FUNCTION(setSSLSettings) {
     auto database = LuaObject::getLuaObject<LuaDatabase>(LUA);
     SSLSettings sslSettings;
@@ -288,6 +300,9 @@ void LuaDatabase::createMetaTable(ILuaBase *LUA) {
 
     LUA->PushCFunction(setCharacterSet);
     LUA->SetField(-2, "setCharacterSet");
+
+    LUA->PushCFunction(setSSLMode);
+    LUA->SetField(-2, "setSSLMode");
 
     LUA->PushCFunction(setSSLSettings);
     LUA->SetField(-2, "setSSLSettings");

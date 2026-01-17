@@ -3,6 +3,7 @@
 #include <string>
 #include <iostream>
 #include <utility>
+#include "PingQuery.h"
 #include "mysql/mysqld_error.h"
 #include "../lua/LuaObject.h"
 #include "mysql/errmsg.h"
@@ -360,6 +361,10 @@ void Database::waitForQuery(const std::shared_ptr<IQuery> &query, const std::sha
 
 bool Database::attemptConnection() {
     this->applyTimeoutSettings();
+    if (sslMode.has_value()) {
+        const unsigned int chosenMode = this->sslMode.value();
+        mysql_options(m_sql, MYSQL_OPT_SSL_MODE, &chosenMode);
+    }
     this->customSSLSettings.applySSLSettings(this->m_sql);
     const char *socketStr = this->socket.empty() ? nullptr : this->socket.c_str();
     unsigned long clientFlag = (this->useMultiStatements) ? CLIENT_MULTI_STATEMENTS : 0;
@@ -509,6 +514,10 @@ void Database::setReadTimeout(unsigned int timeout) {
 
 void Database::setWriteTimeout(unsigned int timeout) {
     this->writeTimeout = timeout;
+}
+
+void Database::setSSLMode(mysql_ssl_mode newSSLMode) {
+    this->sslMode = newSSLMode;
 }
 
 void Database::applyTimeoutSettings() {

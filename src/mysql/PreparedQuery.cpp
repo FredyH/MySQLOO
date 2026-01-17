@@ -1,6 +1,7 @@
 #include "PreparedQuery.h"
 
 #include <memory>
+#include <sstream>
 #include "Database.h"
 #include "mysql/errmsg.h"
 #include "mysql/mysqld_error.h"

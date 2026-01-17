@@ -2,22 +2,20 @@
 #define DATABASE_
 
 #include "MySQLHeader.h"
-#include <vector>
 #include <deque>
 #include <thread>
 #include <future>
 #include <memory>
 #include <mutex>
-#include <sstream>
 #include "StatementHandle.h"
 #include <unordered_set>
 #include <condition_variable>
-#include "GarrysMod/Lua/Interface.h"
+#include <optional>
+
 #include "../BlockingQueue.h"
 #include "Query.h"
 #include "PreparedQuery.h"
 #include "IQuery.h"
-#include "PingQuery.h"
 #include "Transaction.h"
 
 struct SSLSettings {
@@ -101,6 +99,8 @@ public:
 
     void setWriteTimeout(unsigned int timeout);
 
+    void setSSLMode(mysql_ssl_mode newSSLMode);
+
     void setSSLSettings(const SSLSettings &settings);
 
     bool isConnectionDone() { return m_connectionDone; }
@@ -177,6 +177,7 @@ private:
     std::string pw;
     std::string socket;
     unsigned int port;
+    std::optional<mysql_ssl_mode> sslMode;
     SSLSettings customSSLSettings{};
     unsigned int readTimeout = 0;
     unsigned int writeTimeout = 0;

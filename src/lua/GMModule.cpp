@@ -214,6 +214,17 @@ GMOD_MODULE_OPEN() {
     LUA->PushNumber(OPTION_CACHE);
     LUA->SetField(-2, "OPTION_CACHE"); //Not used anymore
 
+    LUA->PushNumber(SSL_MODE_DISABLED);
+    LUA->SetField(-2, "SSL_MODE_DISABLED");
+    LUA->PushNumber(SSL_MODE_PREFERRED);
+    LUA->SetField(-2, "SSL_MODE_PREFERRED");
+    LUA->PushNumber(SSL_MODE_REQUIRED);
+    LUA->SetField(-2, "SSL_MODE_REQUIRED");
+    LUA->PushNumber(SSL_MODE_VERIFY_CA);
+    LUA->SetField(-2, "SSL_MODE_VERIFY_CA");
+    LUA->PushNumber(SSL_MODE_VERIFY_IDENTITY);
+    LUA->SetField(-2, "SSL_MODE_VERIFY_IDENTITY");
+
     LUA->PushCFunction(LuaDatabase::create);
     LUA->SetField(-2, "connect");
 

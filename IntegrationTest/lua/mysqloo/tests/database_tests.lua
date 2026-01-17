@@ -117,3 +117,16 @@ TestFramework:RegisterTest("[Database] wait for queries when disconnecting", fun
 	test:shouldBeEqual(wasCalled, true)
 	test:Complete()
 end)
+
+TestFramework:RegisterTest("[Database] setting SSLMode to SSL_MODE_VERIFY_IDENTITY should fail the connection", function(test)
+	local db = mysqloo.connect(DatabaseSettings.Host, DatabaseSettings.Username, DatabaseSettings.Password, DatabaseSettings.Database, DatabaseSettings.Port)
+	db:setSSLMode(mysqloo.SSL_MODE_VERIFY_IDENTITY)
+	db:connect()
+	function db:onConnected()
+		test:Fail("Connection should have failed, but did not")
+    end
+	function db:onConnectionFailed(err)
+	    test:shouldBeEqual(err:find("SSL connection error") != nil, true)
+        test:Complete()
+	end
+end)

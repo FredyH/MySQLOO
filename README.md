@@ -47,6 +47,13 @@ mysqloo.OPTION_NAMED_FIELDS -- [Number] - Not used anymore
 mysqloo.OPTION_INTERPRET_DATA -- [Number] - Not used anymore
 mysqloo.OPTION_CACHE -- [Number] - Not used anymore
 
+-- See: https://dev.mysql.com/doc/refman/9.1/en/connection-options.html#option_general_ssl-mode
+mysqloo.SSL_MODE_DISABLED -- [Number] - SSL is disabled
+mysqloo.SSL_MODE_PREFERRED -- [Number] - SSL is preferred if the server supports is
+mysqloo.SSL_MODE_REQUIRED -- [Number] - SSL is required, fails the connection otherwise
+mysqloo.SSL_MODE_VERIFY_CA -- [Number] - like REQUIRED but verifies the CA
+mysqloo.SSL_MODE_VERIFY_IDENTITY -- [Number] - like VERIFY_CA but also performs host name verification
+
 -- Database object
 
 -- Functions
@@ -136,6 +143,12 @@ Database:setCharacterSet(charSetName)
 -- Attempts to set the connection's character set to the one specified.
 -- Please note that this does block the main server thread if there is a query currently being ran
 -- Returns true on success, false on failure
+
+Database:setSSLMode(mode)
+-- Returns nothing
+-- Sets the SSL mode of the database object.
+-- Needs to be called before Database:connect().
+-- See the constants at the top of this readme for possible values.
 
 Database:setSSLSettings(key, cert, ca, capath, cipher)
 -- Returns nothing
