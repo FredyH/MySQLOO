@@ -190,7 +190,7 @@ Query:isRunning()
 
 Query:getData()
 -- Returns [Table]
--- Gets the data the query returned from the server
+-- Gets the data the query returned from the server, or nil if the query errored or was aborted.
 -- Format: { row1, row2, row3, ... }
 -- Row format: { field_name = field_value } or {first_field, second_field, ...} if OPTION_NUMERIC_FIELDS is enabled
 
@@ -230,6 +230,7 @@ Query:hasMoreResults()
 -- hasMoreResults() returns true if there is currently a result that can be popped, rather than if there is an
 -- additional result that has data. However, this does make for a nicer code that handles multiple results.
 -- See Examples/multi_results.lua for an example how to use it.
+-- Important: This function returns false if the query was aborted or errored.
 
 Query:getNextResults()
 -- Returns [Table]

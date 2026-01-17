@@ -35,11 +35,6 @@ void Transaction::executeStatement(Database &database, MYSQL *connection, const 
         //If this fails the connection was lost but the transaction was already executed fully
         //We do not want to throw an error here so the result is ignored.
         mysql_autocommit(connection, true);
-
-        for (const auto &pair: data->m_queries) {
-            pair.second->setResultStatus(data->getResultStatus());
-            pair.second->setStatus(QUERY_COMPLETE);
-        }
     } catch (const MySQLException &error) {
         data->setResultStatus(QUERY_ERROR);
         mysql_rollback(connection);
@@ -50,6 +45,7 @@ void Transaction::executeStatement(Database &database, MYSQL *connection, const 
 
         //In case of reconnect this might get called twice, but this should not affect anything
         for (auto &query: data->m_queries) {
+            if (query.second->getStatus() == QUERY_COMPLETE) continue;
             // If an error occurs, then the queries in the transactions after the query that caused the error will
             // not have their data set yet.
             // In that case, we will make sure they have the correct data set here.

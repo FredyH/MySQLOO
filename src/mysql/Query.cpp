@@ -48,8 +48,8 @@ void Query::emplaceEmptyResultData(const std::shared_ptr<IQueryData>& data) {
 
 //Returns true if a query has at least one additional ResultSet left
 bool Query::hasMoreResults() {
-	if (!hasCallbackData()) {
-        throw MySQLOOException("Query not completed yet");
+	if (!hasCallbackData() || callbackQueryData->getStatus() == QUERY_ABORTED) {
+	    return false;
 	}
     auto data = std::dynamic_pointer_cast<QueryData>(this->callbackQueryData);
     return data->hasMoreResults();
