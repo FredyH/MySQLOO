@@ -13,7 +13,13 @@ std::atomic_long LuaObject::allocationCount= { 0 };
 std::atomic_long LuaObject::deallocationCount = { 0 };
 
 LUA_FUNCTION(luaObjectGc) {
-    auto luaObject = LUA->GetUserType<LuaObject>(1, LuaObject::TYPE_USERDATA);
+    const auto luaObject = LUA->GetUserType<LuaObject>(1, LuaObject::TYPE_USERDATA);
+
+    if (luaObject == nullptr) {
+        // This should not happen
+        return 0;
+    }
+
     luaObject->onDestroyedByLua(LUA);
 
     delete luaObject;
