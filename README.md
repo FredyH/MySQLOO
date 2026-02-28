@@ -252,6 +252,7 @@ Query.onSuccess( q, data )
 
 Query.onData( q, data )
 -- Called when the query retrieves a row of data, [Table] data is the row.
+-- Note: If the query returns multiple results, this is only called for the first result set.
 
 
 -- PreparedQuery object
