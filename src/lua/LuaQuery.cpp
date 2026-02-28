@@ -158,7 +158,7 @@ MYSQLOO_LUA_FUNCTION(hasMoreResults) {
     return 1;
 }
 
-LUA_FUNCTION(getNextResults) {
+MYSQLOO_LUA_FUNCTION(getNextResults) {
     auto luaQuery = LuaQuery::getLuaObject<LuaQuery>(LUA);
     auto query = std::dynamic_pointer_cast<Query>(luaQuery->m_query);
     LuaQuery::freeDataReference(LUA, *query);
