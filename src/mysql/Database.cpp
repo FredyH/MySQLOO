@@ -438,6 +438,10 @@ void Database::runQuery(const std::shared_ptr<IQuery>& query, const std::shared_
             data->setResultStatus(QUERY_ERROR);
             data->setError(error.what());
         }
+    } catch (const std::exception &error) {
+        // Can happen in case of out-of-memory errors or similar
+        data->setResultStatus(QUERY_ERROR);
+        data->setError(error.what());
     }
 }
 #pragma clang diagnostic pop
