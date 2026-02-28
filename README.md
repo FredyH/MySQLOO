@@ -233,8 +233,8 @@ Query:hasMoreResults()
 -- Important: This function returns false if the query was aborted or errored.
 
 Query:getNextResults()
--- Returns [Table]
--- Pops the current result set, chaning the results of lastInsert() and affectedRows()  and getData()
+-- Returns nothing
+-- Pops the current result set, chaning the results of lastInsert() and affectedRows() and getData()
 -- to those of the next result set. Returns the rows of the next result set in the same format as getData()
 -- Throws an error if attempted to be called when there is no result set left to be popped
 
