@@ -6,7 +6,7 @@ function preparedQuery:onSuccess(data)
 end
 
 function preparedQuery:onError(err)
-	print("An error occured while executing the query: " .. err)
+	print("An error occurred while executing the query: " .. err)
 end
 
 preparedQuery:setString(1, "STEAM_0:0:123456")

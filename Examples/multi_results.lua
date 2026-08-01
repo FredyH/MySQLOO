@@ -12,7 +12,7 @@ function query:onSuccess(data)
 end
 
 function query:onError(err)
-	print("An error occured while executing the query: " .. err)
+	print("An error occurred while executing the query: " .. err)
 end
 
 query:start()
