@@ -69,6 +69,15 @@ jobs:
             core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
             core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
 
+      # Debian 11 reached end of life in August 2026. Its packages were moved to archive.debian.org and the
+      # security suite was removed from the regular mirrors, so apt has to use the archive instead.
+      - name: Use Debian archive repositories
+        if: matrix.os == 'linux'
+        run: |
+          echo "deb http://archive.debian.org/debian bullseye main" > /etc/apt/sources.list
+          echo "deb http://archive.debian.org/debian bullseye-updates main" >> /etc/apt/sources.list
+          echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99debian-archive
+
       - name: Install git
         if: matrix.os == 'linux'
         run: |
