@@ -131,6 +131,7 @@ void PreparedQuery::generateMysqlBinds(MYSQL_BIND *binds,
                                        std::unordered_map<unsigned int, std::shared_ptr<PreparedQueryField>> &map,
                                        unsigned int parameterCount) {
     for (unsigned int i = 1; i <= parameterCount; i++) {
+        binds[i - 1] = MYSQL_BIND{};
         auto it = map.find(i);
         if (it == map.end()) {
             MYSQL_BIND *bind = &binds[i - 1];
