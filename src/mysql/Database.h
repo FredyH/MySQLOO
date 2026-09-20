@@ -141,9 +141,9 @@ private:
 
     void waitForQuery(const std::shared_ptr<IQuery> &query, const std::shared_ptr<IQueryData> &data);
 
-    void applyTimeoutSettings();
+    void applyTimeoutSettings(MYSQL *sql);
 
-    bool attemptConnection();
+    bool attemptConnection(MYSQL *sql);
 
     BlockingQueue<std::pair<std::shared_ptr<IQuery>, std::shared_ptr<IQueryData>>> finishedQueries{};
     BlockingQueue<std::pair<std::shared_ptr<IQuery>, std::shared_ptr<IQueryData>>> queryQueue{};
@@ -151,7 +151,7 @@ private:
     std::unordered_set<MYSQL_STMT *> freedStatements{};
     MYSQL *m_sql = nullptr;
     std::thread m_thread;
-    std::mutex m_connectMutex; //Mutex used during connection
+    std::mutex m_connectMutex; //Mutex used during connection and whenever m_sql is closed or replaced
     std::mutex m_queryMutex; //Mutex that is locked while query thread operates on m_sql object
     std::mutex m_statementMutex; //Mutex that protects cached prepared statements
     std::mutex m_queryWaitMutex; //Mutex that prevents deadlocks when calling :wait()

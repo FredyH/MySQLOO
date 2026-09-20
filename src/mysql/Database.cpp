@@ -127,6 +127,7 @@ void Database::wait() {
  */
 std::string Database::escape(const std::string &str) {
     //No query mutex needed since this doesn't use the connection at all
+    //The connect mutex guarantees that m_sql is not closed or replaced (disconnect, reconnect) while it is used here
     std::lock_guard<std::mutex> lock(m_connectMutex);
     if (!m_connectionDone || m_sql == nullptr) {
         throw MySQLOOException("Cannot escape using database that is not connected");
@@ -359,17 +360,17 @@ void Database::waitForQuery(const std::shared_ptr<IQuery> &query, const std::sha
     }
 }
 
-bool Database::attemptConnection() {
-    this->applyTimeoutSettings();
+bool Database::attemptConnection(MYSQL *sql) {
+    this->applyTimeoutSettings(sql);
     if (sslMode.has_value()) {
         const unsigned int chosenMode = this->sslMode.value();
-        mysql_options(m_sql, MYSQL_OPT_SSL_MODE, &chosenMode);
+        mysql_options(sql, MYSQL_OPT_SSL_MODE, &chosenMode);
     }
-    this->customSSLSettings.applySSLSettings(this->m_sql);
+    this->customSSLSettings.applySSLSettings(sql);
     const char *socketStr = this->socket.empty() ? nullptr : this->socket.c_str();
     unsigned long clientFlag = (this->useMultiStatements) ? CLIENT_MULTI_STATEMENTS : 0;
     clientFlag |= CLIENT_MULTI_RESULTS;
-    const auto result = mysql_real_connect(this->m_sql, this->host.c_str(), this->username.c_str(), this->pw.c_str(),this->database.c_str(), this->port, socketStr, clientFlag);
+    const auto result = mysql_real_connect(sql, this->host.c_str(), this->username.c_str(), this->pw.c_str(),this->database.c_str(), this->port, socketStr, clientFlag);
     return result != nullptr;
 }
 
@@ -395,11 +396,14 @@ void Database::connectRun() {
             m_status = DATABASE_CONNECTION_FAILED;
             return;
         }
-        if (!attemptConnection()) {
+        if (!attemptConnection(this->m_sql)) {
             m_success = false;
             m_connection_err = mysql_error(this->m_sql);
             m_connectionDone = true;
             m_status = DATABASE_CONNECTION_FAILED;
+            //Reset the handle and make sure to null it so other functions do not use an invalid handle
+            mysql_close(this->m_sql);
+            this->m_sql = nullptr;
             this->abortWaitingQuery();
             return;
         }
@@ -413,6 +417,8 @@ void Database::connectRun() {
     }
     auto closeConnection = finally([&] {
         std::unique_lock<std::mutex> queryMutex(m_queryMutex);
+        //Also hold the connect mutex so escape() can never observe a closed handle
+        std::unique_lock<std::mutex> connectMutex(m_connectMutex);
         mysql_close(this->m_sql);
         this->m_sql = nullptr;
         this->abortWaitingQuery();
@@ -485,12 +491,21 @@ void Database::run() {
 }
 
 bool Database::attemptReconnect() {
-    mysql_close(this->m_sql);
-    this->m_sql = mysql_init(nullptr);
-    if (this->m_sql == nullptr) {
+    MYSQL *newSql = mysql_init(nullptr);
+    if (newSql == nullptr) {
         return false;
     }
-    return attemptConnection();
+    if (!attemptConnection(newSql)) {
+        mysql_close(newSql);
+        return false;
+    }
+    std::lock_guard<std::mutex> lock(m_connectMutex);
+    if (this->m_sql != nullptr) {
+        mysql_close(this->m_sql);
+    }
+    // Only swap to new SQL after the reconnect worked
+    this->m_sql = newSql;
+    return true;
 }
 
 bool Database::isRetriableError(const unsigned int errorCode) {
@@ -524,15 +539,15 @@ void Database::setSSLMode(mysql_ssl_mode newSSLMode) {
     this->sslMode = newSSLMode;
 }
 
-void Database::applyTimeoutSettings() {
+void Database::applyTimeoutSettings(MYSQL *sql) {
     if (this->connectTimeout > 0) {
-        mysql_options(this->m_sql, MYSQL_OPT_CONNECT_TIMEOUT, &this->connectTimeout);
+        mysql_options(sql, MYSQL_OPT_CONNECT_TIMEOUT, &this->connectTimeout);
     }
     if (this->readTimeout > 0) {
-        mysql_options(this->m_sql, MYSQL_OPT_READ_TIMEOUT, &this->readTimeout);
+        mysql_options(sql, MYSQL_OPT_READ_TIMEOUT, &this->readTimeout);
     }
     if (this->writeTimeout > 0) {
-        mysql_options(this->m_sql, MYSQL_OPT_WRITE_TIMEOUT, &this->writeTimeout);
+        mysql_options(sql, MYSQL_OPT_WRITE_TIMEOUT, &this->writeTimeout);
     }
 }
 

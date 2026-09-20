@@ -61,6 +61,37 @@ TestFramework:RegisterTest("[Database] should escape a string correctly", functi
 	test:Complete()
 end)
 
+TestFramework:RegisterTest("[Database] escape should error instead of crashing after the connection failed", function(test)
+	local db = mysqloo.connect(DatabaseSettings.Host, DatabaseSettings.Username, "incorrect_password", DatabaseSettings.Database, DatabaseSettings.Port)
+	db:connect()
+	db:wait()
+	test:shouldBeEqual(db:status(), mysqloo.DATABASE_CONNECTION_FAILED)
+	local status, err = pcall(db.escape, db, "t'a")
+	test:shouldBeEqual(status, false)
+	test:shouldBeEqual(tostring(err):find("not connected") != nil, true)
+	test:Complete()
+end)
+
+TestFramework:RegisterTest("[Database] escape should work after the connection was lost and reestablished", function(test)
+	local db = TestFramework:ConnectToDatabase()
+	-- Kill our own connection server side. The query itself may error, but afterwards the connection is gone
+	local killQuery = db:query("KILL CONNECTION_ID()")
+	killQuery:start()
+	killQuery:wait()
+	-- The next query fails with a retriable error, which triggers the automatic reconnect
+	local qu = db:query("SELECT 1 AS a")
+	function qu:onSuccess(data)
+		test:shouldBeEqual(data[1].a, 1)
+		test:shouldBeEqual(db:status(), mysqloo.DATABASE_CONNECTED)
+		test:shouldBeEqual(db:escape("t'a"), "t\\'a")
+		test:Complete()
+	end
+	function qu:onError(err)
+		test:Fail("query after connection loss should have reconnected but failed: " .. err)
+	end
+	qu:start()
+end)
+
 TestFramework:RegisterTest("[Database] should return correct status", function(test)
 	local db = mysqloo.connect(DatabaseSettings.Host, DatabaseSettings.Username, DatabaseSettings.Password, DatabaseSettings.Database, DatabaseSettings.Port)
 	test:shouldBeEqual(db:status(), mysqloo.DATABASE_NOT_CONNECTED)
