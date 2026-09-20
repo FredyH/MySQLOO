@@ -78,6 +78,8 @@ public:
 
     virtual std::string getSQLString() = 0;
 
+    std::shared_ptr<Database> getDatabase() const { return m_database; }
+
     void wait(bool shouldSwap);
 
     bool hasCallbackData() const {

@@ -5,6 +5,10 @@ MYSQLOO_LUA_FUNCTION(addQuery) {
     auto luaTransaction = LuaObject::getLuaObject<LuaTransaction>(LUA);
 
     auto addedLuaQuery = LuaQuery::getLuaObject<LuaQuery>(LUA, 2);
+    if (addedLuaQuery->m_query->getDatabase() != luaTransaction->m_query->getDatabase()) {
+        LUA->ThrowError("[MySQLOO] Query was created by a different database than the transaction");
+        return 0;
+    }
     LUA->Push(1);
     LUA->GetField(-1, "__queries");
     if (LUA->IsType(-1, GarrysMod::Lua::Type::Nil)) {
