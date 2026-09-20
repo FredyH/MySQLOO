@@ -136,6 +136,15 @@ TestFramework:RegisterTest("[Database] allow setting only valid character set", 
 	test:Complete()
 end)
 
+TestFramework:RegisterTest("[Database] setCharacterSet should error when not connected", function(test)
+	local db = TestFramework:ConnectToDatabase()
+	db:disconnect(true)
+	local status, err = pcall(db.setCharacterSet, db, "utf8")
+	test:shouldBeEqual(status, false)
+	test:shouldBeEqual(tostring(err):find("needs to be connected") != nil, true)
+	test:Complete()
+end)
+
 TestFramework:RegisterTest("[Database] wait for queries when disconnecting", function(test)
 	local db = TestFramework:ConnectToDatabase()
 	local qu = db:query("SELECT SLEEP(1)")

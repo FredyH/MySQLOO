@@ -147,11 +147,10 @@ std::string Database::escape(const std::string &str) {
  * This is so db:escape always has the latest value of mysql->charset
  */
 bool Database::setCharacterSet(const std::string &characterSet) {
-    if (this->m_status != DATABASE_CONNECTED) {
+    std::unique_lock<std::mutex> lk2(m_queryMutex);
+    if (this->m_status != DATABASE_CONNECTED || m_sql == nullptr) {
         throw MySQLOOException("Database needs to be connected to change charset.");
     }
-    //This mutex makes sure we can safely use the connection to run the query
-    std::unique_lock<std::mutex> lk2(m_queryMutex);
     if (mysql_set_character_set(m_sql, characterSet.c_str())) {
         return false;
     } else {
