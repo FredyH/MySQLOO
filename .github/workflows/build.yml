@@ -56,10 +56,13 @@ jobs:
             cmake_arch: x64
             artifact_name: gmsv_mysqloo_win64.dll
 
-    container: ${{ matrix.os == 'linux' && 'debian:11' || null }}
+    # We use Ubuntu 20.04 container so the module links against glibc 2.31 and keeps
+    # loading on older servers.
+    container: ${{ matrix.os == 'linux' && 'ubuntu:20.04' || null }}
 
     env:
       VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
+      DEBIAN_FRONTEND: noninteractive
 
     steps:
       - name: Export GitHub Actions cache environment variables
@@ -68,15 +71,6 @@ jobs:
           script: |
             core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
             core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
-
-      # Debian 11 reached end of life in August 2026. Its packages were moved to archive.debian.org and the
-      # security suite was removed from the regular mirrors, so apt has to use the archive instead.
-      - name: Use Debian archive repositories
-        if: matrix.os == 'linux'
-        run: |
-          echo "deb http://archive.debian.org/debian bullseye main" > /etc/apt/sources.list
-          echo "deb http://archive.debian.org/debian bullseye-updates main" >> /etc/apt/sources.list
-          echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99debian-archive
 
       - name: Install git
         if: matrix.os == 'linux'
@@ -94,13 +88,13 @@ jobs:
         run: |
           dpkg --add-architecture i386
           apt-get update
-          apt-get install -y build-essential gcc-multilib g++-multilib ninja-build curl zip unzip tar pkg-config wget libssl-dev libncurses-dev libncurses-dev:i386 libtirpc-dev:i386 libssl-dev:i386
+          apt-get install -y build-essential gcc-multilib g++-multilib ninja-build curl zip unzip tar pkg-config wget libssl-dev libncurses-dev libncurses-dev:i386 libssl-dev:i386
 
       - name: Install Linux dependencies (64-bit)
         if: matrix.os == 'linux' && matrix.arch == 'x64'
         run: |
           apt-get update
-          apt-get install -y build-essential ninja-build curl zip unzip tar pkg-config wget libncurses-dev libtirpc-dev libssl-dev
+          apt-get install -y build-essential ninja-build curl zip unzip tar pkg-config wget libncurses-dev libssl-dev
 
       - name: Install modern CMake (Linux)
         if: matrix.os == 'linux'
@@ -115,9 +109,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.vcpkg
-          key: vcpkg-debian11-${{ matrix.arch }}-${{ hashFiles('vcpkg.json') }}
+          key: vcpkg-ubuntu2004-${{ matrix.arch }}-${{ hashFiles('vcpkg.json') }}
           restore-keys: |
-            vcpkg-debian11-${{ matrix.arch }}-
+            vcpkg-ubuntu2004-${{ matrix.arch }}-
 
       - name: Setup MSVC (Windows)
         if: matrix.os == 'windows'
